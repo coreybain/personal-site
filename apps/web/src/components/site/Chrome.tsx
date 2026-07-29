@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from "react";
+import { Suspense, type CSSProperties, type ReactNode } from "react";
 import Link from "next/link";
 
 import { snapshot } from "@/lib/snapshot";
@@ -106,7 +106,9 @@ const RESUME_NAV_ITEM = {
 export function NavPill() {
   return (
     <nav className="hor-navpill" aria-label="Primary">
-      <WorkBackNavLink />
+      <Suspense fallback={null}>
+        <WorkBackNavLink />
+      </Suspense>
       {NAV.map((item) => (
         <SiteNavLink
           key={item.label}

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { CSSProperties } from "react";
 
 import type { Project } from "@/lib/snapshot";
@@ -35,8 +36,12 @@ const projectCount =
   COUNT_WORDS[snapshot.projects.length] ?? String(snapshot.projects.length);
 
 function WorkCard({ project, index }: { project: Project; index: number }) {
+  const titleId = `featured-work-${project.slug}-title`;
+
   return (
-    <article
+    <Link
+      href={`/work/${project.slug}?from=home`}
+      aria-labelledby={titleId}
       className="hor-card hor-lift hor-work-card hor-rise p-2.5"
       style={{ "--hor-delay": `${60 + index * 60}ms` } as CSSProperties}
     >
@@ -59,7 +64,9 @@ function WorkCard({ project, index }: { project: Project; index: number }) {
 
       <div className="px-3 pt-5 pb-3 sm:px-3.5">
         <div className="flex items-baseline justify-between gap-4">
-          <h3 className="hor-h3">{project.title}</h3>
+          <h3 id={titleId} className="hor-h3">
+            {project.title}
+          </h3>
           <span className="hor-label">{String(index + 1).padStart(2, "0")}</span>
         </div>
 
@@ -86,7 +93,7 @@ function WorkCard({ project, index }: { project: Project; index: number }) {
           ))}
         </ul>
       </div>
-    </article>
+    </Link>
   );
 }
 
