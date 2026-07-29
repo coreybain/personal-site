@@ -1,72 +1,74 @@
-# Design QA — footer theme picker
+# Design QA — Pyrmont location card
 
 ## Evidence
 
-- Source/problem reference: `design-qa-theme-source-normalized.png`
-- Live implementation: `design-qa-theme-implementation.png`
-- Focused implementation crop: `design-qa-theme-implementation-crop.png`
-- Side-by-side comparison: `design-qa-theme-comparison.png`
-- Source state: native operating-system select open in dark mode at 620 × 314
-- Implementation state: custom menu open in dark mode at 1311 × 964, with a 620 × 314 component crop used for comparison
+- Source card state: `design-qa-contact-map-source.png`
+- Source card crop: `design-qa-contact-map-source-crop.png`
+- Live implementation: `design-qa-contact-map-implementation.png`
+- Implementation crop: `design-qa-contact-map-implementation-crop.png`
+- Side-by-side comparison: `design-qa-contact-map-comparison.png`
+- Generated map asset: `apps/web/public/images/pyrmont-map.webp`
+- Viewport: 1311 × 964, dark system theme
 
-The supplied image documents the broken state rather than a visual target: the
-native select is visually disconnected from the site and its unselected options
-do not meet readable contrast. The implementation preserves the compact footer
-placement while replacing that browser-owned surface with the site's own panel,
-border, type, spacing, and interaction language.
+The source state was captured from the same local page and viewport with the
+new decorative layer temporarily disabled, reproducing the selected card before
+the requested map treatment. The implementation capture immediately restores
+the final asset and styles.
+
+## Design direction
+
+Claude Opus was used as the requested design review. Its guidance informed the
+bottom-right placement, low-opacity luminosity blend in dark mode, lighter
+multiply treatment, protected text zone, mobile crop, and forced-colors
+fallback.
 
 ## Visual comparison
 
 ### 1. Content
 
-- The picker retains all three required preferences: System, Light, and Dark.
-- Each option now includes concise supporting copy.
-- The current preference is shown only on its option as an `Active` state; the
-  redundant menu header has been removed.
+- `Based in` and `Sydney, Australia` remain unchanged.
+- The existing location pin remains the sole semantic icon.
+- The map contains no generated labels, logos, or competing text.
 
 Result: passed.
 
 ### 2. Structure
 
-- The visible field has been replaced with a single circular icon button.
-- The custom menu opens above and right-aligns to the trigger, which keeps it
-  inside the viewport at the footer edge.
-- Removing the header tightens the menu to the three actionable choices.
-- Footer stacking was raised so the opaque menu covers, rather than sits behind,
-  nearby case-study cards.
+- Card dimensions, padding, grid position, and content alignment are unchanged.
+- The map is absolutely positioned behind the card content and cannot affect
+  layout.
+- The oversized raster extends beyond the card and is clipped by its existing
+  rounded boundary.
 
 Result: passed.
 
 ### 3. Style
 
-- The menu uses the existing opaque panel token, strong border token, inset
-  highlight, site typography, and restrained accent color.
-- Light and dark screenshots both show readable option labels, descriptions,
-  and selected state.
-- The trigger reuses the existing sun/moon theme glyph instead of introducing a
-  new icon style.
+- The asset uses the site's midnight, cool-grey, and violet-blue palette.
+- A smaller wide Pyrmont/Darling Harbour crop now reveals more shoreline and
+  street detail in the right corner while the left-side text stays quiet and
+  legible.
+- Dark mode uses a masked 26% soft-light frame; light mode uses 7.5% multiply
+  with an inverted, higher-contrast map treatment.
 
 Result: passed.
 
-### 4. Behavior
+### 4. Behavior and responsiveness
 
-- Selecting System clears the persisted override and follows
-  `prefers-color-scheme`.
-- Light and Dark remain persisted explicit choices.
-- The menu supports pointer selection, outside-click dismissal, Arrow Up/Down,
-  Home/End, and Escape with focus returned to the trigger.
-- No native `select` remains in the rendered theme control.
+- The image is decorative, non-interactive, non-selectable, and ignores pointer
+  events.
+- Below 640px the map frame narrows, moves farther outward, and reduces opacity.
+- Forced-colors mode removes the decorative map and scrim entirely.
 
 Result: passed.
 
 ### 5. Accessibility and system
 
-- The trigger exposes `aria-haspopup`, `aria-expanded`, and `aria-controls`.
-- Options use `menuitemradio` with the selected preference exposed through
-  `aria-checked`.
-- Focus-visible styling is present, and reduced-motion mode removes menu and
-  control transitions.
-- Lint, TypeScript, production build, and `git diff --check` all pass.
+- The map is rendered with an empty alternative and `aria-hidden="true"`.
+- Location text and the pin remain above the map and protective scrim.
+- The persisted light-theme hydration path was corrected so the visual check
+  reloads without a React mismatch warning.
+- The final WebP is 960 × 263 and approximately 15 KB.
 
 Result: passed.
 

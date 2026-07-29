@@ -112,16 +112,24 @@ export function ThemeScope({
 }: ThemeScopeProps) {
   const id = useId();
 
-  // Lazy initialisers: on the server these never run the browser branch, and on
-  // the client they mirror bootScript() exactly, so hydration agrees with the DOM.
-  const [theme, setThemeState] = useState<Theme>(() =>
-    typeof window === "undefined"
-      ? defaultTheme
-      : (readStoredTheme() ?? readSystemTheme()),
-  );
-  const [isExplicit, setIsExplicit] = useState(() =>
-    typeof window === "undefined" ? false : readStoredTheme() !== null,
-  );
+  // The first React render must match the server exactly. The inline script has
+  // already corrected the wrapper attributes before paint; the effect below
+  // then brings the context state into line without hydrating different child
+  // content (for example, the footer picker's accessible label).
+  const [theme, setThemeState] = useState<Theme>(defaultTheme);
+  const [isExplicit, setIsExplicit] = useState(false);
+  const [hasMounted, setHasMounted] = useState(false);
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      const stored = readStoredTheme();
+      setThemeState(stored ?? readSystemTheme());
+      setIsExplicit(stored !== null);
+      setHasMounted(true);
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
 
   const setTheme = useCallback((next: Theme) => {
     setThemeState(next);
@@ -158,7 +166,9 @@ export function ThemeScope({
 
   // Follow the OS, but only while the user hasn't overridden it.
   useEffect(() => {
-    if (isExplicit || typeof window.matchMedia !== "function") return;
+    if (!hasMounted || isExplicit || typeof window.matchMedia !== "function") {
+      return;
+    }
 
     const mql = window.matchMedia(MEDIA_QUERY);
     const apply = (matches: boolean) => setThemeState(matches ? "dark" : "light");
@@ -167,7 +177,7 @@ export function ThemeScope({
     const onChange = (event: MediaQueryListEvent) => apply(event.matches);
     mql.addEventListener("change", onChange);
     return () => mql.removeEventListener("change", onChange);
-  }, [isExplicit]);
+  }, [hasMounted, isExplicit]);
 
   // Keep other tabs in sync when the preference changes.
   useEffect(() => {

@@ -414,7 +414,7 @@ export const snapshot = {
     github: 'coreybain',
     linkedin: 'https://www.linkedin.com/in/coreybaines/',
     x: 'https://x.com/coreybaines',
-    email: 'cbaines.dev@gmail.com',
+    email: 'corey@spiritdevs.com',
   },
 
   gitStats: {

@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import Image from "next/image";
 
 import { snapshot } from "@/lib/snapshot";
 
@@ -106,7 +107,19 @@ export function ContactHero() {
           </span>
         </a>
 
-        <div className="hor-card contact-tile hor-rise" style={delay(360)}>
+        <div
+          className="hor-card contact-tile contact-location-tile hor-rise"
+          style={delay(360)}
+        >
+          <span className="contact-location-map-frame" aria-hidden="true">
+            <Image
+              src="/images/pyrmont-map.webp"
+              alt=""
+              fill
+              sizes="(min-width: 640px) 36vw, 68vw"
+              className="contact-location-map"
+            />
+          </span>
           <span className="contact-tile-icon" aria-hidden="true">
             <svg
               width="16"
@@ -122,7 +135,7 @@ export function ContactHero() {
               <circle cx="10" cy="8.3" r="2" />
             </svg>
           </span>
-          <span className="min-w-0">
+          <span className="contact-location-copy min-w-0">
             <span className="hor-eyebrow">Based in</span>
             <span className="mt-1.5 block truncate text-[13px] font-medium tracking-[-0.012em]">
               {identity.location}

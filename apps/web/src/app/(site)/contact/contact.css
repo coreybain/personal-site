@@ -120,6 +120,86 @@
   box-shadow: var(--hor-inset-top), var(--hor-glow-accent);
 }
 
+.hor .contact-location-tile {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+
+.hor .contact-location-tile::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    var(--hor-sky-card) 0%,
+    var(--hor-sky-card) 34%,
+    transparent 72%
+  );
+}
+
+.hor .contact-location-map-frame {
+  position: absolute;
+  top: 50%;
+  right: -5%;
+  z-index: 0;
+  width: 72%;
+  height: 140%;
+  opacity: 0.26;
+  transform: translateY(-50%);
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 42%, #000 100%);
+  mask-image: linear-gradient(90deg, transparent 0%, #000 42%, #000 100%);
+  pointer-events: none;
+  user-select: none;
+}
+
+.hor .contact-location-map {
+  z-index: 0;
+  object-fit: contain;
+  object-position: center;
+  mix-blend-mode: soft-light;
+  filter: grayscale(1) contrast(1.2) brightness(1.45);
+  pointer-events: none;
+  user-select: none;
+}
+
+.hor .contact-location-tile > .contact-tile-icon,
+.hor .contact-location-copy {
+  position: relative;
+  z-index: 2;
+}
+
+.hor[data-theme="light"] .contact-location-map-frame {
+  opacity: 0.075;
+}
+
+.hor[data-theme="light"] .contact-location-map {
+  mix-blend-mode: multiply;
+  filter: grayscale(1) invert(1) contrast(1.4);
+}
+
+@media (max-width: 639px) {
+  .hor .contact-location-map-frame {
+    right: -8%;
+    width: 68%;
+    height: 125%;
+    opacity: 0.18;
+  }
+
+  .hor[data-theme="light"] .contact-location-map-frame {
+    opacity: 0.055;
+  }
+}
+
+@media (forced-colors: active) {
+  .hor .contact-location-map-frame,
+  .hor .contact-location-tile::after {
+    display: none;
+  }
+}
+
 /* ------------------------------------------------------------------ *
  * Deck — the composer
  * ------------------------------------------------------------------ */
