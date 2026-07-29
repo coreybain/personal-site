@@ -1,0 +1,295 @@
+/*
+ * /labs — page-scoped additions to the Horizon system.
+ *
+ * Everything horizon.css already provides (panels, readouts, tracks, the ramp,
+ * the rise) is used as-is. What lives here is only what the telemetry wall needs
+ * and the shared sheet does not have:
+ *
+ *   .labs-plot*   the recency dot plot — one shared axis, one dot per repo
+ *   .labs-card*   the lab panel: body stretches, stats strip sits flush
+ *   .labs-band-*  the recency ramp, reusing --hor-l1…l4
+ *
+ * Every selector nests under `.hor` and carries the `labs-` prefix, so it can
+ * neither leak into another page nor collide with a sibling's sheet. No colour
+ * is written literally — all of it resolves from `--hor-*`, so both themes are
+ * covered by the two THEME blocks in horizon.css.
+ */
+
+/* ------------------------------------------------------------------ *
+ * Recency ramp — hot (pushed today) → cold (months ago)
+ * ------------------------------------------------------------------ */
+
+.hor .labs-band-0 {
+  --labs-dot: var(--hor-l4);
+}
+.hor .labs-band-1 {
+  --labs-dot: var(--hor-l3);
+}
+.hor .labs-band-2 {
+  --labs-dot: var(--hor-l2);
+}
+.hor .labs-band-3 {
+  --labs-dot: var(--hor-l1);
+}
+
+/* Inline band seed — the 7px dot that ties a card to its row in the plot. */
+.hor .labs-seed {
+  display: block;
+  width: 7px;
+  height: 7px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--labs-dot, var(--hor-l2));
+  /* The pale end of the light-theme ramp needs an edge to read on white. */
+  box-shadow: 0 0 0 1px var(--hor-line-strong);
+}
+
+/* ------------------------------------------------------------------ *
+ * Recency plot — fixed row height, so the widget's box is known pre-paint
+ * ------------------------------------------------------------------ */
+
+.hor .labs-plot {
+  --labs-name: 92px;
+  --labs-val: 46px;
+  --labs-inset: 7px;
+}
+
+@media (min-width: 640px) {
+  .hor .labs-plot {
+    --labs-name: 132px;
+    --labs-val: 56px;
+  }
+}
+
+.hor .labs-plot-row {
+  display: grid;
+  grid-template-columns: var(--labs-name) minmax(0, 1fr) var(--labs-val);
+  align-items: center;
+  column-gap: 0.85rem;
+  height: 38px;
+}
+
+.hor .labs-plot-name {
+  font-size: 0.8125rem;
+  line-height: 1.2;
+  color: var(--hor-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hor .labs-plot-val {
+  font-family: var(--font-hor-mono), ui-monospace, SFMono-Regular, monospace;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  color: var(--hor-ink-2);
+  text-align: right;
+}
+
+.hor .labs-plot-track {
+  position: relative;
+  height: 100%;
+}
+
+/* Inset by the dot's radius, so a dot at 0 days sits fully inside the track and
+   the gridline percentages resolve against exactly the plotted range. */
+.hor .labs-plot-inner {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--labs-inset);
+  right: var(--labs-inset);
+}
+
+/* Baseline */
+.hor .labs-plot-inner::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  background: var(--hor-line-soft);
+}
+
+/* Week gridlines — one every 7 days, plus the closing edge. */
+.hor .labs-plot-inner::after {
+  content: "";
+  position: absolute;
+  inset: 6px 0;
+  background-image: repeating-linear-gradient(
+    90deg,
+    var(--hor-line-soft) 0 1px,
+    transparent 1px var(--labs-step, 50%)
+  );
+  border-right: 1px solid var(--hor-line-soft);
+}
+
+/* Elapsed time, drawn: the stem is how long ago, the dot is the push. */
+.hor .labs-plot-stem {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  height: 1px;
+  width: var(--labs-x, 0%);
+  background: linear-gradient(90deg, transparent, var(--hor-line-strong));
+  transform: translateY(-50%);
+}
+
+.hor .labs-plot-dot {
+  position: absolute;
+  top: 50%;
+  left: var(--labs-x, 0%);
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--labs-dot, var(--hor-l2));
+  box-shadow: 0 0 0 1px var(--hor-line-strong);
+  transform: translate(-50%, -50%);
+  transition: box-shadow 220ms var(--hor-ease);
+}
+
+.hor .labs-plot-row:hover .labs-plot-dot {
+  box-shadow:
+    0 0 0 1px var(--hor-line-strong),
+    0 0 0 4px var(--hor-accent-wash);
+}
+
+/* Axis foot — ticks share the plot's column template exactly, but the row
+   carries no baseline and no gridlines of its own. */
+.hor .labs-axis {
+  height: 26px;
+  align-items: start;
+}
+
+.hor .labs-axis .labs-plot-inner::before,
+.hor .labs-axis .labs-plot-inner::after {
+  display: none;
+}
+
+.hor .labs-axis-tick {
+  position: absolute;
+  top: 0;
+  left: var(--labs-x, 0%);
+  transform: translateX(-50%);
+  font-family: var(--font-hor-mono), ui-monospace, SFMono-Regular, monospace;
+  font-size: 10px;
+  line-height: 1;
+  letter-spacing: 0.1em;
+  color: var(--hor-ink-4);
+  white-space: nowrap;
+}
+
+.hor .labs-axis-tick::before {
+  content: "";
+  position: absolute;
+  top: -7px;
+  left: 50%;
+  width: 1px;
+  height: 5px;
+  background: var(--hor-line-strong);
+}
+
+.hor .labs-axis-tick[data-edge="start"] {
+  transform: none;
+}
+
+.hor .labs-axis-tick[data-edge="start"]::before {
+  left: 0;
+}
+
+.hor .labs-axis-tick[data-edge="end"] {
+  transform: translateX(-100%);
+}
+
+.hor .labs-axis-tick[data-edge="end"]::before {
+  left: auto;
+  right: 0;
+}
+
+/* ------------------------------------------------------------------ *
+ * Lab panels — the wall
+ * ------------------------------------------------------------------ */
+
+.hor .labs-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* The summary block absorbs the slack, so every strip in a row lines up. */
+.hor .labs-card .hor-panel-body {
+  flex: 1;
+}
+
+/* Featured: a hairline of accent just inside the top edge. Sits between the
+   panel's corner ticks, never over them. The span itself is only rendered for
+   featured labs, so the class alone is the gate. */
+.hor .labs-card .labs-edge {
+  position: absolute;
+  top: 0;
+  left: 14px;
+  right: 14px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--hor-accent), transparent);
+  opacity: 0.75;
+  pointer-events: none;
+}
+
+/* Two-cell instrument strip. The 1px gap is the divider. */
+.hor .labs-duo {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--hor-line-soft);
+  border-top: 1px solid var(--hor-line-soft);
+}
+
+.hor .labs-duo-cell {
+  background: var(--hor-panel);
+  padding: 0.9rem 1.05rem 0.95rem;
+  transition: background-color 260ms ease;
+}
+
+.hor .labs-foot {
+  padding: 1.05rem;
+  border-top: 1px solid var(--hor-line-soft);
+}
+
+@media (max-width: 520px) {
+  .hor .labs-duo-cell,
+  .hor .labs-foot {
+    padding-inline: 0.8rem;
+  }
+}
+
+.hor .labs-repo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: var(--font-hor-mono), ui-monospace, SFMono-Regular, monospace;
+  font-size: 0.6875rem;
+  letter-spacing: -0.005em;
+  /* Colour is left to `.hor-link` (ink-2 → accent on hover) so the two sheets
+     never race on load order. */
+}
+
+.hor .labs-repo svg {
+  flex: none;
+  opacity: 0.7;
+}
+
+.hor .labs-repo:hover svg {
+  opacity: 1;
+}
+
+/* ------------------------------------------------------------------ *
+ * Reduced motion — the plot and the wall settle where they land.
+ * ------------------------------------------------------------------ */
+
+@media (prefers-reduced-motion: reduce) {
+  .hor .labs-plot-dot {
+    transition: none !important;
+  }
+}

@@ -1,0 +1,450 @@
+/*
+ * fun.css — the /fun page only.
+ *
+ * Sky zone from top to bottom: this is the warm, human end of the site, so
+ * there is no graph paper and no instrument panel anywhere on it. What it does
+ * borrow from the deck is the mono readout, used once, on walks — steps and
+ * kilometres are the only measured things here and they should look measured.
+ *
+ * Every selector nests under `.hor` (the ThemeScope element) and every class is
+ * prefixed `fun-`, so nothing here can reach another page's markup. Colour comes
+ * from `--hor-*` in every case EXCEPT the generated artwork, which — exactly like
+ * `.hor-life-*` and `.hor-art-*` in horizon.css — paints in fixed hues keyed off
+ * `--fun-h` and is reconciled to the theme by the shared `--hor-art-veil` and the
+ * `--hor-art-line-2` hairline. No text ever sits on top of the art.
+ */
+
+/* ------------------------------------------------------------------ *
+ * Page head
+ * ------------------------------------------------------------------ */
+
+/* Between `hor-h2` and `hor-display`: a page title, not a name. */
+.hor .fun-display {
+  font-size: clamp(2.45rem, 7.4vw, 4.15rem);
+  line-height: 0.98;
+  letter-spacing: -0.042em;
+  font-weight: 500;
+}
+
+/* The key row doubles as the legend for the artwork: each chip carries a
+   swatch painted with the same gradient as the cards of that kind. */
+.hor .fun-key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.hor .fun-key-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  height: 31px;
+  padding-inline: 0.6rem 0.8rem;
+  border-radius: 999px;
+  border: 1px solid var(--hor-sky-card-edge);
+  background: var(--hor-sky-card);
+  box-shadow: var(--hor-inset-top), var(--hor-shadow-sky);
+  backdrop-filter: blur(14px) saturate(150%);
+  -webkit-backdrop-filter: blur(14px) saturate(150%);
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--hor-ink-2);
+  white-space: nowrap;
+}
+
+.hor .fun-key-n {
+  font-family: var(--font-hor-mono), ui-monospace, SFMono-Regular, monospace;
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--hor-ink-3);
+}
+
+.hor .fun-swatch {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  border-radius: 4px;
+  box-shadow: inset 0 0 0 1px var(--hor-art-line-2);
+}
+
+/* ------------------------------------------------------------------ *
+ * The seam — a horizon rule of the page's own, sky to sky.
+ *
+ * The shared <Boundary> hands off to the deck material; this one stays in the
+ * sky on both sides. Fixed height, so it can never reflow.
+ * ------------------------------------------------------------------ */
+
+.hor .fun-seam {
+  position: relative;
+  z-index: 2;
+  height: var(--hor-boundary-h);
+  background: linear-gradient(180deg, var(--hor-sky-bottom), var(--hor-bg) 66%);
+}
+
+.hor .fun-seam::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--hor-line-strong) 16%,
+    var(--hor-line-strong) 84%,
+    transparent
+  );
+  box-shadow: var(--hor-rule-glow);
+}
+
+/* ------------------------------------------------------------------ *
+ * Bands
+ * ------------------------------------------------------------------ */
+
+.hor .fun-band + .fun-band {
+  margin-top: 2.75rem;
+}
+
+@media (min-width: 720px) {
+  .hor .fun-band + .fun-band {
+    margin-top: 3.5rem;
+  }
+}
+
+.hor .fun-band-head {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  margin-bottom: 0.85rem;
+}
+
+.hor .fun-band-rule {
+  flex: 1;
+  min-width: 12px;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    var(--hor-line-strong),
+    var(--hor-line-soft) 55%,
+    transparent
+  );
+}
+
+.hor .fun-band-stamp {
+  display: none;
+}
+
+@media (min-width: 640px) {
+  .hor .fun-band-stamp {
+    display: block;
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * Grid — fixed column counts at each step rather than `auto-fill`, so a
+ * lead card spanning two columns can never invent an implicit third one
+ * and push the page sideways at 375px.
+ * ------------------------------------------------------------------ */
+
+.hor .fun-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: 14px;
+}
+
+@media (min-width: 560px) {
+  .hor .fun-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .hor .fun-lead {
+    grid-column: span 2;
+  }
+}
+
+@media (min-width: 920px) {
+  .hor .fun-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 16px;
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * Card — the sky card at a smaller radius, photo-led.
+ * ------------------------------------------------------------------ */
+
+/* `.hor .hor-card` sets the radius at the same specificity, so the override
+   has to out-rank it rather than merely follow it. */
+.hor .fun-card.hor-card {
+  border-radius: 16px;
+}
+
+.hor .fun-card {
+  display: block;
+  padding: 9px;
+}
+
+.hor .fun-body {
+  padding: 0.85rem 0.55rem 0.5rem;
+}
+
+.hor .fun-lead .fun-body {
+  padding: 1rem 0.7rem 0.65rem;
+}
+
+.hor .fun-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.hor .fun-title {
+  font-size: 0.86rem;
+  font-weight: 500;
+  line-height: 1.32;
+  letter-spacing: -0.016em;
+  color: var(--hor-ink);
+  text-wrap: pretty;
+}
+
+/* Walk readouts — the one place the deck's face crosses the horizon. The 1px
+   gap between the cells is the divider. */
+.hor .fun-readouts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  margin-top: 0.7rem;
+  background: var(--hor-line-soft);
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.hor .fun-readout-cell {
+  padding: 0.5rem 0.6rem 0.55rem;
+  background: var(--hor-chip);
+}
+
+/* ------------------------------------------------------------------ *
+ * Peak — the longest walk in the log, marked with the ramp's sun exactly
+ * as the heatmap marks its best day.
+ * ------------------------------------------------------------------ */
+
+.hor .fun-card[data-peak="1"] .fun-art {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--hor-sun) 62%, transparent);
+}
+
+.hor .fun-peak-dot {
+  display: block;
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--hor-sun);
+  box-shadow: var(--hor-glow-sun);
+}
+
+/* ------------------------------------------------------------------ *
+ * Generated art
+ *
+ * `.fun-art` is the frame (ratio, clip, hairline, veil); `.fun-paint` is the
+ * painted plane inside it, oversized so the hover scale never reveals an edge.
+ * ------------------------------------------------------------------ */
+
+.hor .fun-art {
+  position: relative;
+  overflow: hidden;
+  border-radius: 10px;
+  aspect-ratio: 4 / 3;
+  background: var(--hor-art-base);
+  box-shadow: inset 0 0 0 1px var(--hor-art-line-2);
+}
+
+.hor .fun-paint {
+  position: absolute;
+  inset: -5%;
+  transition: transform 1.1s var(--hor-ease);
+}
+
+/* Veil — the same top-to-bottom settle every other tile on the site carries,
+   and the piece that makes fixed-hue art sit correctly in both themes. */
+.hor .fun-art::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--hor-art-veil);
+  pointer-events: none;
+}
+
+.hor .fun-card:hover .fun-paint {
+  transform: scale(1.055);
+}
+
+/* --- beer: a glass. Foam head, amber body, a sheen and a few bubbles. --- */
+
+.hor .fun-art[data-kind="beer"],
+.hor .fun-swatch[data-kind="beer"] {
+  --fun-h: 38;
+}
+
+.hor .fun-art[data-kind="beer"] {
+  aspect-ratio: 5 / 6;
+}
+
+.hor .fun-art[data-kind="beer"] .fun-paint,
+.hor .fun-swatch[data-kind="beer"] {
+  background:
+    radial-gradient(circle at 32% 74%, rgba(255, 255, 255, 0.55) 0 1.5px, transparent 2.2px),
+    radial-gradient(circle at 58% 63%, rgba(255, 255, 255, 0.45) 0 2px, transparent 2.8px),
+    radial-gradient(circle at 44% 52%, rgba(255, 255, 255, 0.35) 0 1.4px, transparent 2px),
+    radial-gradient(circle at 69% 43%, rgba(255, 255, 255, 0.3) 0 1.2px, transparent 1.8px),
+    linear-gradient(97deg, transparent 13%, rgba(255, 255, 255, 0.24) 19%, transparent 26%),
+    linear-gradient(
+      180deg,
+      hsl(44 70% 97%) 0 8%,
+      hsl(42 60% 88%) 8% 15%,
+      hsl(var(--fun-h) 96% 70%) 22%,
+      hsl(calc(var(--fun-h) - 5) 92% 55%) 60%,
+      hsl(calc(var(--fun-h) - 12) 86% 41%) 100%
+    );
+}
+
+/* --- coffee: the cup from above. Concentric crema, rim, saucer. --- */
+
+.hor .fun-art[data-kind="coffee"],
+.hor .fun-swatch[data-kind="coffee"] {
+  --fun-h: 26;
+}
+
+.hor .fun-art[data-kind="coffee"] {
+  aspect-ratio: 1 / 1;
+}
+
+.hor .fun-art[data-kind="coffee"] .fun-paint,
+.hor .fun-swatch[data-kind="coffee"] {
+  background:
+    radial-gradient(circle at 50% 47%, hsl(calc(var(--fun-h) + 8) 46% 82%) 0 12%, transparent 13%),
+    radial-gradient(circle at 50% 47%, hsl(calc(var(--fun-h) + 3) 42% 66%) 0 26%, transparent 27%),
+    radial-gradient(circle at 50% 47%, hsl(var(--fun-h) 46% 30%) 0 38%, transparent 39%),
+    radial-gradient(circle at 50% 47%, hsl(30 24% 96%) 0 48%, transparent 49%),
+    radial-gradient(circle at 50% 47%, hsl(28 16% 82%) 0 51%, transparent 52%),
+    linear-gradient(155deg, hsl(28 20% 90%), hsl(26 14% 73%));
+}
+
+/* --- walk: horizon strata. The page's own motif, four bands and a sun. --- */
+
+.hor .fun-art[data-kind="walk"],
+.hor .fun-swatch[data-kind="walk"] {
+  --fun-h: 256;
+}
+
+.hor .fun-art[data-kind="walk"] {
+  aspect-ratio: 16 / 10;
+}
+
+.hor .fun-art[data-kind="walk"] .fun-paint,
+.hor .fun-swatch[data-kind="walk"] {
+  background:
+    radial-gradient(
+      circle at 76% 26%,
+      hsl(38 96% 72%) 0 5%,
+      hsl(38 96% 66% / 0.38) 5% 9%,
+      transparent 10%
+    ),
+    linear-gradient(
+      180deg,
+      hsl(var(--fun-h) 66% 64%) 0 34%,
+      hsl(calc(var(--fun-h) + 44) 56% 60%) 34% 48%,
+      hsl(38 86% 62%) 48% 55%,
+      hsl(210 34% 38%) 55% 70%,
+      hsl(212 30% 26%) 70% 100%
+    );
+}
+
+/* The track: a dashed arc across the near ground. */
+.hor .fun-art[data-kind="walk"] .fun-paint::before {
+  content: "";
+  position: absolute;
+  left: -8%;
+  right: -8%;
+  top: 74%;
+  height: 16%;
+  border-top: 1px dashed var(--hor-art-line-2);
+  border-radius: 50% / 100% 100% 0 0;
+}
+
+/* --- pub: the window from the footpath. Two lit panes, warm spill. --- */
+
+.hor .fun-art[data-kind="pub"],
+.hor .fun-swatch[data-kind="pub"] {
+  --fun-h: 34;
+}
+
+.hor .fun-art[data-kind="pub"] .fun-paint,
+.hor .fun-swatch[data-kind="pub"] {
+  background:
+    radial-gradient(
+      42% 30% at 32% 54%,
+      hsl(var(--fun-h) 94% 66% / 0.95),
+      hsl(var(--fun-h) 90% 54% / 0.3) 62%,
+      transparent 76%
+    ),
+    radial-gradient(
+      32% 24% at 71% 60%,
+      hsl(calc(var(--fun-h) + 10) 92% 62% / 0.8),
+      transparent 74%
+    ),
+    radial-gradient(72% 42% at 50% 106%, hsl(var(--fun-h) 90% 58% / 0.45), transparent 70%),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.055) 0 1px, transparent 1px 11px),
+    linear-gradient(180deg, hsl(258 32% 24%), hsl(256 42% 12%));
+}
+
+/* The hanging sign. */
+.hor .fun-art[data-kind="pub"] .fun-paint::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 13%;
+  width: 24%;
+  height: 16%;
+  transform: translateX(-50%);
+  border: 1px solid hsl(var(--fun-h) 60% 78% / 0.5);
+  border-radius: 3px;
+  background: hsl(var(--fun-h) 80% 58% / 0.22);
+  box-shadow: 0 0 14px hsl(var(--fun-h) 90% 60% / 0.35);
+}
+
+/* Lead cards are banners regardless of kind — placed after the per-kind
+   ratios so it wins the tie on source order. */
+.hor .fun-lead .fun-art {
+  aspect-ratio: 16 / 9;
+}
+
+/* ------------------------------------------------------------------ *
+ * Sign-off
+ * ------------------------------------------------------------------ */
+
+.hor .fun-signoff {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem 2rem;
+  padding-top: 1.5rem;
+}
+
+/* ------------------------------------------------------------------ *
+ * Reduced motion — horizon.css settles the shared pieces; these are mine.
+ * ------------------------------------------------------------------ */
+
+@media (prefers-reduced-motion: reduce) {
+  .hor .fun-paint {
+    transition: none !important;
+  }
+
+  .hor .fun-card:hover .fun-paint {
+    transform: none;
+  }
+}

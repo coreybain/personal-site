@@ -1,0 +1,632 @@
+/*
+ * /resume — page-scoped styles.
+ *
+ * Everything here nests under `.hor .res-doc`, where `.res-doc` is the class on
+ * this page's <main>. That does two things:
+ *
+ *   1. It namespaces the file. Sibling pages are being built concurrently and
+ *      nothing below can reach them.
+ *   2. It gives every rule (0,3,0) specificity, so where this page deliberately
+ *      re-tunes a horizon.css primitive — `.hor-display` on a document header is
+ *      not the same instrument as `.hor-display` on the hero — the override wins
+ *      regardless of stylesheet order.
+ *
+ * Colour comes only from `--hor-*`. The single exception is the print block at
+ * the foot of the file, which re-declares those same tokens for paper.
+ */
+
+/* ------------------------------------------------------------------ *
+ * Document header — sky zone
+ * ------------------------------------------------------------------ */
+
+.hor .res-doc .res-head {
+  display: grid;
+  gap: 2.5rem;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+}
+
+@media (min-width: 1000px) {
+  .hor .res-doc .res-head {
+    grid-template-columns: minmax(0, 1fr) 316px;
+    gap: 3.5rem;
+  }
+}
+
+/* A résumé header is a document title, not the site's hero. Same face, same
+   tracking, one step down the scale. */
+.hor .res-doc .res-name {
+  font-size: clamp(2.6rem, 8vw, 4.4rem);
+  line-height: 0.94;
+}
+
+.hor .res-doc .res-metaline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.75rem;
+  margin-top: 0.85rem;
+}
+
+.hor .res-doc .res-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 2.25rem;
+}
+
+/* The PDF control. Present, legible, and plainly not available yet — a link to
+   a route that 404s would be worse than a disabled key. */
+.hor .res-doc .res-dl {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  height: 43px;
+  padding-inline: 1.05rem;
+  border-radius: 12px;
+  border: 1px dashed var(--hor-line-strong);
+  background: var(--hor-chip);
+  color: var(--hor-ink-3);
+  font-size: 0.875rem;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: not-allowed;
+}
+
+.hor .res-doc .res-dl svg {
+  opacity: 0.75;
+}
+
+.hor .res-doc .res-soon {
+  display: inline-flex;
+  align-items: center;
+  height: 19px;
+  padding-inline: 0.4rem;
+  border: 1px solid var(--hor-line-strong);
+  border-radius: 5px;
+  font-family: var(--font-hor-mono), ui-monospace, SFMono-Regular, monospace;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--hor-ink-2);
+}
+
+.hor .res-doc .res-actions-note {
+  margin-top: 0.9rem;
+  max-width: 46ch;
+}
+
+/* ---- the contact card ------------------------------------------------- */
+
+.hor .res-doc .res-vcard {
+  padding: 1.15rem 1.25rem 1.35rem;
+}
+
+.hor .res-doc .res-vrow {
+  display: block;
+  padding-block: 0.7rem;
+}
+
+.hor .res-doc .res-vrow + .res-vrow {
+  border-top: 1px solid var(--hor-line-soft);
+}
+
+.hor .res-doc .res-vval {
+  display: block;
+  margin-top: 0.4rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  letter-spacing: -0.012em;
+  color: var(--hor-ink);
+  overflow-wrap: anywhere;
+}
+
+/* Revision stamp — the sky zone's one instrument detail. */
+.hor .res-doc .res-vfoot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 0.35rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--hor-line);
+}
+
+/* ------------------------------------------------------------------ *
+ * Live signal — deck zone
+ * ------------------------------------------------------------------ */
+
+/* Fixed floor on every readout cell, so the four of them stay a strip rather
+   than a ragged row when one caption wraps. */
+.hor .res-doc .res-stat {
+  min-height: 116px;
+}
+
+.hor .res-doc .res-stat-unit {
+  font-size: 0.6875rem;
+  letter-spacing: 0.06em;
+  color: var(--hor-ink-3);
+}
+
+/* ---- cadence sparkline ------------------------------------------------ */
+
+.hor .res-doc .res-cadence-scroll {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.hor .res-doc .res-cadence-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.hor .res-doc .res-cadence-floor {
+  min-width: 560px;
+}
+
+/* Fixed viewBox + width:100% + height:auto ⇒ the intrinsic ratio is known
+   before paint, so the widget reserves its exact box and never shifts. */
+.hor .res-doc .res-cadence {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.hor .res-doc .res-bar {
+  transform-box: fill-box;
+  transform-origin: bottom;
+  animation: res-bar-in 0.6s var(--hor-ease) both;
+  animation-delay: calc(var(--c, 0) * 9ms + 200ms);
+  transition: opacity 0.18s var(--hor-ease);
+}
+
+.hor .res-doc .res-cadence:hover .res-bar {
+  opacity: 0.45;
+}
+
+.hor .res-doc .res-cadence .res-bar:hover {
+  opacity: 1;
+}
+
+@keyframes res-bar-in {
+  from {
+    transform: scaleY(0.02);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+.hor .res-doc .res-baseline {
+  stroke: var(--hor-line);
+  stroke-width: 1;
+}
+
+.hor .res-doc .res-peak-tick {
+  fill: var(--hor-sun);
+}
+
+/* ---- provenance ------------------------------------------------------- */
+
+.hor .res-doc .res-stamp {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.hor .res-doc .res-note {
+  border-top: 1px solid var(--hor-line-soft);
+  padding-top: 0.9rem;
+  margin-top: 1.1rem;
+}
+
+/* ------------------------------------------------------------------ *
+ * Experience timeline — sky zone
+ * ------------------------------------------------------------------ */
+
+.hor .res-doc .res-tl {
+  position: relative;
+  padding-left: 26px;
+  list-style: none;
+}
+
+@media (min-width: 640px) {
+  .hor .res-doc .res-tl {
+    padding-left: 34px;
+  }
+}
+
+/* The rail. Grows down on load, from the same easing curve as everything
+   else; it is decorative, so it carries no semantics. */
+.hor .res-doc .res-tl::before {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 10px;
+  bottom: 10px;
+  width: 1px;
+  background: linear-gradient(
+    180deg,
+    var(--hor-line-strong),
+    var(--hor-line) 40%,
+    transparent
+  );
+  transform-origin: top center;
+  animation: res-rail 1.1s var(--hor-ease) both;
+  animation-delay: 120ms;
+}
+
+@media (min-width: 640px) {
+  .hor .res-doc .res-tl::before {
+    left: 8px;
+  }
+}
+
+@keyframes res-rail {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+.hor .res-doc .res-role {
+  position: relative;
+}
+
+.hor .res-doc .res-role + .res-role {
+  margin-top: 1rem;
+}
+
+/* Node on the rail — sits level with the role title. */
+.hor .res-doc .res-node {
+  position: absolute;
+  top: 26px;
+  left: -26px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--hor-accent);
+  box-shadow: var(--hor-glow-accent);
+}
+
+@media (min-width: 640px) {
+  .hor .res-doc .res-node {
+    left: -30px;
+  }
+}
+
+/* The current role's node is the sun, and it is the live one. */
+.hor .res-doc .res-node-now {
+  background: var(--hor-sun);
+  box-shadow: var(--hor-glow-sun);
+}
+
+.hor .res-doc .res-role-card {
+  padding: 1.15rem 1.15rem 1.25rem;
+}
+
+@media (min-width: 640px) {
+  .hor .res-doc .res-role-card {
+    padding: 1.4rem 1.5rem 1.5rem;
+  }
+}
+
+.hor .res-doc .res-role-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem 1.25rem;
+}
+
+.hor .res-doc .res-org {
+  margin-top: 0.4rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--hor-ink-2);
+}
+
+.hor .res-doc .res-dates {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-family: var(--font-hor-mono), ui-monospace, SFMono-Regular, monospace;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+  color: var(--hor-ink-2);
+  white-space: nowrap;
+}
+
+.hor .res-doc .res-hl {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 1.1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--hor-line-soft);
+  list-style: none;
+}
+
+.hor .res-doc .res-hl li {
+  display: grid;
+  grid-template-columns: 13px minmax(0, 1fr);
+  gap: 0.6rem;
+  align-items: start;
+  font-size: 0.8125rem;
+  line-height: 1.55;
+  color: var(--hor-ink-2);
+}
+
+/* Registration tick, echoing the corner marks on the deck panels. */
+.hor .res-doc .res-hl li::before {
+  content: "";
+  margin-top: 0.5em;
+  width: 9px;
+  height: 1px;
+  background: var(--hor-accent);
+  opacity: 0.85;
+}
+
+/* ------------------------------------------------------------------ *
+ * Capabilities
+ * ------------------------------------------------------------------ */
+
+.hor .res-doc .res-caps {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0 2.5rem;
+  border-top: 1px solid var(--hor-line);
+  list-style: none;
+}
+
+@media (min-width: 720px) {
+  .hor .res-doc .res-caps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.hor .res-doc .res-cap {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: baseline;
+  padding-block: 0.85rem;
+  border-bottom: 1px solid var(--hor-line-soft);
+  font-size: 0.875rem;
+  letter-spacing: -0.012em;
+  color: var(--hor-ink);
+}
+
+.hor .res-doc .res-cap-idx {
+  font-family: var(--font-hor-mono), ui-monospace, SFMono-Regular, monospace;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: var(--hor-ink-4);
+}
+
+/* ------------------------------------------------------------------ *
+ * Education + colophon
+ * ------------------------------------------------------------------ */
+
+.hor .res-doc .res-edu {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem 1.5rem;
+  padding: 1.15rem 1.25rem;
+}
+
+.hor .res-doc .res-colophon {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem 1.5rem;
+  margin-top: 2.5rem;
+  padding-top: 1.1rem;
+  border-top: 1px solid var(--hor-line);
+}
+
+/* Screen-hidden, paper-visible: the URL and stamp a printed page needs. */
+.hor .res-doc .res-print-only {
+  display: none;
+}
+
+/* ------------------------------------------------------------------ *
+ * Reduced motion — this file's own additions
+ * ------------------------------------------------------------------ */
+
+@media (prefers-reduced-motion: reduce) {
+  .hor .res-doc .res-bar,
+  .hor .res-doc .res-tl::before {
+    animation: none !important;
+    transform: none !important;
+  }
+
+  .hor .res-doc .res-bar {
+    transition: none !important;
+  }
+
+  .hor .res-doc .res-cadence:hover .res-bar {
+    opacity: 1;
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * Print — the same document, on paper.
+ *
+ * The nav pill and the footer live in the shared `(site)` layout, which this
+ * page must not edit. `.hor:has(.res-doc)` reaches them from here without
+ * touching a shared file, and without leaking onto sibling routes: the rules
+ * only match while this page's <main> is in the tree.
+ *
+ * `html` in the selector lifts every override to (0,2,1), so it beats the
+ * (0,2,0) theme blocks in horizon.css regardless of stylesheet order.
+ * ------------------------------------------------------------------ */
+
+@page {
+  margin: 14mm 13mm;
+}
+
+@media print {
+  /* Paper tokens. One block, exactly like the two THEME blocks it replaces. */
+  html .hor:has(.res-doc) {
+    --hor-bg: #ffffff;
+    --hor-sky-top: #ffffff;
+    --hor-sky-bottom: #ffffff;
+    --hor-deck: #ffffff;
+    --hor-panel: #ffffff;
+    --hor-panel-top: transparent;
+    --hor-grid: transparent;
+    --hor-chip: transparent;
+    --hor-sky-card: transparent;
+    --hor-sky-card-hover: transparent;
+    --hor-sky-card-edge: rgba(0, 0, 0, 0.22);
+
+    --hor-ink: #000000;
+    --hor-ink-2: #1d1d24;
+    --hor-ink-3: #33333d;
+    --hor-ink-4: #43434f;
+
+    --hor-line: rgba(0, 0, 0, 0.24);
+    --hor-line-soft: rgba(0, 0, 0, 0.13);
+    --hor-line-strong: rgba(0, 0, 0, 0.42);
+
+    --hor-accent: #1f1f4a;
+    --hor-accent-mid: #1f1f4a;
+    --hor-accent-deep: #14142f;
+    --hor-accent-wash: transparent;
+    --hor-sun: #4a3200;
+
+    --hor-l0: rgba(0, 0, 0, 0.08);
+    --hor-l1: rgba(0, 0, 0, 0.22);
+    --hor-l2: rgba(0, 0, 0, 0.38);
+    --hor-l3: rgba(0, 0, 0, 0.56);
+    --hor-l4: rgba(0, 0, 0, 0.82);
+
+    --hor-shadow-sky: none;
+    --hor-shadow-sky-lift: none;
+    --hor-shadow-panel: none;
+    --hor-inset-top: none;
+    --hor-rule-glow: none;
+    --hor-glow-sun: none;
+    --hor-glow-accent: none;
+    --hor-boundary-h: 0px;
+
+    /* `overflow-x: clip` and a 100dvh floor make sense on screen and break
+       pagination on paper. */
+    display: block;
+    min-height: 0;
+    overflow: visible;
+    background: #ffffff;
+    color: #000000;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  /* Shared chrome and page furniture: off. */
+  html .hor:has(.res-doc) > .hor-navpill,
+  html .hor:has(.res-doc) > footer,
+  html .hor:has(.res-doc) .hor-boundary,
+  html .hor:has(.res-doc) .hor-wash,
+  html .hor:has(.res-doc) .hor-deck-grid,
+  html .hor:has(.res-doc) .res-noprint {
+    display: none !important;
+  }
+
+  /* Ink-saving: glass, blur and corner ticks are screen affordances. */
+  html .hor:has(.res-doc) .hor-card,
+  html .hor:has(.res-doc) .hor-panel {
+    border: 1px solid rgba(0, 0, 0, 0.24);
+    border-radius: 4px;
+    background: #ffffff;
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  html .hor:has(.res-doc) .hor-panel::before,
+  html .hor:has(.res-doc) .hor-panel::after {
+    display: none;
+  }
+
+  /* Nothing may still be mid-animation when the sheet is captured. */
+  html .hor:has(.res-doc) .hor-rise,
+  html .hor:has(.res-doc) .res-bar,
+  html .hor:has(.res-doc) .hor-fill,
+  html .hor:has(.res-doc) .hor-live::after,
+  html .hor:has(.res-doc) .res-tl::before {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  html .hor:has(.res-doc) .hor-live::after {
+    display: none;
+  }
+
+  html .hor:has(.res-doc) .hor-sky,
+  html .hor:has(.res-doc) .hor-deck-zone {
+    background: #ffffff;
+  }
+
+  /* `padding: 0` (not just inline): the deck shell carries Tailwind pb-16/20,
+     which would otherwise survive as a dead gap mid-document on paper. */
+  html .hor:has(.res-doc) .hor-shell {
+    max-width: none;
+    padding: 0;
+  }
+
+  .hor .res-doc {
+    padding: 0;
+  }
+
+  .hor .res-doc .res-print-only {
+    display: block;
+  }
+
+  /* Tighten the screen rhythm to a page. */
+  .hor .res-doc .res-head {
+    gap: 1.5rem;
+    grid-template-columns: minmax(0, 1fr) 230px;
+    padding: 0 0 1.25rem;
+  }
+
+  .hor .res-doc .res-name {
+    font-size: 2.3rem;
+  }
+
+  .hor .res-doc .res-section {
+    margin-top: 1.4rem;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+
+  .hor .res-doc .res-cadence-floor {
+    min-width: 0;
+  }
+
+  .hor .res-doc .res-stat {
+    min-height: 0;
+  }
+
+  /* Keep records whole across a page break. */
+  .hor .res-doc .res-role,
+  .hor .res-doc .res-edu,
+  .hor .res-doc .hor-panel,
+  .hor .res-doc .res-cap {
+    break-inside: avoid;
+  }
+
+  .hor .res-doc .hor-sec-head,
+  .hor .res-doc h2,
+  .hor .res-doc h3 {
+    break-after: avoid;
+  }
+}

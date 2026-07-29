@@ -1,0 +1,299 @@
+/*
+ * Contact — page-scoped extensions to the Horizon language.
+ *
+ * Everything here nests under `.hor` (the ThemeScope class) and is namespaced
+ * `contact-*`, so it cannot collide with horizon.css or with any sibling page's
+ * stylesheet. No colour is declared literally: every value resolves from a
+ * `--hor-*` custom property, so both themes are handled by horizon.css alone.
+ *
+ * The page keeps the site's zone grammar:
+ *   SKY   the invitation — glass, sans, the address set as a monument.
+ *   DECK  the mechanism — an instrument panel that composes a mailto and says
+ *         so in plain mono type. Nothing here pretends to be a send.
+ *   SKY   what to write about.
+ */
+
+/* ------------------------------------------------------------------ *
+ * Sky — the invitation
+ * ------------------------------------------------------------------ */
+
+/* One step down from `.hor-display`: this page's title shares the family but
+   yields the top of the scale to the homepage. */
+.hor .contact-display {
+  font-size: clamp(2.4rem, 7.6vw, 4.4rem);
+  line-height: 0.95;
+  letter-spacing: -0.042em;
+  font-weight: 500;
+}
+
+.hor .contact-mail-card {
+  position: relative;
+  overflow: hidden;
+  padding: clamp(1.35rem, 4vw, 2.2rem);
+}
+
+/* A whisper of the deck's graph paper, pulled up into the sky card and washed
+   with the accent. Decorative, non-interactive, and it can never reflow. */
+.hor .contact-mail-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(112% 130% at 92% 116%, var(--hor-accent-wash), transparent 60%),
+    repeating-linear-gradient(90deg, var(--hor-line-soft) 0 1px, transparent 1px 46px);
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 72%);
+  mask-image: linear-gradient(90deg, transparent, #000 72%);
+}
+
+.hor .contact-mail-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* The address itself — the primary action, sized as display type. The
+   underline sweeps in on hover the way `.hor-link` does, one weight heavier. */
+.hor .contact-addr {
+  display: inline-block;
+  max-width: 100%;
+  font-size: clamp(1.3rem, 5.4vw, 2.6rem);
+  line-height: 1.1;
+  letter-spacing: -0.035em;
+  font-weight: 500;
+  color: var(--hor-ink);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+  background-image: linear-gradient(var(--hor-accent), var(--hor-accent));
+  background-repeat: no-repeat;
+  background-size: 0% 2px;
+  background-position: 0 100%;
+  transition:
+    background-size 0.5s var(--hor-ease),
+    color 0.3s var(--hor-ease);
+}
+
+.hor .contact-addr:hover {
+  color: var(--hor-accent);
+  background-size: 100% 2px;
+}
+
+/* Fixed box, so swapping the label for "Copied" cannot move the row. */
+.hor .contact-copy {
+  min-width: 158px;
+  justify-content: center;
+}
+
+/* Secondary channels — GitHub and location, in the sky material.
+   Written as `.hor-card.contact-tile` so the tighter radius wins over
+   `.hor-card` regardless of which stylesheet the bundler emits first. */
+.hor .hor-card.contact-tile {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 0.95rem 1.1rem;
+  border-radius: 16px;
+  text-decoration: none;
+  color: inherit;
+}
+
+.hor .contact-tile-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  flex: none;
+  border-radius: 11px;
+  border: 1px solid var(--hor-line);
+  background: var(--hor-chip);
+  color: var(--hor-ink-2);
+  box-shadow: var(--hor-inset-top);
+  transition:
+    color 200ms var(--hor-ease),
+    border-color 200ms var(--hor-ease),
+    box-shadow 200ms var(--hor-ease);
+}
+
+.hor a.contact-tile:hover .contact-tile-icon {
+  color: var(--hor-accent);
+  border-color: var(--hor-line-strong);
+  box-shadow: var(--hor-inset-top), var(--hor-glow-accent);
+}
+
+/* ------------------------------------------------------------------ *
+ * Deck — the composer
+ * ------------------------------------------------------------------ */
+
+.hor .contact-form {
+  display: grid;
+  gap: 0.9rem;
+}
+
+/* Stacked below 560px, two-up above. The gap is owned here rather than by a
+   utility class so the two rules can never disagree about the breakpoint. */
+.hor .contact-pair > * + * {
+  margin-top: 0.9rem;
+}
+
+@media (min-width: 560px) {
+  .hor .contact-pair {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.9rem;
+  }
+
+  .hor .contact-pair > * + * {
+    margin-top: 0;
+  }
+}
+
+.hor .contact-lbl {
+  display: block;
+  margin-bottom: 0.45rem;
+}
+
+.hor .contact-in {
+  display: block;
+  width: 100%;
+  height: 44px;
+  padding: 0 0.75rem;
+  border: 1px solid var(--hor-line);
+  border-radius: var(--hor-radius-deck);
+  background: var(--hor-chip);
+  color: var(--hor-ink);
+  font-family: inherit;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  transition:
+    border-color 200ms var(--hor-ease),
+    box-shadow 200ms var(--hor-ease);
+}
+
+.hor textarea.contact-in {
+  height: auto;
+  /* Fixed floor + author-controlled resize: the panel's height is known before
+     paint and only the reader can change it. */
+  min-height: 148px;
+  padding: 0.65rem 0.75rem;
+  resize: vertical;
+}
+
+/* 16px on small screens stops iOS zooming the viewport on focus. */
+@media (max-width: 520px) {
+  .hor .contact-in {
+    font-size: 1rem;
+  }
+}
+
+.hor .contact-in::placeholder {
+  color: var(--hor-ink-4);
+}
+
+.hor .contact-in:hover {
+  border-color: var(--hor-line-strong);
+}
+
+.hor .contact-in:focus {
+  outline: none;
+  border-color: var(--hor-accent);
+  box-shadow: 0 0 0 3px var(--hor-accent-wash);
+}
+
+/* Keyboard focus keeps the crisp system ring instead of the soft wash, so the
+   two never stack into a five-pixel halo. */
+.hor .contact-in:focus-visible {
+  outline: 2px solid var(--hor-focus);
+  outline-offset: 2px;
+  box-shadow: none;
+}
+
+/* The wire: what the submit button will actually hand to the mail client. */
+.hor .contact-wire {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  height: 32px;
+  padding-inline: 0.6rem;
+  border: 1px dashed var(--hor-line);
+  border-radius: var(--hor-radius-deck);
+  background: var(--hor-l0);
+}
+
+.hor span.contact-wire-val {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--hor-ink-2);
+}
+
+.hor .contact-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+}
+
+/* Reserved box for the handoff line. Empty at rest — the space is paid for up
+   front so the panel cannot grow when the message appears. */
+.hor .contact-status {
+  min-height: 2.9em;
+}
+
+@media (max-width: 520px) {
+  .hor .contact-status {
+    min-height: 4.35em;
+  }
+}
+
+.hor .contact-status[data-state="handoff"] {
+  color: var(--hor-ink-2);
+}
+
+.hor .contact-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 0.45rem;
+  border-radius: 50%;
+  background: var(--hor-sun);
+  box-shadow: var(--hor-glow-sun);
+  vertical-align: 0.08em;
+}
+
+/* Directory values sit hard right against their mono labels. Element-qualified
+   so the ink colour beats `.hor-body` whatever the stylesheet order. */
+.hor dd.contact-val {
+  text-align: right;
+  color: var(--hor-ink);
+  overflow-wrap: anywhere;
+}
+
+/* ------------------------------------------------------------------ *
+ * Sky — what to write about
+ * ------------------------------------------------------------------ */
+
+.hor .hor-card.contact-topic {
+  padding: 1.15rem 1.25rem 1.35rem;
+  border-radius: 18px;
+}
+
+.hor .contact-topic-idx {
+  font-family: var(--font-hor-mono), ui-monospace, SFMono-Regular, monospace;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: var(--hor-accent);
+}
+
+/* ------------------------------------------------------------------ *
+ * Reduced motion — the additions above settle with everything else.
+ * ------------------------------------------------------------------ */
+
+@media (prefers-reduced-motion: reduce) {
+  .hor .contact-addr,
+  .hor .contact-in,
+  .hor .contact-tile-icon {
+    transition: none !important;
+  }
+}

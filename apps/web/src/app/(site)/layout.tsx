@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { IBM_Plex_Mono, Inter } from "next/font/google";
 
+import { Footer, NavPill } from "@/components/site/Chrome";
 import { num } from "@/components/site/format";
+import { ThemeScope } from "@/components/theme/ThemeScope";
 import { snapshot } from "@/lib/snapshot";
 
 import "./horizon.css";
@@ -41,12 +43,31 @@ export const metadata: Metadata = {
   }, ${num(aiUsage.totalSessions)} agent sessions.`,
 };
 
-export default function HorizonLayout({
+/**
+ * Shared chrome for every page under `(site)`.
+ *
+ *   fonts wrapper  — carries the two font variables into the scope
+ *   ThemeScope     — the `.hor` element that owns `data-theme`; the only
+ *                    client boundary in the shell (wrapper + pre-paint script)
+ *   NavPill        — floating glyph nav, persists across route changes
+ *   {children}     — the page's own zones (sky / deck / sky)
+ *   Footer         — contact block, persists across route changes
+ *
+ * Pages below this layout render *only* their sections. Because the scope and
+ * the chrome now live in the layout, a client-side navigation between site
+ * routes swaps `{children}` and leaves the theme, the pill and the footer
+ * mounted — no re-boot, no flash.
+ */
+export default function SiteLayout({
   children,
 }: Readonly<{ children: ReactNode }>) {
   return (
     <div className={`hor-fonts ${horSans.variable} ${horMono.variable}`}>
-      {children}
+      <ThemeScope className="hor" defaultTheme="dark">
+        <NavPill />
+        {children}
+        <Footer />
+      </ThemeScope>
     </div>
   );
 }

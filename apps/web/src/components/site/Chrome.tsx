@@ -18,10 +18,19 @@ const STROKE = {
   strokeLinejoin: "round",
 } as const;
 
+/**
+ * The pill's keys — one per top-level route. Every href is internal, so every
+ * item renders through <Link> and gets viewport prefetching for free.
+ *
+ * Deliberately no active-route treatment: `usePathname()` would turn this whole
+ * component (and therefore the layout's chrome) into a client component for the
+ * sake of one highlighted key. The pill stays server-rendered; the tooltip and
+ * the page's own heading already tell you where you are.
+ */
 const NAV: { href: string; label: string; icon: ReactNode }[] = [
   {
-    href: "#",
-    label: "Top",
+    href: "/",
+    label: "Home",
     icon: (
       <svg width="18" height="18" viewBox="0 0 20 20" {...STROKE}>
         <path d="M3.6 8.6L10 3.2l6.4 5.4" />
@@ -30,16 +39,8 @@ const NAV: { href: string; label: string; icon: ReactNode }[] = [
     ),
   },
   {
-    href: "#signal",
-    label: "Signal",
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 20 20" {...STROKE}>
-        <path d="M2.6 10.6h3.1l2-4.9 3.7 8.6 2-3.7h4" />
-      </svg>
-    ),
-  },
-  {
-    href: "#work",
+    /* Briefcase — the client platforms. */
+    href: "/work",
     label: "Work",
     icon: (
       <svg width="18" height="18" viewBox="0 0 20 20" {...STROKE}>
@@ -49,18 +50,42 @@ const NAV: { href: string; label: string; icon: ReactNode }[] = [
     ),
   },
   {
-    href: "#ai",
-    label: "AI",
+    /* Beaker — the things built for their own sake. */
+    href: "/labs",
+    label: "Labs",
     icon: (
       <svg width="18" height="18" viewBox="0 0 20 20" {...STROKE}>
-        <path d="M8.4 3.6l1.2 3.2a1 1 0 00.6.6l3.2 1.2-3.2 1.2a1 1 0 00-.6.6l-1.2 3.2-1.2-3.2a1 1 0 00-.6-.6L3.4 8.6l3.2-1.2a1 1 0 00.6-.6z" />
-        <path d="M15 12.6l.5 1.4 1.4.5-1.4.5-.5 1.4-.5-1.4-1.4-.5 1.4-.5z" />
+        <path d="M8.2 2.9v4.4L4.1 14.4a1.7 1.7 0 001.5 2.6h8.8a1.7 1.7 0 001.5-2.6l-4.1-7.1V2.9" />
+        <path d="M7.1 2.9h5.8M6.1 12.2h7.8" />
       </svg>
     ),
   },
   {
-    href: `mailto:${identity.email}`,
-    label: "Email",
+    /* Beer glass — off the clock. */
+    href: "/fun",
+    label: "Fun",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 20 20" {...STROKE}>
+        <path d="M5.4 4.2h7.2l-.7 12.1a1 1 0 01-1 .9H7.1a1 1 0 01-1-.9z" />
+        <path d="M12.5 6.6h1.9a1.7 1.7 0 011.7 1.7v2.3a1.7 1.7 0 01-1.7 1.7h-2.2M5.6 7.8h6.9" />
+      </svg>
+    ),
+  },
+  {
+    /* Document — the résumé, rendered and downloadable. */
+    href: "/resume",
+    label: "Resume",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 20 20" {...STROKE}>
+        <path d="M5.1 2.9h6l3.8 3.8v10.4H5.1z" />
+        <path d="M11 2.9v3.9h3.9M7.5 10.2h5M7.5 13h3.6" />
+      </svg>
+    ),
+  },
+  {
+    /* Envelope — the contact page (the mailto still lives in the footer). */
+    href: "/contact",
+    label: "Contact",
     icon: (
       <svg width="18" height="18" viewBox="0 0 20 20" {...STROKE}>
         <rect x="2.8" y="4.6" width="14.4" height="10.8" rx="2" />
@@ -72,16 +97,23 @@ const NAV: { href: string; label: string; icon: ReactNode }[] = [
 
 /**
  * Floating nav — a centred pill of glyph keys, fixed to the top of the
- * viewport. Server-rendered apart from <ThemeToggle>, which keeps a fixed
- * 34px box in both themes so flipping the theme cannot move a pixel.
+ * viewport. Lives in the `(site)` layout, so it persists across navigations.
+ * Server-rendered apart from <ThemeToggle>, which keeps a fixed 34px box in
+ * both themes so flipping the theme cannot move a pixel.
  */
 export function NavPill() {
   return (
     <nav className="hor-navpill" aria-label="Primary">
       {NAV.map((item) => (
-        <a key={item.label} href={item.href} className="hor-navbtn" aria-label={item.label} data-label={item.label}>
+        <Link
+          key={item.label}
+          href={item.href}
+          className="hor-navbtn"
+          aria-label={item.label}
+          data-label={item.label}
+        >
           {item.icon}
-        </a>
+        </Link>
       ))}
       <span className="hor-vrule mx-1.5" aria-hidden="true" />
       <ThemeToggle className="hor-toggle" />

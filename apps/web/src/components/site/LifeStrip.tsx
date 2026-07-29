@@ -23,6 +23,15 @@ function detail(entry: FunEntry): string {
     : entry.note;
 }
 
+/**
+ * The homepage teaser: the three most recent entries only.
+ *
+ * `snapshot.funEntries` now carries a rolling ~60 days. The strip is a
+ * three-across row and reads as a glance, not a feed — the full log lives on
+ * /fun, which also shows pub visits (`snapshot.funLog`).
+ */
+const RECENT = snapshot.funEntries.slice(0, 3);
+
 /** Small and human. Deliberately the lightest section on the page. */
 export function LifeStrip() {
   return (
@@ -37,7 +46,7 @@ export function LifeStrip() {
       </div>
 
       <div className="grid gap-3 sm:grid-cols-3 sm:gap-4">
-        {snapshot.funEntries.map((entry, i) => (
+        {RECENT.map((entry, i) => (
           <article
             key={`${entry.type}-${entry.title}`}
             className="hor-card hor-lift hor-rise flex items-center gap-3.5 p-2.5"
