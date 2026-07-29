@@ -12,7 +12,7 @@ export function LabWall() {
   return (
     <section id="repositories" className="mt-14 scroll-mt-20 sm:mt-16">
       <DeckHead
-        index="02"
+        index="03"
         title="Repositories"
         meta={`${featuredCount} featured · ${languages.join(" · ")}`}
       />

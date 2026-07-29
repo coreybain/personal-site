@@ -209,6 +209,201 @@
 }
 
 /* ------------------------------------------------------------------ *
+ * Featured builds — editorial captures on the flat deck material
+ * ------------------------------------------------------------------ */
+
+.hor .labs-feature-list {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.hor .labs-feature {
+  overflow: hidden;
+  container-type: inline-size;
+}
+
+.hor .labs-feature-layout {
+  display: grid;
+  min-width: 0;
+}
+
+.hor .labs-feature-capture {
+  position: relative;
+  min-width: 0;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-bottom: 1px solid var(--hor-line-soft);
+  background: var(--hor-l0);
+}
+
+.hor .labs-feature-image {
+  object-fit: cover;
+  object-position: top center;
+  filter: saturate(0.9) brightness(0.92);
+  transition: filter 180ms var(--hor-ease);
+}
+
+.hor[data-theme="light"] .labs-feature-image {
+  filter: saturate(0.94) contrast(1.02);
+}
+
+.hor .labs-feature-grid {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background-image:
+    linear-gradient(var(--hor-line-soft) 1px, transparent 1px),
+    linear-gradient(90deg, var(--hor-line-soft) 1px, transparent 1px),
+    linear-gradient(
+      180deg,
+      transparent 54%,
+      color-mix(in srgb, var(--hor-bg) 52%, transparent)
+    );
+  background-size:
+    24px 24px,
+    24px 24px,
+    100% 100%;
+  mix-blend-mode: overlay;
+  opacity: 0.32;
+  pointer-events: none;
+  transition: opacity 180ms var(--hor-ease);
+}
+
+.hor .labs-feature-caption {
+  position: absolute;
+  right: 0.7rem;
+  bottom: 0.65rem;
+  z-index: 2;
+  padding: 0.38rem 0.55rem;
+  border: 1px solid var(--hor-line-strong);
+  background: color-mix(in srgb, var(--hor-bg) 86%, transparent);
+  color: var(--hor-ink-2);
+  font-family: var(--font-hor-mono), ui-monospace, SFMono-Regular, monospace;
+  font-size: 9px;
+  line-height: 1;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.hor .labs-feature-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  padding: 1.25rem;
+}
+
+.hor .labs-feature-writeup {
+  max-width: 48ch;
+}
+
+.hor .labs-feature-readouts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  margin-top: 1.5rem;
+  border-top: 1px solid var(--hor-line-soft);
+  border-bottom: 1px solid var(--hor-line-soft);
+  background: var(--hor-line-soft);
+}
+
+.hor .labs-feature-readout {
+  padding: 1rem 0.9rem;
+  background: var(--hor-panel);
+}
+
+.hor .labs-feature-link,
+.hor .labs-feature-repo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: var(--font-hor-mono), ui-monospace, SFMono-Regular, monospace;
+  font-size: 0.6875rem;
+  letter-spacing: -0.005em;
+}
+
+.hor .labs-feature-repo {
+  align-self: flex-start;
+  margin-top: 1rem;
+}
+
+.hor .labs-feature:is(:hover, :focus-within) {
+  border-color: var(--hor-line-strong);
+}
+
+.hor .labs-feature:is(:hover, :focus-within) .labs-feature-image {
+  filter: saturate(1) brightness(0.98);
+}
+
+.hor[data-theme="light"]
+  .labs-feature:is(:hover, :focus-within)
+  .labs-feature-image {
+  filter: saturate(1) contrast(1.02);
+}
+
+.hor .labs-feature:is(:hover, :focus-within) .labs-feature-grid {
+  opacity: 0.18;
+}
+
+@media (min-width: 640px) {
+  .hor .labs-feature-capture {
+    aspect-ratio: 21 / 9;
+  }
+
+  .hor .labs-feature-copy {
+    padding: 1.5rem;
+  }
+}
+
+@container (min-width: 780px) {
+  .hor .labs-feature-layout {
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    min-height: 360px;
+  }
+
+  .hor .labs-feature-capture {
+    grid-column: 1;
+    grid-row: 1;
+    height: 100%;
+    min-height: 360px;
+    aspect-ratio: auto;
+    border-right: 1px solid var(--hor-line-soft);
+    border-bottom: 0;
+  }
+
+  .hor .labs-feature-copy {
+    grid-column: 2;
+    grid-row: 1;
+    padding: 1.75rem;
+  }
+
+  .hor .labs-feature[data-reverse="true"] .labs-feature-capture {
+    grid-column: 2;
+    border-right: 0;
+    border-left: 1px solid var(--hor-line-soft);
+  }
+
+  .hor .labs-feature[data-reverse="true"] .labs-feature-copy {
+    grid-column: 1;
+  }
+
+  .hor .labs-feature-readouts {
+    margin-top: auto;
+  }
+}
+
+@media (prefers-contrast: more) {
+  .hor .labs-feature-image {
+    filter: none;
+  }
+
+  .hor .labs-feature-grid {
+    display: none;
+  }
+}
+
+/* ------------------------------------------------------------------ *
  * Lab panels — the wall
  * ------------------------------------------------------------------ */
 
@@ -289,7 +484,9 @@
  * ------------------------------------------------------------------ */
 
 @media (prefers-reduced-motion: reduce) {
-  .hor .labs-plot-dot {
+  .hor .labs-plot-dot,
+  .hor .labs-feature-image,
+  .hor .labs-feature-grid {
     transition: none !important;
   }
 }

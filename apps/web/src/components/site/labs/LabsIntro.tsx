@@ -78,10 +78,10 @@ export function LabsIntro() {
 
       <p className="hor-lede hor-rise mt-7 max-w-[52ch] text-pretty" style={delay(240)}>
         These are experiments, not engagements — the things I build when nobody
-        is paying me to. Separate from the client platforms under Work, and
-        deliberately small: a side project has a handful of stars, not a
-        following. What is worth reading here is the cadence, and how recently
-        each one moved.
+        is paying me to. Some stay deliberately small; others grow into products
+        worth showing properly. The captures tell those stories, while the
+        repository telemetry keeps every project honest about its cadence and
+        how recently it moved.
       </p>
 
       <div className="hor-rise mt-12 sm:mt-14" style={delay(320)}>

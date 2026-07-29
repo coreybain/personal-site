@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { Boundary } from "@/components/site/Boundary";
 import { num, stampTime } from "@/components/site/format";
+import { FeaturedLabs } from "@/components/site/labs/FeaturedLabs";
 import { LabWall } from "@/components/site/labs/LabWall";
 import { LabsCoda } from "@/components/site/labs/LabsCoda";
 import { LabsIntro } from "@/components/site/labs/LabsIntro";
@@ -59,6 +60,7 @@ export default function LabsPage() {
         <div className="hor-deck-grid" aria-hidden="true" />
         <div className="hor-shell pb-16 sm:pb-20">
           <RecencyWindow />
+          <FeaturedLabs />
           <LabWall />
         </div>
       </div>
