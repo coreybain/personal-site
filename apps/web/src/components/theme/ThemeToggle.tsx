@@ -22,6 +22,55 @@ type ThemeToggleProps = Omit<
   label?: string;
 };
 
+type ThemeGlyphProps = {
+  className?: string;
+};
+
+/**
+ * The shared theme glyph used by theme controls across the site.
+ *
+ * The active sun/moon is selected entirely in CSS from the nearest
+ * `data-theme` scope, keeping the icon correct before React hydrates.
+ */
+export function ThemeGlyph({ className }: ThemeGlyphProps) {
+  const iconClassName = [styles.icon, className].filter(Boolean).join(" ");
+
+  return (
+    <>
+      {/* Sun — visible while the scope is light. */}
+      <svg
+        className={`${iconClassName} ${styles.light}`}
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+        focusable="false"
+      >
+        <circle cx="12" cy="12" r="4.2" />
+        <path d="M12 2.6v2.4M12 19v2.4M4.2 4.2l1.7 1.7M18.1 18.1l1.7 1.7M2.6 12h2.4M19 12h2.4M4.2 19.8l1.7-1.7M18.1 5.9l1.7-1.7" />
+      </svg>
+
+      {/* Moon — visible while the scope is dark. */}
+      <svg
+        className={`${iconClassName} ${styles.dark}`}
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+        focusable="false"
+      >
+        <path d="M20.4 14.2A8.4 8.4 0 0 1 9.8 3.6a8.4 8.4 0 1 0 10.6 10.6Z" />
+      </svg>
+    </>
+  );
+}
+
 /**
  * Icon button that flips the nearest `<ThemeScope>`.
  *
@@ -55,36 +104,7 @@ export function ThemeToggle({
       className={classes}
       {...rest}
     >
-      {/* Sun — visible while the scope is light. */}
-      <svg
-        className={`${styles.icon} ${styles.light}`}
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        aria-hidden="true"
-        focusable="false"
-      >
-        <circle cx="12" cy="12" r="4.2" />
-        <path d="M12 2.6v2.4M12 19v2.4M4.2 4.2l1.7 1.7M18.1 18.1l1.7 1.7M2.6 12h2.4M19 12h2.4M4.2 19.8l1.7-1.7M18.1 5.9l1.7-1.7" />
-      </svg>
-
-      {/* Moon — visible while the scope is dark. */}
-      <svg
-        className={`${styles.icon} ${styles.dark}`}
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        aria-hidden="true"
-        focusable="false"
-      >
-        <path d="M20.4 14.2A8.4 8.4 0 0 1 9.8 3.6a8.4 8.4 0 1 0 10.6 10.6Z" />
-      </svg>
+      <ThemeGlyph />
 
       <span className={`${styles.srOnly} ${styles.light}`}>
         Switch to dark theme

@@ -1,10 +1,9 @@
 import type { CSSProperties } from "react";
-import Link from "next/link";
 
 import type { Project } from "@/lib/snapshot";
 import { snapshot } from "@/lib/snapshot";
 
-import { ArrowLeft, WorkArt } from "./WorkArt";
+import { WorkArt } from "./WorkArt";
 import { pad2 } from "./data";
 
 /**
@@ -28,14 +27,7 @@ export function CaseHero({
 }) {
   return (
     <header className="pt-24 pb-14 sm:pt-28 sm:pb-16 lg:pt-32">
-      <div className="hor-rise" style={delay(30)}>
-        <Link href="/work" className="work-back">
-          <ArrowLeft />
-          All work
-        </Link>
-      </div>
-
-      <div className="hor-rise mt-8 sm:mt-10" style={delay(80)}>
+      <div className="hor-rise" style={delay(80)}>
         <span className="hor-eyebrow">
           <span className="hor-mono">
             {pad2(index + 1)} / {pad2(snapshot.projects.length)}

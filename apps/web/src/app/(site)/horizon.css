@@ -295,6 +295,46 @@
   border-end-start-radius: var(--hor-nav-edge-radius);
 }
 
+.hor .hor-nav-back svg {
+  width: 18px;
+  height: 18px;
+  transition: transform 200ms var(--hor-ease);
+}
+
+.hor .hor-nav-back {
+  animation: hor-nav-back-in 240ms var(--hor-spring) 60ms both;
+}
+
+.hor .hor-nav-back:hover svg {
+  transform: translateX(-2px);
+}
+
+.hor .hor-nav-context-sep {
+  height: 20px;
+  margin-inline: 5px 7px;
+  animation: hor-nav-sep-in 180ms var(--hor-ease) 110ms both;
+}
+
+@keyframes hor-nav-back-in {
+  from {
+    opacity: 0;
+    transform: translateX(-6px) scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes hor-nav-sep-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 .hor .hor-navbtn:hover {
   color: var(--hor-ink);
   background: var(--hor-chip);
@@ -768,52 +808,158 @@
   white-space: nowrap;
 }
 
-.hor .hor-theme-select-wrap {
+.hor .hor-footer {
   position: relative;
-  display: inline-flex;
-  color: var(--hor-ink-3);
+  z-index: 5;
 }
 
-.hor .hor-theme-select {
-  min-width: 116px;
-  height: 34px;
+.hor .hor-theme-picker {
+  position: relative;
+  display: inline-flex;
+  isolation: isolate;
+}
+
+.hor .hor-theme-trigger {
+  --cb-toggle-icon-size: 1rem;
+  display: inline-grid;
+  place-items: center;
+  inline-size: 36px;
+  block-size: 36px;
   margin: 0;
-  padding: 0 2rem 0 0.85rem;
-  appearance: none;
+  padding: 0;
   border: 1px solid var(--hor-line);
-  border-radius: 999px;
+  border-radius: 50%;
   background: var(--hor-chip);
-  box-shadow: var(--hor-inset-top);
-  color: var(--hor-ink);
-  font-family: var(--font-hor-mono), ui-monospace, monospace;
-  font-size: 0.65rem;
-  font-weight: 500;
+  box-shadow: var(--hor-inset-top), 0 7px 24px rgba(0, 0, 0, 0.16);
+  color: var(--hor-ink-2);
+  font: inherit;
   line-height: 1;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
   transition:
+    transform 200ms var(--hor-spring),
     color 200ms var(--hor-ease),
     border-color 200ms var(--hor-ease),
     background-color 200ms var(--hor-ease),
     box-shadow 200ms var(--hor-ease);
 }
 
-.hor .hor-theme-select:hover {
+.hor .hor-theme-trigger:hover,
+.hor .hor-theme-trigger[data-state="open"] {
   border-color: var(--hor-line-strong);
   background: var(--hor-sky-card-hover);
+  color: var(--hor-ink);
+  transform: translateY(-1px);
 }
 
-.hor .hor-theme-select:focus-visible {
-  border-radius: 999px;
+.hor .hor-theme-trigger:focus-visible {
+  outline: 2px solid var(--hor-accent);
+  outline-offset: 3px;
 }
 
-.hor .hor-theme-select-icon {
+.hor .hor-theme-trigger-icon {
+  inline-size: 1rem;
+  block-size: 1rem;
+}
+
+.hor .hor-theme-menu {
   position: absolute;
-  top: 50%;
-  right: 0.75rem;
-  transform: translateY(-50%);
-  pointer-events: none;
+  right: 0;
+  bottom: calc(100% + 0.75rem);
+  z-index: 80;
+  width: min(240px, calc(100vw - 2rem));
+  padding: 0.45rem;
+  overflow: hidden;
+  border: 1px solid var(--hor-line-strong);
+  border-radius: 16px;
+  background: var(--hor-panel);
+  box-shadow:
+    var(--hor-inset-top),
+    0 22px 54px rgba(0, 0, 0, 0.36),
+    0 0 0 1px rgba(130, 96, 255, 0.04);
+  color: var(--hor-ink);
+  animation: hor-theme-menu-in 160ms var(--hor-spring) both;
+}
+
+@keyframes hor-theme-menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.hor .hor-theme-options {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.hor .hor-theme-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  min-height: 52px;
+  margin: 0;
+  padding: 0.62rem 0.7rem;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  background: transparent;
+  color: var(--hor-ink-2);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    color 160ms var(--hor-ease),
+    border-color 160ms var(--hor-ease),
+    background-color 160ms var(--hor-ease);
+}
+
+.hor .hor-theme-option:hover,
+.hor .hor-theme-option:focus-visible {
+  border-color: var(--hor-line);
+  background: var(--hor-chip);
+  color: var(--hor-ink);
+  outline: none;
+}
+
+.hor .hor-theme-option[data-selected="true"] {
+  border-color: var(--hor-line-strong);
+  background: var(--hor-sky-card-hover);
+  color: var(--hor-ink);
+  box-shadow: var(--hor-inset-top);
+}
+
+.hor .hor-theme-option-copy {
+  display: grid;
+  gap: 0.18rem;
+  min-width: 0;
+}
+
+.hor .hor-theme-option-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.hor .hor-theme-option-description {
+  color: var(--hor-ink-4);
+  font-size: 0.625rem;
+  line-height: 1.25;
+}
+
+.hor .hor-theme-option-state {
+  flex: none;
+  color: var(--hor-accent);
+  font-family: var(--font-hor-mono), ui-monospace, monospace;
+  font-size: 0.5rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
 }
 
 .hor .hor-chip {
@@ -1752,7 +1898,9 @@
   .hor .hor-live::after,
   .hor .hor-id-orbit,
   .hor .hor-id-orbit i,
-  .hor .hor-heat-tooltip {
+  .hor .hor-heat-tooltip,
+  .hor .hor-nav-back,
+  .hor .hor-nav-context-sep {
     animation: none !important;
   }
 
@@ -1769,7 +1917,8 @@
   .hor .hor-card,
   .hor .hor-btn,
   .hor .hor-link,
-  .hor .hor-theme-select,
+  .hor .hor-theme-trigger,
+  .hor .hor-theme-option,
   .hor .hor-cell,
   .hor .hor-art-base,
   .hor .hor-art-glyph,
@@ -1779,8 +1928,13 @@
   .hor .hor-command-control,
   .hor .hor-command-copy,
   .hor .hor-command-option,
+  .hor .hor-nav-back svg,
   .hor .hor-id-chip {
     transition: none !important;
+  }
+
+  .hor .hor-theme-menu {
+    animation: none !important;
   }
 
   .hor .hor-lift:hover,

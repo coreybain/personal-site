@@ -5,6 +5,7 @@ import { snapshot } from "@/lib/snapshot";
 
 import { FooterThemePicker } from "./FooterThemePicker";
 import { SiteNavLink } from "./SiteNavLink";
+import { WorkBackNavLink } from "./WorkBackNavLink";
 import { stampTime } from "./format";
 
 const { identity } = snapshot;
@@ -105,6 +106,7 @@ const RESUME_NAV_ITEM = {
 export function NavPill() {
   return (
     <nav className="hor-navpill" aria-label="Primary">
+      <WorkBackNavLink />
       {NAV.map((item) => (
         <SiteNavLink
           key={item.label}
@@ -129,7 +131,7 @@ export function NavPill() {
 export function Footer() {
   return (
     <footer
-      className="hor-rise pb-14 sm:pb-20"
+      className="hor-footer hor-rise pb-14 sm:pb-20"
       style={{ "--hor-delay": "760ms" } as CSSProperties}
     >
       <div className="hor-shell">

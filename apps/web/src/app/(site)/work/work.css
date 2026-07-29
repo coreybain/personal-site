@@ -121,33 +121,6 @@
   transform: translateX(3px);
 }
 
-/* ------------------------------------------------------------------ *
- * Case study — sky narrative
- * ------------------------------------------------------------------ */
-
-.hor .work-back {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  color: var(--hor-ink-3);
-  font-size: 0.75rem;
-  font-weight: 500;
-  text-decoration: none;
-  transition: color 0.25s var(--hor-ease);
-}
-
-.hor .work-back:hover {
-  color: var(--hor-ink);
-}
-
-.hor .work-back svg {
-  transition: transform 0.4s var(--hor-ease);
-}
-
-.hor .work-back:hover svg {
-  transform: translateX(-3px);
-}
-
 /* Narrative column — a hairline in the accent marks where the prose starts. */
 .hor .work-chapter {
   position: relative;
@@ -234,13 +207,11 @@
  * ------------------------------------------------------------------ */
 
 @media (prefers-reduced-motion: reduce) {
-  .hor .work-cta svg,
-  .hor .work-back svg {
+  .hor .work-cta svg {
     transition: none !important;
   }
 
-  .hor .work-tile:hover .work-cta svg,
-  .hor .work-back:hover svg {
+  .hor .work-tile:hover .work-cta svg {
     transform: none;
   }
 }

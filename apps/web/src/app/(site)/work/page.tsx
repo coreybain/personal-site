@@ -5,6 +5,7 @@ import { num, stampTime } from "@/components/site/format";
 import { BuildLedger } from "@/components/site/work/BuildLedger";
 import { WorkGrid } from "@/components/site/work/WorkGrid";
 import { WorkIntro } from "@/components/site/work/WorkIntro";
+import { WorkScrollRestoration } from "@/components/site/work/WorkScrollRestoration";
 import { buildHours, buildSessions } from "@/components/site/work/data";
 import { snapshot } from "@/lib/snapshot";
 
@@ -38,6 +39,8 @@ export const metadata: Metadata = {
 export default function WorkPage() {
   return (
     <main>
+      <WorkScrollRestoration />
+
       {/* ── above the horizon: the shape of the work ──────────────── */}
       <section className="hor-sky">
         <div className="hor-wash" aria-hidden="true" />
