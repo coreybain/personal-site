@@ -10,11 +10,12 @@ this and must not be touched.
 
 ## The contract in one paragraph
 
-`<ThemeScope>` renders a `<div>` that carries `data-theme="light" | "dark"`.
-Your variant passes its own root class to that div and declares **every** colour
-as a custom property under `.your-variant[data-theme="…"]`. Nothing below the
-scope reads `prefers-color-scheme` directly, and nothing below the scope
-hard-codes a colour. Flip the attribute, the whole variant re-skins.
+`<ThemeScope>` renders a `<div>` that carries `data-theme="light" | "dark"` and
+`data-theme-preference="system" | "light" | "dark"`. Your variant passes its
+own root class to that div and declares **every** colour as a custom property
+under `.your-variant[data-theme="…"]`. Nothing below the scope reads
+`prefers-color-scheme` directly, and nothing below the scope hard-codes a
+colour. Flip the attribute, the whole variant re-skins.
 
 ---
 
@@ -139,12 +140,13 @@ override the name with a static string.
 
 ## How the no-flash guarantee works
 
-1. The server renders the wrapper with `data-theme={defaultTheme}` (`"light"`).
+1. The server renders the wrapper with `data-theme={defaultTheme}` (`"light"`)
+   and `data-theme-preference="system"`.
 2. Immediately after the wrapper's opening tag — as its first child — sits an
    inline `<script>` (`InlineScript.tsx`). The browser executes it **while
    parsing**, before the first paint and long before React loads. It reads
    `localStorage["cb-theme"]`, falls back to `prefers-color-scheme`, and sets
-   `data-theme` + `style.color-scheme` on the wrapper.
+   `data-theme`, `data-theme-preference` + `style.color-scheme` on the wrapper.
 3. The wrapper has `suppressHydrationWarning`, so React keeps the DOM value
    rather than treating the difference as a hydration error. This matters: in
    React 19 an unsuppressed mismatch makes React client-render the whole

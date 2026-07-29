@@ -22,9 +22,9 @@ import { snapshot } from "@/lib/snapshot";
  * zone structure — sky, boundary, deck, boundary, sky.
  *
  * Server component end to end. The only client code in the shell is
- * <ThemeScope> (wrapper + pre-paint boot script + context) and the
- * <ThemeToggle> in the nav pill. Every colour below the scope resolves from
- * `--hor-*`, so flipping `data-theme` re-skins the page without moving a pixel.
+ * <ThemeScope> (wrapper + pre-paint boot script + context) and the footer's
+ * theme picker. Every colour below the scope resolves from `--hor-*`, so
+ * changing `data-theme` re-skins the page without moving a pixel.
  *
  * Every number is read from `@/lib/snapshot` or derived from it in place.
  */

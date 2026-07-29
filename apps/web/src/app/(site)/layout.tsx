@@ -51,7 +51,7 @@ export const metadata: Metadata = {
  *                    client boundary in the shell (wrapper + pre-paint script)
  *   NavPill        — floating glyph nav, persists across route changes
  *   {children}     — the page's own zones (sky / deck / sky)
- *   Footer         — contact block, persists across route changes
+ *   Footer         — contact block + theme picker, persists across routes
  *
  * Pages below this layout render *only* their sections. Because the scope and
  * the chrome now live in the layout, a client-side navigation between site

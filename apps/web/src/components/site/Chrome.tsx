@@ -1,9 +1,10 @@
 import type { CSSProperties, ReactNode } from "react";
 import Link from "next/link";
 
-import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { snapshot } from "@/lib/snapshot";
 
+import { FooterThemePicker } from "./FooterThemePicker";
+import { SiteNavLink } from "./SiteNavLink";
 import { stampTime } from "./format";
 
 const { identity } = snapshot;
@@ -22,10 +23,9 @@ const STROKE = {
  * The pill's keys — one per top-level route. Every href is internal, so every
  * item renders through <Link> and gets viewport prefetching for free.
  *
- * Deliberately no active-route treatment: `usePathname()` would turn this whole
- * component (and therefore the layout's chrome) into a client component for the
- * sake of one highlighted key. The pill stays server-rendered; the tooltip and
- * the page's own heading already tell you where you are.
+ * Each item delegates pathname matching to a tiny client link leaf. The pill
+ * itself stays server-rendered while non-home routes receive an accessible
+ * `aria-current="page"` state.
  */
 const NAV: { href: string; label: string; icon: ReactNode }[] = [
   {
@@ -72,17 +72,6 @@ const NAV: { href: string; label: string; icon: ReactNode }[] = [
     ),
   },
   {
-    /* Document — the résumé, rendered and downloadable. */
-    href: "/resume",
-    label: "Resume",
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 20 20" {...STROKE}>
-        <path d="M5.1 2.9h6l3.8 3.8v10.4H5.1z" />
-        <path d="M11 2.9v3.9h3.9M7.5 10.2h5M7.5 13h3.6" />
-      </svg>
-    ),
-  },
-  {
     /* Envelope — the contact page (the mailto still lives in the footer). */
     href: "/contact",
     label: "Contact",
@@ -95,28 +84,44 @@ const NAV: { href: string; label: string; icon: ReactNode }[] = [
   },
 ];
 
+const RESUME_NAV_ITEM = {
+  href: "/resume",
+  label: "Resume",
+  icon: (
+    <svg width="18" height="18" viewBox="0 0 20 20" {...STROKE}>
+      <path d="M5.1 2.9h6l3.8 3.8v10.4H5.1z" />
+      <path d="M11 2.9v3.9h3.9M7.5 10.2h5M7.5 13h3.6" />
+    </svg>
+  ),
+} satisfies { href: string; label: string; icon: ReactNode };
+
 /**
  * Floating nav — a centred pill of glyph keys, fixed to the top of the
  * viewport. Lives in the `(site)` layout, so it persists across navigations.
- * Server-rendered apart from <ThemeToggle>, which keeps a fixed 34px box in
- * both themes so flipping the theme cannot move a pixel.
+ * The résumé gets the separated edge key; theme preferences live in the
+ * footer, and only the individual pathname-aware links cross the client
+ * boundary.
  */
 export function NavPill() {
   return (
     <nav className="hor-navpill" aria-label="Primary">
       {NAV.map((item) => (
-        <Link
+        <SiteNavLink
           key={item.label}
           href={item.href}
-          className="hor-navbtn"
-          aria-label={item.label}
-          data-label={item.label}
+          label={item.label}
         >
           {item.icon}
-        </Link>
+        </SiteNavLink>
       ))}
       <span className="hor-vrule mx-1.5" aria-hidden="true" />
-      <ThemeToggle className="hor-toggle" />
+      <SiteNavLink
+        href={RESUME_NAV_ITEM.href}
+        className="hor-nav-edge"
+        label={RESUME_NAV_ITEM.label}
+      >
+        {RESUME_NAV_ITEM.icon}
+      </SiteNavLink>
     </nav>
   );
 }
@@ -144,6 +149,7 @@ export function Footer() {
           </div>
 
           <div className="flex flex-col items-start gap-2.5 sm:items-end">
+            <FooterThemePicker />
             <a
               href={`https://github.com/${identity.github}`}
               rel="noreferrer noopener"

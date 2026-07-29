@@ -243,6 +243,9 @@
  * ------------------------------------------------------------------ */
 
 .hor .hor-navpill {
+  --hor-nav-edge-radius: 999px;
+  --hor-nav-inner-radius: 509px;
+
   position: fixed;
   top: max(14px, env(safe-area-inset-top));
   left: 50%;
@@ -251,8 +254,8 @@
   display: flex;
   align-items: center;
   gap: 2px;
-  padding: 5px;
-  border-radius: 999px;
+  padding: 5px 12px;
+  border-radius: var(--hor-nav-edge-radius);
   border: 1px solid var(--hor-sky-card-edge);
   background: color-mix(in srgb, var(--hor-bg) 72%, transparent);
   backdrop-filter: blur(18px) saturate(160%);
@@ -263,22 +266,49 @@
     border-color 260ms ease;
 }
 
+.hor .hor-navpill:hover,
+.hor .hor-navpill:focus-within {
+  border-color: var(--hor-line-strong);
+  background: var(--hor-panel);
+}
+
 .hor .hor-navbtn {
   position: relative;
   display: inline-grid;
   place-items: center;
   width: 38px;
   height: 38px;
+  border: 1px solid transparent;
   border-radius: 999px;
   color: var(--hor-ink-2);
   transition:
     color 200ms var(--hor-ease),
-    background-color 200ms var(--hor-ease);
+    border-color 200ms var(--hor-ease),
+    background-color 200ms var(--hor-ease),
+    box-shadow 200ms var(--hor-ease);
+}
+
+.hor .hor-navbtn:first-child {
+  border-start-start-radius: var(--hor-nav-edge-radius);
+  border-start-end-radius: var(--hor-nav-inner-radius);
+  border-end-end-radius: var(--hor-nav-inner-radius);
+  border-end-start-radius: var(--hor-nav-edge-radius);
 }
 
 .hor .hor-navbtn:hover {
   color: var(--hor-ink);
   background: var(--hor-chip);
+}
+
+.hor .hor-navbtn[data-active="true"] {
+  border-color: var(--hor-line);
+  background: var(--hor-chip);
+  box-shadow: var(--hor-inset-top);
+}
+
+.hor .hor-navbtn[data-active="true"]:hover {
+  border-color: var(--hor-line-strong);
+  box-shadow: var(--hor-inset-top), var(--hor-glow-accent);
 }
 
 /* Glyph tooltip — named keys, hover/focus only, never on touch. */
@@ -313,30 +343,19 @@
   }
 }
 
-/* The toggle: an instrument key, not a bare glyph. Fixed box, so flipping the
-   theme cannot move a single pixel of the bar. */
-.hor .hor-toggle {
-  --cb-toggle-size: 34px;
-  --cb-toggle-icon-size: 15px;
-  --cb-toggle-radius: 9px;
-  --cb-toggle-ring: var(--hor-focus);
-
+/* The separated résumé key keeps the instrument-button treatment that closes
+   the pill, while the theme preference control moves to the footer. */
+.hor .hor-nav-edge {
   flex: none;
-  border: 1px solid var(--hor-line);
-  background: var(--hor-chip);
-  color: var(--hor-ink-2);
-  box-shadow: var(--hor-inset-top);
-  transition:
-    color 200ms var(--hor-ease),
-    border-color 200ms var(--hor-ease),
-    background-color 200ms var(--hor-ease),
-    box-shadow 200ms var(--hor-ease);
+  width: 34px;
+  height: 34px;
 }
 
-.hor .hor-toggle:hover {
-  color: var(--hor-ink);
-  border-color: var(--hor-line-strong);
-  box-shadow: var(--hor-inset-top), var(--hor-glow-accent);
+.hor .hor-nav-edge:last-child {
+  border-start-start-radius: var(--hor-nav-inner-radius);
+  border-start-end-radius: var(--hor-nav-edge-radius);
+  border-end-end-radius: var(--hor-nav-edge-radius);
+  border-end-start-radius: var(--hor-nav-inner-radius);
 }
 
 /* ------------------------------------------------------------------ *
@@ -740,6 +759,63 @@
   background-size: 100% 1px;
 }
 
+.hor .hor-theme-control {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+  margin: 0 0 0.2rem;
+  white-space: nowrap;
+}
+
+.hor .hor-theme-select-wrap {
+  position: relative;
+  display: inline-flex;
+  color: var(--hor-ink-3);
+}
+
+.hor .hor-theme-select {
+  min-width: 116px;
+  height: 34px;
+  margin: 0;
+  padding: 0 2rem 0 0.85rem;
+  appearance: none;
+  border: 1px solid var(--hor-line);
+  border-radius: 999px;
+  background: var(--hor-chip);
+  box-shadow: var(--hor-inset-top);
+  color: var(--hor-ink);
+  font-family: var(--font-hor-mono), ui-monospace, monospace;
+  font-size: 0.65rem;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition:
+    color 200ms var(--hor-ease),
+    border-color 200ms var(--hor-ease),
+    background-color 200ms var(--hor-ease),
+    box-shadow 200ms var(--hor-ease);
+}
+
+.hor .hor-theme-select:hover {
+  border-color: var(--hor-line-strong);
+  background: var(--hor-sky-card-hover);
+}
+
+.hor .hor-theme-select:focus-visible {
+  border-radius: 999px;
+}
+
+.hor .hor-theme-select-icon {
+  position: absolute;
+  top: 50%;
+  right: 0.75rem;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
 .hor .hor-chip {
   display: inline-flex;
   align-items: center;
@@ -871,16 +947,154 @@
   letter-spacing: -0.032em;
 }
 
-.hor .hor-id-badge {
-  display: inline-grid;
-  place-items: center;
-  width: 30px;
-  height: 30px;
-  margin-top: 12px;
-  border-radius: 999px;
-  background: linear-gradient(160deg, var(--hor-accent-mid), var(--hor-accent-deep));
-  color: #fff;
+.hor .hor-command-picker {
+  position: relative;
+  z-index: 4;
+  width: min(100%, 244px);
+  margin: 12px auto 0;
+  text-align: left;
+}
+
+.hor .hor-command-control {
+  display: flex;
+  align-items: stretch;
+  height: 44px;
+  overflow: hidden;
+  border: 1px solid var(--hor-line);
+  border-radius: 13px;
+  background: var(--hor-chip);
+  box-shadow: var(--hor-inset-top);
+  transition:
+    border-color 200ms var(--hor-ease),
+    background-color 200ms var(--hor-ease),
+    box-shadow 200ms var(--hor-ease);
+}
+
+.hor .hor-command-picker[data-state="open"] .hor-command-control {
+  border-color: var(--hor-line-strong);
+  background: var(--hor-sky-card-hover);
   box-shadow: var(--hor-inset-top), var(--hor-glow-accent);
+}
+
+.hor .hor-command-copy,
+.hor .hor-command-option {
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.hor .hor-command-value {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  min-width: 0;
+  overflow: hidden;
+  padding-inline: 0.9rem;
+  color: var(--hor-ink-2);
+  font-family: var(--font-hor-mono), ui-monospace, monospace;
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hor .hor-command-option code {
+  overflow: hidden;
+  font-family: var(--font-hor-mono), ui-monospace, monospace;
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0.01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hor .hor-command-copy {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 44px;
+  border-left: 1px solid var(--hor-line);
+  color: var(--hor-ink-2);
+  transition:
+    color 200ms var(--hor-ease),
+    background-color 200ms var(--hor-ease);
+}
+
+.hor .hor-command-copy:hover {
+  color: var(--hor-ink);
+  background: var(--hor-chip);
+}
+
+.hor .hor-command-picker[data-state="open"] .hor-command-copy {
+  color: var(--hor-accent);
+  background: var(--hor-chip);
+}
+
+.hor .hor-command-picker[data-copy-state="copied"] .hor-command-copy {
+  color: var(--hor-accent);
+}
+
+.hor .hor-command-picker[data-copy-state="failed"] .hor-command-copy {
+  color: var(--hor-sun);
+}
+
+.hor .hor-command-copy:focus-visible {
+  border-radius: 0 12px 12px 0;
+  outline-offset: -3px;
+}
+
+.hor .hor-command-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 30;
+  display: grid;
+  width: 100%;
+  gap: 2px;
+  padding: 6px;
+  border: 1px solid var(--hor-line-strong);
+  border-radius: 17px;
+  background: var(--hor-panel);
+  box-shadow: var(--hor-shadow-sky-lift);
+}
+
+.hor .hor-command-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-height: 40px;
+  padding-inline: 0.75rem;
+  border-radius: 11px;
+  color: var(--hor-ink-2);
+  text-align: left;
+}
+
+.hor .hor-command-option:hover,
+.hor .hor-command-option:focus-visible {
+  background: var(--hor-chip);
+  color: var(--hor-ink);
+}
+
+.hor .hor-command-option[data-primary="true"] {
+  color: var(--hor-accent);
+}
+
+.hor .hor-command-status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }
 
 .hor .hor-id-role {
@@ -1422,13 +1636,16 @@
   .hor .hor-card,
   .hor .hor-btn,
   .hor .hor-link,
-  .hor .hor-toggle,
+  .hor .hor-theme-select,
   .hor .hor-cell,
   .hor .hor-art-base,
   .hor .hor-art-glyph,
   .hor .hor-navpill,
   .hor .hor-navbtn,
   .hor .hor-navbtn::after,
+  .hor .hor-command-control,
+  .hor .hor-command-copy,
+  .hor .hor-command-option,
   .hor .hor-id-chip {
     transition: none !important;
   }

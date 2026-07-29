@@ -15,6 +15,7 @@ import {
 import { InlineScript } from "./InlineScript";
 
 export type Theme = "light" | "dark";
+export type ThemePreference = Theme | "system";
 
 /** The one and only localStorage key. Shared by the inline script and React. */
 export const THEME_STORAGE_KEY = "cb-theme";
@@ -24,6 +25,8 @@ const MEDIA_QUERY = "(prefers-color-scheme: dark)";
 type ThemeContextValue = {
   /** The theme currently applied to the nearest scope. */
   theme: Theme;
+  /** The user's selected source: the OS, light, or dark. */
+  preference: ThemePreference;
   /** `true` once the user has explicitly picked; `false` while following the OS. */
   isExplicit: boolean;
   /** Set and persist. Marks the choice explicit — the OS stops driving it. */
@@ -73,9 +76,9 @@ function bootScript(elementId: string): string {
     elementId,
   )});if(!e)return;var t=null;try{t=window.localStorage.getItem(${JSON.stringify(
     THEME_STORAGE_KEY,
-  )})}catch(_){}if(t!=="light"&&t!=="dark"){t=window.matchMedia&&window.matchMedia(${JSON.stringify(
+  )})}catch(_){}var p=t==="light"||t==="dark"?t:"system";if(p==="system"){t=window.matchMedia&&window.matchMedia(${JSON.stringify(
     MEDIA_QUERY,
-  )}).matches?"dark":"light"}e.setAttribute("data-theme",t);e.style.colorScheme=t}catch(_){}})()`;
+  )}).matches?"dark":"light"}e.setAttribute("data-theme",t);e.setAttribute("data-theme-preference",p);e.style.colorScheme=t}catch(_){}})()`;
 }
 
 export type ThemeScopeProps = {
@@ -183,7 +186,14 @@ export function ThemeScope({
   }, []);
 
   const value = useMemo<ThemeContextValue>(
-    () => ({ theme, isExplicit, setTheme, toggleTheme, clearPreference }),
+    () => ({
+      theme,
+      preference: isExplicit ? theme : "system",
+      isExplicit,
+      setTheme,
+      toggleTheme,
+      clearPreference,
+    }),
     [theme, isExplicit, setTheme, toggleTheme, clearPreference],
   );
 
@@ -192,6 +202,7 @@ export function ThemeScope({
       id={id}
       className={className}
       data-theme={theme}
+      data-theme-preference={isExplicit ? theme : "system"}
       style={{ colorScheme: theme, ...style }}
       suppressHydrationWarning
     >
