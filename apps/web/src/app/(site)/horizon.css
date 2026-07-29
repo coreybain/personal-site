@@ -244,7 +244,8 @@
 
 .hor .hor-navpill {
   --hor-nav-edge-radius: 999px;
-  --hor-nav-inner-radius: 509px;
+  --hor-nav-cap-inner-radius: 500px;
+  --hor-nav-inner-radius: 10px;
 
   position: fixed;
   top: max(14px, env(safe-area-inset-top));
@@ -279,7 +280,7 @@
   width: 38px;
   height: 38px;
   border: 1px solid transparent;
-  border-radius: 999px;
+  border-radius: var(--hor-nav-inner-radius);
   color: var(--hor-ink-2);
   transition:
     color 200ms var(--hor-ease),
@@ -290,8 +291,8 @@
 
 .hor .hor-navbtn:first-child {
   border-start-start-radius: var(--hor-nav-edge-radius);
-  border-start-end-radius: var(--hor-nav-inner-radius);
-  border-end-end-radius: var(--hor-nav-inner-radius);
+  border-start-end-radius: var(--hor-nav-cap-inner-radius);
+  border-end-end-radius: var(--hor-nav-cap-inner-radius);
   border-end-start-radius: var(--hor-nav-edge-radius);
 }
 
@@ -392,10 +393,10 @@
 }
 
 .hor .hor-nav-edge:last-child {
-  border-start-start-radius: var(--hor-nav-inner-radius);
+  border-start-start-radius: var(--hor-nav-cap-inner-radius);
   border-start-end-radius: var(--hor-nav-edge-radius);
   border-end-end-radius: var(--hor-nav-edge-radius);
-  border-end-start-radius: var(--hor-nav-inner-radius);
+  border-end-start-radius: var(--hor-nav-cap-inner-radius);
 }
 
 /* ------------------------------------------------------------------ *
