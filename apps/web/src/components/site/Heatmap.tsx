@@ -1,4 +1,14 @@
-import type { CSSProperties } from "react";
+"use client";
+
+import {
+  useId,
+  useRef,
+  useState,
+  type CSSProperties,
+  type KeyboardEvent,
+  type PointerEvent,
+} from "react";
+import { createPortal } from "react-dom";
 
 import type { ContributionDay, ContributionWeek } from "@/lib/snapshot";
 
@@ -18,6 +28,9 @@ const PITCH = CELL + GAP;
 const LEFT = 22; // day-name gutter
 const TOP = 14; // month-label gutter
 const ROWS = 7;
+const TOOLTIP_HALF = 98;
+const TOOLTIP_HEIGHT = 72;
+const TOOLTIP_MARGIN = 12;
 
 const LEVEL_CLASS = [
   "hor-lv0",
@@ -63,10 +76,20 @@ function monthTicks(weeks: ContributionWeek[]): MonthTick[] {
 
 function cellTitle(day: ContributionDay): string {
   return day.count === 0
-    ? `No contributions · ${longDate(day.date)}`
-    : `${num(day.count)} contribution${day.count === 1 ? "" : "s"} · ${longDate(
-        day.date,
-      )}`;
+    ? `No commits · ${longDate(day.date)}`
+    : `${day.project} · ${num(day.count)} commit${day.count === 1 ? "" : "s"} · ${longDate(day.date)}`;
+}
+
+type ActiveCell = {
+  day: ContributionDay;
+  index: number;
+  x: number;
+  y: number;
+  placement: "top" | "bottom";
+};
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max);
 }
 
 export function Heatmap({
@@ -77,75 +100,201 @@ export function Heatmap({
   /** ISO date of the busiest day; it gets a ring so the eye lands on it. */
   peak?: string;
 }) {
+  const tooltipId = useId();
+  const cellRefs = useRef<Array<SVGRectElement | null>>([]);
+  const days = weeks.flat();
+  const firstActiveIndex = Math.max(
+    0,
+    days.findIndex((day) => day.count > 0),
+  );
+  const [focusIndex, setFocusIndex] = useState(firstActiveIndex);
+  const [active, setActive] = useState<ActiveCell | null>(null);
   const width = LEFT + weeks.length * PITCH - GAP;
   const height = TOP + ROWS * PITCH - GAP;
   const ticks = monthTicks(weeks);
 
+  const showTooltip = (
+    day: ContributionDay,
+    index: number,
+    element: SVGRectElement,
+  ) => {
+    if (day.count === 0) {
+      setActive(null);
+      return;
+    }
+
+    const cellBounds = element.getBoundingClientRect();
+    const svgBounds = element.ownerSVGElement?.getBoundingClientRect() ?? cellBounds;
+    const viewportMin = TOOLTIP_HALF + TOOLTIP_MARGIN;
+    const viewportMax = window.innerWidth - TOOLTIP_HALF - TOOLTIP_MARGIN;
+    const panelMin = svgBounds.left + TOOLTIP_HALF;
+    const panelMax = svgBounds.right - TOOLTIP_HALF;
+    const minX = Math.max(viewportMin, panelMin);
+    const maxX = Math.min(viewportMax, panelMax);
+    const desiredX = cellBounds.left + cellBounds.width / 2;
+    const x =
+      minX <= maxX
+        ? clamp(desiredX, minX, maxX)
+        : clamp(desiredX, viewportMin, viewportMax);
+    const hasRoomAbove = cellBounds.top >= TOOLTIP_HEIGHT + TOOLTIP_MARGIN;
+    const hasRoomBelow =
+      window.innerHeight - cellBounds.bottom >= TOOLTIP_HEIGHT + TOOLTIP_MARGIN;
+    const placement = hasRoomAbove || !hasRoomBelow ? "top" : "bottom";
+
+    setActive({
+      day,
+      index,
+      x,
+      y: placement === "top" ? cellBounds.top : cellBounds.bottom,
+      placement,
+    });
+  };
+
+  const focusCell = (index: number) => {
+    const nextIndex = clamp(index, 0, days.length - 1);
+    setFocusIndex(nextIndex);
+    cellRefs.current[nextIndex]?.focus();
+  };
+
+  const onCellKeyDown = (event: KeyboardEvent<SVGRectElement>, index: number) => {
+    let nextIndex: number | null = null;
+
+    if (event.key === "ArrowLeft") nextIndex = index - ROWS;
+    if (event.key === "ArrowRight") nextIndex = index + ROWS;
+    if (event.key === "ArrowUp") nextIndex = index - 1;
+    if (event.key === "ArrowDown") nextIndex = index + 1;
+    if (event.key === "Home") nextIndex = 0;
+    if (event.key === "End") nextIndex = days.length - 1;
+
+    if (event.key === "Escape") {
+      event.preventDefault();
+      setActive(null);
+      return;
+    }
+
+    if (nextIndex === null) return;
+    event.preventDefault();
+    focusCell(nextIndex);
+  };
+
   return (
-    <svg
-      className="hor-heat"
-      viewBox={`0 0 ${width} ${height}`}
-      role="img"
-      aria-label={`Contribution activity heatmap: ${weeks.length} weeks by seven days, Sunday to Saturday.`}
-      preserveAspectRatio="xMidYMid meet"
-    >
-      {ticks.map((tick) => (
-        <text key={tick.x} className="hor-heat-txt" x={tick.x} y={7}>
-          {tick.label}
-        </text>
-      ))}
+    <>
+      <svg
+        className="hor-heat"
+        viewBox={`0 0 ${width} ${height}`}
+        role="group"
+        aria-label={`Contribution activity heatmap: ${weeks.length} weeks by seven days, Sunday to Saturday. Use arrow keys to inspect days.`}
+        preserveAspectRatio="xMidYMid meet"
+      >
+        {ticks.map((tick) => (
+          <text key={tick.x} className="hor-heat-txt" x={tick.x} y={7}>
+            {tick.label}
+          </text>
+        ))}
 
-      {Object.entries(DAY_LABELS).map(([row, label]) => (
-        <text
-          key={label}
-          className="hor-heat-txt"
-          x={LEFT - 6}
-          y={TOP + Number(row) * PITCH + CELL / 2}
-          textAnchor="end"
-          dominantBaseline="central"
-        >
-          {label}
-        </text>
-      ))}
+        {Object.entries(DAY_LABELS).map(([row, label]) => (
+          <text
+            key={label}
+            className="hor-heat-txt"
+            x={LEFT - 6}
+            y={TOP + Number(row) * PITCH + CELL / 2}
+            textAnchor="end"
+            dominantBaseline="central"
+          >
+            {label}
+          </text>
+        ))}
 
-      {weeks.map((week, col) => (
-        <g
-          key={week[0].date}
-          className="hor-heat-col"
-          style={{ "--c": col } as CSSProperties}
-        >
-          {week.map((day, row) => (
-            <rect
-              key={day.date}
-              className={`hor-cell ${LEVEL_CLASS[day.level]}`}
-              x={LEFT + col * PITCH}
-              y={TOP + row * PITCH}
-              width={CELL}
-              height={CELL}
-              rx={2.5}
+        {weeks.map((week, col) => (
+          <g
+            key={week[0].date}
+            className="hor-heat-col"
+            style={{ "--c": col } as CSSProperties}
+          >
+            {week.map((day, row) => {
+              const index = col * ROWS + row;
+
+              return (
+                <rect
+                  key={day.date}
+                  ref={(element) => {
+                    cellRefs.current[index] = element;
+                  }}
+                  className={`hor-cell ${LEVEL_CLASS[day.level]}`}
+                  x={LEFT + col * PITCH}
+                  y={TOP + row * PITCH}
+                  width={CELL}
+                  height={CELL}
+                  rx={2.5}
+                  role="img"
+                  tabIndex={index === focusIndex ? 0 : -1}
+                  aria-label={cellTitle(day)}
+                  aria-describedby={active?.index === index ? tooltipId : undefined}
+                  onPointerEnter={(event: PointerEvent<SVGRectElement>) =>
+                    showTooltip(day, index, event.currentTarget)
+                  }
+                  onPointerLeave={(event) => {
+                    if (document.activeElement !== event.currentTarget) setActive(null);
+                  }}
+                  onFocus={(event) => {
+                    setFocusIndex(index);
+                    showTooltip(day, index, event.currentTarget);
+                  }}
+                  onBlur={() => setActive(null)}
+                  onKeyDown={(event) => onCellKeyDown(event, index)}
+                />
+              );
+            })}
+
+            {peak
+              ? week.map((day, row) =>
+                  day.date === peak ? (
+                    <rect
+                      key={`${day.date}-peak`}
+                      className="hor-peak-ring"
+                      x={LEFT + col * PITCH - 2}
+                      y={TOP + row * PITCH - 2}
+                      width={CELL + 4}
+                      height={CELL + 4}
+                      rx={4}
+                    />
+                  ) : null,
+                )
+              : null}
+          </g>
+        ))}
+      </svg>
+
+      {active && typeof document !== "undefined"
+        ? createPortal(
+            <div
+              id={tooltipId}
+              className="hor-heat-tooltip"
+              role="tooltip"
+              data-placement={active.placement}
+              style={
+                {
+                  "--hor-tip-x": `${active.x}px`,
+                  "--hor-tip-y": `${active.y}px`,
+                } as CSSProperties
+              }
             >
-              <title>{cellTitle(day)}</title>
-            </rect>
-          ))}
-
-          {peak
-            ? week.map((day, row) =>
-                day.date === peak ? (
-                  <rect
-                    key={`${day.date}-peak`}
-                    className="hor-peak-ring"
-                    x={LEFT + col * PITCH - 2}
-                    y={TOP + row * PITCH - 2}
-                    width={CELL + 4}
-                    height={CELL + 4}
-                    rx={4}
-                  />
-                ) : null,
-              )
-            : null}
-        </g>
-      ))}
-    </svg>
+              <span className="hor-heat-tooltip-date">{longDate(active.day.date)}</span>
+              <span className="hor-heat-tooltip-row">
+                <span className="hor-heat-tooltip-project">
+                  <i aria-hidden="true" />
+                  {active.day.project ?? "No project activity"}
+                </span>
+                <strong>
+                  {num(active.day.count)}
+                  <small>{active.day.count === 1 ? "commit" : "commits"}</small>
+                </strong>
+              </span>
+            </div>,
+            document.querySelector(".hor") ?? document.body,
+          )
+        : null}
+    </>
   );
 }
 

@@ -22,6 +22,8 @@ export type ContributionDay = {
   date: string;
   count: number;
   level: ContributionLevel;
+  /** Primary project receiving commits that day; null on an inactive day. */
+  project: string | null;
 };
 
 /** Seven days, Sunday → Saturday. One column of the heatmap. */
@@ -182,6 +184,13 @@ const TODAY_MS = Date.UTC(2026, 6, 29);
 
 const CURRENT_STREAK_DAYS = 23;
 
+const CONTRIBUTION_PROJECTS = [
+  'QuoteCloud',
+  'TravelDocs',
+  'ZeroRisk',
+  'SoldOnline',
+] as const;
+
 function isoDate(ms: number): string {
   return new Date(ms).toISOString().slice(0, 10);
 }
@@ -196,6 +205,15 @@ function levelFor(count: number): ContributionLevel {
 
 function buildCalendar(): ContributionWeek[] {
   const rand = mulberry32(CALENDAR_SEED);
+  const projectRand = mulberry32(CALENDAR_SEED ^ 0x51a7c0de);
+
+  const nextProject = (): (typeof CONTRIBUTION_PROJECTS)[number] => {
+    const roll = projectRand();
+    if (roll < 0.4) return CONTRIBUTION_PROJECTS[0];
+    if (roll < 0.66) return CONTRIBUTION_PROJECTS[1];
+    if (roll < 0.84) return CONTRIBUTION_PROJECTS[2];
+    return CONTRIBUTION_PROJECTS[3];
+  };
 
   // Columns run Sunday → Saturday, so the grid ends on the Saturday of the
   // current week and reaches back exactly 52 weeks.
@@ -230,7 +248,12 @@ function buildCalendar(): ContributionWeek[] {
         count = quiet < 0.06 ? 0 : Math.floor(r * 40) + 5;
       }
 
-      week.push({ date: isoDate(ms), count, level: levelFor(count) });
+      week.push({
+        date: isoDate(ms),
+        count,
+        level: levelFor(count),
+        project: count > 0 ? nextProject() : null,
+      });
     }
 
     weeks.push(week);
@@ -247,6 +270,7 @@ function buildCalendar(): ContributionWeek[] {
     if (day.count === 0) {
       day.count = Math.floor(streakRand() * 6) + 1;
       day.level = levelFor(day.count);
+      day.project = nextProject();
     }
   }
 

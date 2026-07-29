@@ -1393,15 +1393,31 @@
 }
 
 .hor .hor-cell {
-  transition: opacity 0.18s var(--hor-ease);
+  transform-box: fill-box;
+  transform-origin: center;
+  transition:
+    opacity 0.18s var(--hor-ease),
+    transform 0.18s var(--hor-ease);
 }
 
 .hor .hor-heat:hover .hor-cell {
   opacity: 0.5;
 }
 
-.hor .hor-heat .hor-cell:hover {
+.hor .hor-heat:focus-within .hor-cell {
+  opacity: 0.5;
+}
+
+.hor .hor-heat .hor-cell:hover,
+.hor .hor-heat .hor-cell:focus-visible {
   opacity: 1;
+  transform: scale(1.18);
+}
+
+.hor .hor-heat .hor-cell:focus-visible {
+  outline: none;
+  stroke: var(--hor-focus);
+  stroke-width: 1.5px;
 }
 
 /* Fills live in class rules — `var()` inside an SVG presentation attribute is
@@ -1434,6 +1450,122 @@
   stroke: var(--hor-sun);
   stroke-width: 1;
   opacity: 0.95;
+  pointer-events: none;
+}
+
+.hor .hor-heat-tooltip {
+  position: fixed;
+  top: var(--hor-tip-y);
+  left: var(--hor-tip-x);
+  z-index: 80;
+  width: 196px;
+  padding: 0.65rem 0.72rem 0.7rem;
+  border: 1px solid var(--hor-line-strong);
+  border-radius: 11px;
+  background: var(--hor-panel);
+  box-shadow: var(--hor-inset-top), var(--hor-shadow-panel);
+  color: var(--hor-ink);
+  pointer-events: none;
+  animation: hor-heat-tooltip-in 140ms var(--hor-ease) both;
+}
+
+.hor .hor-heat-tooltip[data-placement="top"] {
+  transform: translate(-50%, calc(-100% - 9px));
+}
+
+.hor .hor-heat-tooltip[data-placement="bottom"] {
+  transform: translate(-50%, 9px);
+}
+
+.hor .hor-heat-tooltip::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  border-right: 1px solid var(--hor-line-strong);
+  border-bottom: 1px solid var(--hor-line-strong);
+  background: var(--hor-panel);
+}
+
+.hor .hor-heat-tooltip[data-placement="top"]::after {
+  bottom: -5px;
+  transform: translateX(-50%) rotate(45deg);
+}
+
+.hor .hor-heat-tooltip[data-placement="bottom"]::after {
+  top: -5px;
+  transform: translateX(-50%) rotate(225deg);
+}
+
+.hor .hor-heat-tooltip-date {
+  display: block;
+  color: var(--hor-ink-4);
+  font-family: var(--font-hor-mono), ui-monospace, monospace;
+  font-size: 9px;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.hor .hor-heat-tooltip-row {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 0.55rem;
+}
+
+.hor .hor-heat-tooltip-project {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 0.45rem;
+  overflow: hidden;
+  color: var(--hor-ink-2);
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hor .hor-heat-tooltip-project i {
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--hor-accent);
+  box-shadow: var(--hor-glow-accent);
+}
+
+.hor .hor-heat-tooltip-row strong {
+  display: grid;
+  flex: none;
+  color: var(--hor-sun);
+  font-family: var(--font-hor-mono), ui-monospace, monospace;
+  font-size: 1rem;
+  font-weight: 500;
+  line-height: 0.9;
+  text-align: right;
+}
+
+.hor .hor-heat-tooltip-row small {
+  margin-top: 0.3rem;
+  color: var(--hor-ink-4);
+  font-size: 8px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+@keyframes hor-heat-tooltip-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .hor .hor-swatch {
@@ -1619,7 +1751,8 @@
   .hor .hor-fill,
   .hor .hor-live::after,
   .hor .hor-id-orbit,
-  .hor .hor-id-orbit i {
+  .hor .hor-id-orbit i,
+  .hor .hor-heat-tooltip {
     animation: none !important;
   }
 
