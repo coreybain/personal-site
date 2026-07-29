@@ -1,7 +1,7 @@
 import { ThemeScope } from "@/components/theme/ThemeScope";
 import { AiSignal } from "@/components/v/horizon/AiSignal";
 import { Boundary } from "@/components/v/horizon/Boundary";
-import { Footer, TopBar } from "@/components/v/horizon/Chrome";
+import { Footer, NavPill } from "@/components/v/horizon/Chrome";
 import { FeaturedWork } from "@/components/v/horizon/FeaturedWork";
 import { GitSignal } from "@/components/v/horizon/GitSignal";
 import { Hero } from "@/components/v/horizon/Hero";
@@ -20,7 +20,7 @@ import { snapshot } from "@/lib/snapshot";
  * end) runs through both zones so the page reads as one system.
  *
  * Server component end to end. The only client code is <ThemeScope> (wrapper +
- * pre-paint boot script + context) and the <ThemeToggle> in the top bar. Every
+ * pre-paint boot script + context) and the <ThemeToggle> in the nav pill. Every
  * colour below the scope resolves from `--hor-*`, so flipping `data-theme`
  * re-skins the page without moving a pixel.
  *
@@ -29,7 +29,7 @@ import { snapshot } from "@/lib/snapshot";
 export default function HorizonPage() {
   return (
     <ThemeScope className="hor" defaultTheme="dark">
-      <TopBar />
+      <NavPill />
 
       <main>
         {/* ── above the horizon: calm ───────────────────────────────── */}

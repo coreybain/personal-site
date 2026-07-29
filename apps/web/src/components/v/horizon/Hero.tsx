@@ -2,6 +2,7 @@ import type { CSSProperties } from "react";
 
 import { snapshot } from "@/lib/snapshot";
 
+import { PersonalCard } from "./PersonalCard";
 import { num } from "./format";
 
 const { identity, gitStats, aiUsage, projects } = snapshot;
@@ -25,59 +26,70 @@ function delay(ms: number): CSSProperties {
 
 export function Hero() {
   return (
-    <header className="pt-14 pb-16 sm:pt-20 sm:pb-20 lg:pt-28 lg:pb-24">
-      <div className="hor-rise" style={delay(40)}>
-        <span className="hor-pill">
-          <span className="hor-live" aria-hidden="true" />
-          {identity.availability}
-        </span>
-      </div>
+    <header className="pt-24 pb-16 sm:pt-28 sm:pb-20 lg:pt-36 lg:pb-24">
+      <div className="flex flex-col lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:items-center lg:gap-x-14 xl:gap-x-20">
+        <div className="order-last lg:order-none">
+          <div className="hor-rise" style={delay(40)}>
+            <span className="hor-pill">
+              <span className="hor-live" aria-hidden="true" />
+              {identity.availability}
+            </span>
+          </div>
 
-      <h1 className="hor-display hor-rise mt-8 text-balance sm:mt-10" style={delay(110)}>
-        {identity.name}
-      </h1>
+          <h1 className="hor-display hor-rise mt-8 text-balance sm:mt-10" style={delay(110)}>
+            {identity.name}
+          </h1>
 
-      <div className="hor-rise mt-6 sm:mt-7" style={delay(180)}>
-        <p className="hor-h2">{identity.role}</p>
-        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5">
-          <span className="hor-body" style={{ color: "var(--hor-ink)" }}>
-            {identity.company}
-          </span>
-          <span className="hor-vrule" aria-hidden="true" />
-          <span className="hor-body">{identity.location}</span>
-          <span className="hor-vrule" aria-hidden="true" />
-          <span className="hor-body">
-            {gitStats.currentStreakDays}-day streak, unbroken
-          </span>
+          <div className="hor-rise mt-6 sm:mt-7" style={delay(180)}>
+            <p className="hor-h2">{identity.role}</p>
+            <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+              <span className="hor-body" style={{ color: "var(--hor-ink)" }}>
+                {identity.company}
+              </span>
+              <span className="hor-vrule" aria-hidden="true" />
+              <span className="hor-body">{identity.location}</span>
+              <span className="hor-vrule" aria-hidden="true" />
+              <span className="hor-body">
+                {gitStats.currentStreakDays}-day streak, unbroken
+              </span>
+            </div>
+          </div>
+
+          <p className="hor-lede hor-rise mt-7 max-w-[48ch] text-pretty" style={delay(240)}>
+            I build the platforms other teams depend on — document automation,
+            compliance, real-time auctions — and I ship them with agents in the
+            loop, every day. Everything below this line is measured, not claimed.
+          </p>
+
+          <div className="hor-rise mt-9 flex flex-wrap items-center gap-3" style={delay(300)}>
+            <a className="hor-btn" href={`mailto:${identity.email}`}>
+              Get in touch
+              <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true">
+                <path
+                  d="M2.6 6.5h7.8M7.2 3.3l3.2 3.2-3.2 3.2"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </a>
+            <a
+              className="hor-btn hor-btn-ghost"
+              href={`https://github.com/${identity.github}`}
+              rel="noreferrer noopener"
+            >
+              github.com/{identity.github}
+            </a>
+          </div>
         </div>
-      </div>
 
-      <p className="hor-lede hor-rise mt-7 max-w-[48ch] text-pretty" style={delay(240)}>
-        I build the platforms other teams depend on — document automation,
-        compliance, real-time auctions — and I ship them with agents in the loop,
-        every day. Everything below this line is measured, not claimed.
-      </p>
-
-      <div className="hor-rise mt-9 flex flex-wrap items-center gap-3" style={delay(300)}>
-        <a className="hor-btn" href={`mailto:${identity.email}`}>
-          Get in touch
-          <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true">
-            <path
-              d="M2.6 6.5h7.8M7.2 3.3l3.2 3.2-3.2 3.2"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </a>
-        <a
-          className="hor-btn hor-btn-ghost"
-          href={`https://github.com/${identity.github}`}
-          rel="noreferrer noopener"
+        <div
+          className="hor-rise order-first mb-14 w-full lg:order-none lg:mb-0 lg:justify-self-end"
+          style={delay(70)}
         >
-          github.com/{identity.github}
-        </a>
+          <PersonalCard />
+        </div>
       </div>
 
       <div className="hor-rise mt-14 sm:mt-16 lg:mt-20" style={delay(380)}>

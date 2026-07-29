@@ -239,52 +239,77 @@
 }
 
 /* ------------------------------------------------------------------ *
- * Top bar
+ * Nav pill — a centred, floating strip of glyph keys
  * ------------------------------------------------------------------ */
 
-.hor .hor-bar {
-  position: sticky;
-  top: 0;
-  z-index: 50;
-  background: color-mix(in srgb, var(--hor-bg) 76%, transparent);
-  backdrop-filter: blur(16px) saturate(150%);
-  -webkit-backdrop-filter: blur(16px) saturate(150%);
-  transition: background-color 260ms ease;
-}
-
-.hor .hor-bar-inner {
+.hor .hor-navpill {
+  position: fixed;
+  top: max(14px, env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 60;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  height: 60px;
+  gap: 2px;
+  padding: 5px;
+  border-radius: 999px;
+  border: 1px solid var(--hor-sky-card-edge);
+  background: color-mix(in srgb, var(--hor-bg) 72%, transparent);
+  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  box-shadow: var(--hor-inset-top), var(--hor-shadow-sky);
+  transition:
+    background-color 260ms ease,
+    border-color 260ms ease;
 }
 
-.hor .hor-mark {
+.hor .hor-navbtn {
+  position: relative;
   display: inline-grid;
   place-items: center;
-  width: 27px;
-  height: 27px;
-  flex: none;
-  border-radius: 8px;
-  background: linear-gradient(160deg, var(--hor-accent), var(--hor-accent-deep));
-  color: #fff;
-  font-family: var(--font-hor-mono), ui-monospace, monospace;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  box-shadow: var(--hor-inset-top), var(--hor-glow-accent);
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  color: var(--hor-ink-2);
+  transition:
+    color 200ms var(--hor-ease),
+    background-color 200ms var(--hor-ease);
 }
 
-.hor .hor-nav {
-  display: none;
-  align-items: center;
-  gap: 1.5rem;
+.hor .hor-navbtn:hover {
+  color: var(--hor-ink);
+  background: var(--hor-chip);
 }
 
-@media (min-width: 720px) {
-  .hor .hor-nav {
-    display: flex;
+/* Glyph tooltip — named keys, hover/focus only, never on touch. */
+.hor .hor-navbtn::after {
+  content: attr(data-label);
+  position: absolute;
+  top: calc(100% + 11px);
+  left: 50%;
+  transform: translateX(-50%) translateY(-3px);
+  padding: 0.3rem 0.55rem;
+  border-radius: 7px;
+  border: 1px solid var(--hor-line);
+  background: var(--hor-panel);
+  box-shadow: var(--hor-shadow-panel);
+  color: var(--hor-ink-2);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 200ms var(--hor-ease),
+    transform 200ms var(--hor-ease);
+}
+
+@media (hover: hover) {
+  .hor .hor-navbtn:hover::after,
+  .hor .hor-navbtn:focus-visible::after {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
   }
 }
 
@@ -744,6 +769,160 @@
    rule above, so the size change has to live at the same specificity. */
 .hor .hor-vrule-sm {
   height: 9px;
+}
+
+/* ------------------------------------------------------------------ *
+ * ID card — the hero's right column
+ * ------------------------------------------------------------------ */
+
+.hor .hor-id-wrap {
+  position: relative;
+  width: 100%;
+}
+
+/* Dashed orbits — decorative arcs breaking the card's box, sun on the line. */
+.hor .hor-id-orbit {
+  position: absolute;
+  top: -30px;
+  right: -26px;
+  width: 148px;
+  height: 148px;
+  border: 1.5px dashed color-mix(in srgb, var(--hor-accent) 60%, transparent);
+  border-radius: 50%;
+  pointer-events: none;
+  /* The span spins as one body: the dash pattern turns and the sun-dot child
+     rides the circle like a planet. */
+  animation: hor-orbit 28s linear infinite;
+}
+
+@keyframes hor-orbit {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* The planet sits on the circle and carries its own slow counter-rotation
+   about the circle's centre (the transform-origin), so it drifts out of step
+   with the dashes — net one lap ≈ 41s against the ring's 28s. */
+.hor .hor-id-orbit i {
+  position: absolute;
+  /* Centre sits 8px beyond the dash line, so the planet clears the circle
+     with a 2px gap instead of riding on it. */
+  top: -12.5px;
+  left: calc(50% - 4.5px);
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--hor-sun);
+  box-shadow: var(--hor-glow-sun);
+  transform-origin: 4.5px 85px;
+  animation: hor-orbit 90s linear infinite reverse;
+}
+
+.hor .hor-id-orbit-b {
+  top: auto;
+  right: auto;
+  bottom: -34px;
+  left: -30px;
+  width: 110px;
+  height: 110px;
+  border-color: color-mix(in srgb, var(--hor-accent) 38%, transparent);
+  animation-duration: 44s;
+  animation-direction: reverse;
+}
+
+.hor .hor-idcard {
+  position: relative;
+  z-index: 1;
+  padding: 12px 12px 24px;
+  border-radius: 24px;
+  text-align: center;
+}
+
+.hor .hor-id-photo {
+  position: relative;
+  overflow: hidden;
+  border-radius: 15px;
+  aspect-ratio: 10 / 9;
+  /* Quiet backdrop while the photo decodes. */
+  background: var(--hor-chip);
+}
+
+.hor .hor-id-img {
+  object-fit: cover;
+  object-position: center 22%;
+}
+
+/* Hairline ring above the photo so the edge stays crisp in both themes. */
+.hor .hor-id-photo::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1px var(--hor-art-line-2);
+  pointer-events: none;
+}
+
+.hor .hor-id-name {
+  margin-top: 18px;
+  font-size: 1.45rem;
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.032em;
+}
+
+.hor .hor-id-badge {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  margin-top: 12px;
+  border-radius: 999px;
+  background: linear-gradient(160deg, var(--hor-accent-mid), var(--hor-accent-deep));
+  color: #fff;
+  box-shadow: var(--hor-inset-top), var(--hor-glow-accent);
+}
+
+.hor .hor-id-role {
+  margin-top: 12px;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--hor-ink-2);
+}
+
+.hor .hor-id-loc {
+  margin-top: 2px;
+  font-size: 0.75rem;
+  color: var(--hor-ink-3);
+}
+
+.hor .hor-id-social {
+  display: flex;
+  justify-content: center;
+  gap: 9px;
+  margin-top: 15px;
+}
+
+.hor .hor-id-chip {
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  border: 1px solid var(--hor-line);
+  background: var(--hor-chip);
+  color: var(--hor-ink-2);
+  box-shadow: var(--hor-inset-top);
+  transition:
+    color 200ms var(--hor-ease),
+    border-color 200ms var(--hor-ease),
+    box-shadow 200ms var(--hor-ease);
+}
+
+.hor .hor-id-chip:hover {
+  color: var(--hor-accent);
+  border-color: var(--hor-line-strong);
+  box-shadow: var(--hor-inset-top), var(--hor-glow-accent);
 }
 
 /* ------------------------------------------------------------------ *
@@ -1224,7 +1403,9 @@
   .hor .hor-wash,
   .hor .hor-heat-col,
   .hor .hor-fill,
-  .hor .hor-live::after {
+  .hor .hor-live::after,
+  .hor .hor-id-orbit,
+  .hor .hor-id-orbit i {
     animation: none !important;
   }
 
@@ -1244,7 +1425,11 @@
   .hor .hor-toggle,
   .hor .hor-cell,
   .hor .hor-art-base,
-  .hor .hor-art-glyph {
+  .hor .hor-art-glyph,
+  .hor .hor-navpill,
+  .hor .hor-navbtn,
+  .hor .hor-navbtn::after,
+  .hor .hor-id-chip {
     transition: none !important;
   }
 
