@@ -1,0 +1,1256 @@
+/*
+ * Horizon — scoped styles for the /v/horizon variant.
+ *
+ * The page is two materials divided by a literal horizon:
+ *
+ *   SKY     calm, airy, one soft gradient wash sitting on the skyline.
+ *           Display type in the sans face. Rounded, weightless surfaces.
+ *   ── horizon rule ──
+ *   DECK    dense telemetry. Graph-paper ground, hairline instrument panels,
+ *           IBM Plex Mono numerals, tick marks, phosphor ramp.
+ *   ── horizon rule ──
+ *   SKY     the page surfaces again for work tiles and the life strip.
+ *
+ * EVERY selector nests under `.hor`, which is the class handed to <ThemeScope>,
+ * so the same element carries the scope class and `data-theme`. The two blocks
+ * marked THEME below are the ONLY place light/dark is decided — everything else
+ * reads `--hor-*`. Sibling agents are building concurrently; keep it that way.
+ *
+ * See src/components/theme/README.md for the full contract.
+ */
+
+/* ------------------------------------------------------------------ *
+ * Font carrier — set by the route layout, inherits into the scope.
+ * ------------------------------------------------------------------ */
+
+.hor-fonts {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+
+/* ------------------------------------------------------------------ *
+ * Root — structural tokens (theme-independent) + base type
+ * ------------------------------------------------------------------ */
+
+.hor {
+  --hor-shell: 1180px;
+  --hor-gutter: clamp(1.15rem, 4vw, 2.5rem);
+  --hor-radius-sky: 20px;
+  --hor-radius-deck: 6px;
+  --hor-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --hor-spring: cubic-bezier(0.34, 1.4, 0.5, 1);
+  --hor-boundary-h: 84px;
+
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  isolation: isolate;
+  min-height: 100dvh;
+  background: var(--hor-bg);
+  color: var(--hor-ink);
+  font-family: var(--font-hor-sans), ui-sans-serif, system-ui, -apple-system, sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+  letter-spacing: -0.011em;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: clip;
+  scroll-behavior: smooth;
+  transition:
+    background-color 260ms ease,
+    color 260ms ease;
+}
+
+/* ------------------------------------------------------------------ *
+ * THEME — dark. The design pole.
+ * ------------------------------------------------------------------ */
+
+.hor[data-theme="dark"] {
+  /* Canvas. Sky sits above the deck and is a touch lighter, so descending
+     below the horizon reads as going *under* something. */
+  --hor-bg: #090a12;
+  --hor-sky-top: #0a0b14;
+  --hor-sky-bottom: #0c0d18;
+  --hor-deck: #05060c;
+  --hor-grid: rgba(150, 160, 220, 0.055);
+
+  /* Ink — checked against --hor-bg: ink 17.4:1 · ink-2 9.0:1
+     · ink-3 6.0:1 · ink-4 4.9:1. Nothing below ink-4 carries meaning. */
+  --hor-ink: #eef0f7;
+  --hor-ink-2: #a9aec2;
+  --hor-ink-3: #868da4;
+  --hor-ink-4: #767d94;
+
+  /* Hairlines */
+  --hor-line: rgba(160, 172, 225, 0.13);
+  --hor-line-soft: rgba(160, 172, 225, 0.075);
+  --hor-line-strong: rgba(160, 172, 225, 0.26);
+
+  /* Surfaces */
+  --hor-sky-card: rgba(255, 255, 255, 0.035);
+  --hor-sky-card-hover: rgba(255, 255, 255, 0.055);
+  --hor-sky-card-edge: rgba(255, 255, 255, 0.085);
+  --hor-panel: #0d0f1a;
+  --hor-panel-top: rgba(255, 255, 255, 0.035);
+  --hor-chip: rgba(255, 255, 255, 0.06);
+
+  /* One accent family: dusk violet, with the ramp's hot end as its sun. */
+  --hor-accent: hsl(258 92% 76%);
+  /* 62% keeps the button's white label ≥ 5:1 at the light end of its gradient. */
+  --hor-accent-mid: hsl(256 84% 62%);
+  --hor-accent-deep: hsl(252 62% 44%);
+  --hor-accent-wash: hsl(258 92% 70% / 0.16);
+  --hor-sun: hsl(38 96% 64%);
+
+  /* Sequential ramp — night to dawn. Lightness climbs 36 → 50 → 58 → 62. */
+  --hor-l0: rgba(160, 172, 225, 0.07);
+  --hor-l1: hsl(252 48% 36%);
+  --hor-l2: hsl(280 58% 50%);
+  --hor-l3: hsl(322 74% 58%);
+  --hor-l4: hsl(36 96% 62%);
+
+  /* Depth — on dark, glows do the work that shadows do on light. */
+  --hor-shadow-sky: 0 1px 2px rgba(0, 0, 0, 0.5), 0 24px 60px -32px rgba(0, 0, 0, 0.9);
+  --hor-shadow-sky-lift: 0 2px 4px rgba(0, 0, 0, 0.55), 0 36px 80px -34px rgba(0, 0, 0, 1);
+  --hor-shadow-panel: inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    inset 0 0 48px rgba(140, 130, 255, 0.045), 0 1px 2px rgba(0, 0, 0, 0.55);
+  --hor-inset-top: inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  --hor-rule-glow: 0 0 26px 1px hsl(262 90% 60% / 0.32);
+  --hor-glow-sun: 0 0 9px hsl(38 96% 64% / 0.55);
+  --hor-glow-accent: 0 0 14px hsl(258 92% 70% / 0.4);
+  --hor-focus: hsl(258 92% 76%);
+
+  /* The one soft wash sitting on the horizon line. */
+  --hor-wash:
+    radial-gradient(58% 88% at 50% 108%, hsl(38 96% 62% / 0.13), transparent 62%),
+    radial-gradient(88% 100% at 50% 118%, hsl(300 84% 60% / 0.13), transparent 64%),
+    radial-gradient(130% 118% at 50% 132%, hsl(256 92% 62% / 0.2), transparent 66%),
+    radial-gradient(90% 60% at 14% -6%, hsl(214 80% 58% / 0.07), transparent 62%);
+
+  /* Project placeholder art */
+  --hor-art-base: #0c0d17;
+  --hor-art-a: 0.78;
+  --hor-art-l1: 60%;
+  --hor-art-l2: 46%;
+  --hor-art-line: rgba(255, 255, 255, 0.11);
+  --hor-art-line-2: rgba(255, 255, 255, 0.055);
+  --hor-art-veil: linear-gradient(180deg, rgba(6, 7, 14, 0) 46%, rgba(6, 7, 14, 0.6));
+  --hor-art-glyph: rgba(255, 255, 255, 0.13);
+  --hor-art-horizon: rgba(255, 255, 255, 0.5);
+}
+
+/* ------------------------------------------------------------------ *
+ * THEME — light. Not an inversion: re-tuned surface, depth and ramp.
+ * ------------------------------------------------------------------ */
+
+.hor[data-theme="light"] {
+  --hor-bg: #fbfbfe;
+  --hor-sky-top: #ffffff;
+  --hor-sky-bottom: #f7f7fc;
+  /* Below the horizon the light page goes cooler and slightly darker, so the
+     white instrument panels lift off it exactly the way they do on dark. */
+  --hor-deck: #eef0f7;
+  --hor-grid: rgba(28, 30, 74, 0.05);
+
+  /* Ink — the binding constraint is the *deck* (#eef0f7), not the page
+     background: ink 17.4:1 · ink-2 6.8:1 · ink-3 5.2:1 · ink-4 4.8:1
+     against the deck (higher against --hor-bg and the white panels). */
+  --hor-ink: #101018;
+  --hor-ink-2: #4e5266;
+  --hor-ink-3: #5f6478;
+  --hor-ink-4: #646980;
+
+  --hor-line: rgba(24, 26, 70, 0.11);
+  --hor-line-soft: rgba(24, 26, 70, 0.06);
+  --hor-line-strong: rgba(24, 26, 70, 0.2);
+
+  --hor-sky-card: rgba(255, 255, 255, 0.78);
+  --hor-sky-card-hover: rgba(255, 255, 255, 0.94);
+  --hor-sky-card-edge: rgba(255, 255, 255, 0.9);
+  --hor-panel: #ffffff;
+  --hor-panel-top: rgba(255, 255, 255, 0.9);
+  --hor-chip: rgba(24, 26, 70, 0.045);
+
+  --hor-accent: hsl(256 76% 52%);
+  --hor-accent-mid: hsl(256 80% 60%);
+  --hor-accent-deep: hsl(254 68% 40%);
+  --hor-accent-wash: hsl(256 90% 62% / 0.1);
+  /* Doubles as text via .hor-hot on white panels — 38% lightness holds 4.7:1. */
+  --hor-sun: hsl(28 88% 38%);
+
+  /* Same dawn arc, run the other way: lightness falls 86 → 70 → 55 → 46. */
+  --hor-l0: rgba(24, 26, 70, 0.07);
+  --hor-l1: hsl(248 62% 86%);
+  --hor-l2: hsl(268 62% 70%);
+  --hor-l3: hsl(312 62% 55%);
+  --hor-l4: hsl(28 88% 46%);
+
+  /* Depth — on light, layered shadows do the work. Glows are switched off. */
+  --hor-shadow-sky: 0 1px 1px rgba(20, 20, 55, 0.03), 0 5px 12px -5px rgba(20, 20, 55, 0.06),
+    0 22px 44px -22px rgba(20, 20, 55, 0.16);
+  --hor-shadow-sky-lift: 0 1px 1px rgba(20, 20, 55, 0.03), 0 10px 22px -8px rgba(20, 20, 55, 0.09),
+    0 36px 68px -28px rgba(20, 20, 55, 0.24);
+  --hor-shadow-panel: inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 1px 1px rgba(20, 20, 55, 0.04), 0 8px 20px -12px rgba(20, 20, 55, 0.16);
+  --hor-inset-top: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  --hor-rule-glow: 0 6px 22px -8px hsl(256 70% 50% / 0.28);
+  --hor-glow-sun: 0 1px 3px hsl(28 88% 44% / 0.4);
+  --hor-glow-accent: 0 1px 3px hsl(256 76% 52% / 0.35);
+  --hor-focus: hsl(256 76% 52%);
+
+  --hor-wash:
+    radial-gradient(58% 88% at 50% 108%, hsl(36 96% 60% / 0.16), transparent 60%),
+    radial-gradient(88% 100% at 50% 118%, hsl(310 84% 66% / 0.13), transparent 62%),
+    radial-gradient(130% 120% at 50% 134%, hsl(256 92% 68% / 0.2), transparent 64%),
+    radial-gradient(90% 60% at 14% -6%, hsl(214 88% 62% / 0.1), transparent 62%);
+
+  --hor-art-base: #f1f2f9;
+  --hor-art-a: 0.72;
+  --hor-art-l1: 66%;
+  --hor-art-l2: 78%;
+  --hor-art-line: rgba(255, 255, 255, 0.55);
+  --hor-art-line-2: rgba(255, 255, 255, 0.3);
+  --hor-art-veil: linear-gradient(180deg, rgba(255, 255, 255, 0) 48%, rgba(22, 22, 55, 0.09));
+  --hor-art-glyph: rgba(255, 255, 255, 0.5);
+  --hor-art-horizon: rgba(255, 255, 255, 0.85);
+}
+
+.hor ::selection {
+  background: var(--hor-accent-wash);
+  color: var(--hor-ink);
+}
+
+.hor :focus-visible {
+  outline: 2px solid var(--hor-focus);
+  outline-offset: 3px;
+  border-radius: 3px;
+}
+
+/* ------------------------------------------------------------------ *
+ * Shell
+ * ------------------------------------------------------------------ */
+
+.hor .hor-shell {
+  width: 100%;
+  max-width: var(--hor-shell);
+  margin-inline: auto;
+  padding-inline: var(--hor-gutter);
+}
+
+/* ------------------------------------------------------------------ *
+ * Top bar
+ * ------------------------------------------------------------------ */
+
+.hor .hor-bar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: color-mix(in srgb, var(--hor-bg) 76%, transparent);
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  transition: background-color 260ms ease;
+}
+
+.hor .hor-bar-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  height: 60px;
+}
+
+.hor .hor-mark {
+  display: inline-grid;
+  place-items: center;
+  width: 27px;
+  height: 27px;
+  flex: none;
+  border-radius: 8px;
+  background: linear-gradient(160deg, var(--hor-accent), var(--hor-accent-deep));
+  color: #fff;
+  font-family: var(--font-hor-mono), ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  box-shadow: var(--hor-inset-top), var(--hor-glow-accent);
+}
+
+.hor .hor-nav {
+  display: none;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+@media (min-width: 720px) {
+  .hor .hor-nav {
+    display: flex;
+  }
+}
+
+/* The toggle: an instrument key, not a bare glyph. Fixed box, so flipping the
+   theme cannot move a single pixel of the bar. */
+.hor .hor-toggle {
+  --cb-toggle-size: 34px;
+  --cb-toggle-icon-size: 15px;
+  --cb-toggle-radius: 9px;
+  --cb-toggle-ring: var(--hor-focus);
+
+  flex: none;
+  border: 1px solid var(--hor-line);
+  background: var(--hor-chip);
+  color: var(--hor-ink-2);
+  box-shadow: var(--hor-inset-top);
+  transition:
+    color 200ms var(--hor-ease),
+    border-color 200ms var(--hor-ease),
+    background-color 200ms var(--hor-ease),
+    box-shadow 200ms var(--hor-ease);
+}
+
+.hor .hor-toggle:hover {
+  color: var(--hor-ink);
+  border-color: var(--hor-line-strong);
+  box-shadow: var(--hor-inset-top), var(--hor-glow-accent);
+}
+
+/* ------------------------------------------------------------------ *
+ * Zones — sky and deck
+ * ------------------------------------------------------------------ */
+
+.hor .hor-sky {
+  position: relative;
+  background: linear-gradient(180deg, var(--hor-sky-top), var(--hor-sky-bottom));
+}
+
+/* The single soft wash. Its core is anchored *below* the section box so it
+   sits exactly on the horizon rule and only the upper falloff is visible. */
+.hor .hor-wash {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: var(--hor-wash);
+  animation: hor-breathe 22s ease-in-out infinite alternate;
+}
+
+@keyframes hor-breathe {
+  from {
+    opacity: 0.82;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, -1.2%, 0) scale(1.06);
+  }
+}
+
+.hor .hor-sky > .hor-shell {
+  position: relative;
+  z-index: 1;
+}
+
+/* Below the horizon: graph paper, hairline instruments. */
+.hor .hor-deck-zone {
+  position: relative;
+  background: var(--hor-deck);
+  transition: background-color 260ms ease;
+}
+
+.hor .hor-deck-grid {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(var(--hor-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--hor-grid) 1px, transparent 1px);
+  background-size: 46px 46px;
+  background-position: center top;
+  -webkit-mask-image: linear-gradient(
+    180deg,
+    transparent,
+    #000 90px,
+    #000 calc(100% - 120px),
+    transparent
+  );
+  mask-image: linear-gradient(
+    180deg,
+    transparent,
+    #000 90px,
+    #000 calc(100% - 120px),
+    transparent
+  );
+}
+
+.hor .hor-deck-zone > .hor-shell {
+  position: relative;
+  z-index: 1;
+}
+
+/* ------------------------------------------------------------------ *
+ * The horizon boundary — fixed height, so no reflow ever.
+ * ------------------------------------------------------------------ */
+
+.hor .hor-boundary {
+  position: relative;
+  z-index: 2;
+  height: var(--hor-boundary-h);
+  /* The sky section above ends on --hor-sky-bottom; without this the boundary
+     would show bare --hor-bg and leave a faint value step at the seam. */
+  background: linear-gradient(180deg, var(--hor-sky-bottom), var(--hor-bg) 60%);
+}
+
+.hor .hor-boundary::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--hor-line-strong) 14%,
+    var(--hor-line-strong) 86%,
+    transparent
+  );
+}
+
+.hor .hor-boundary-in::before {
+  box-shadow: var(--hor-rule-glow);
+}
+
+/* Gradient hand-off: the deck's material bleeds up to meet the rule. */
+.hor .hor-boundary::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(50% + 1px);
+  bottom: 0;
+  background: linear-gradient(180deg, transparent, var(--hor-deck));
+  pointer-events: none;
+}
+
+/* The exit boundary is the entry boundary reflected — the deck fades up out
+   of frame and the sky resumes. */
+.hor .hor-boundary-out {
+  transform: scaleY(-1);
+  /* Flipped, so this gradient's start meets the *following* sky section, whose
+     own gradient starts at --hor-sky-top. */
+  background: linear-gradient(180deg, var(--hor-sky-top), var(--hor-bg) 60%);
+}
+
+.hor .hor-boundary-chip {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  height: 28px;
+  padding-inline: 0.85rem;
+  border: 1px solid var(--hor-line);
+  border-radius: 999px;
+  background: var(--hor-bg);
+  white-space: nowrap;
+  box-shadow: var(--hor-inset-top);
+}
+
+.hor .hor-tick {
+  display: block;
+  width: 1px;
+  height: 7px;
+  background: var(--hor-line-strong);
+  flex: none;
+}
+
+/* ------------------------------------------------------------------ *
+ * Type scale
+ * ------------------------------------------------------------------ */
+
+.hor .hor-display {
+  font-size: clamp(3rem, 10.5vw, 6.5rem);
+  line-height: 0.92;
+  letter-spacing: -0.045em;
+  font-weight: 500;
+}
+
+.hor .hor-h2 {
+  font-size: clamp(1.55rem, 3.4vw, 2.25rem);
+  line-height: 1.08;
+  letter-spacing: -0.035em;
+  font-weight: 500;
+}
+
+.hor .hor-h3 {
+  font-size: clamp(1.1rem, 2vw, 1.28rem);
+  line-height: 1.2;
+  letter-spacing: -0.028em;
+  font-weight: 500;
+}
+
+.hor .hor-lede {
+  font-size: clamp(1rem, 1.5vw, 1.0625rem);
+  line-height: 1.62;
+  letter-spacing: -0.012em;
+  color: var(--hor-ink-2);
+}
+
+.hor .hor-body {
+  font-size: 0.8125rem;
+  line-height: 1.55;
+  color: var(--hor-ink-2);
+}
+
+.hor .hor-micro {
+  font-size: 0.6875rem;
+  line-height: 1.45;
+  color: var(--hor-ink-3);
+}
+
+/* Sky eyebrow — soft, letterspaced, sans. */
+.hor .hor-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--hor-ink-3);
+}
+
+/* Deck label — mono, tighter, instrument. */
+.hor .hor-label {
+  font-family: var(--font-hor-mono), ui-monospace, SFMono-Regular, monospace;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--hor-ink-3);
+}
+
+.hor .hor-mono {
+  font-family: var(--font-hor-mono), ui-monospace, SFMono-Regular, monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.hor .hor-tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Sky numerals: quiet, in the sans face. */
+.hor .hor-stat-sky {
+  font-size: clamp(1.75rem, 4.4vw, 2.6rem);
+  line-height: 1;
+  letter-spacing: -0.045em;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Deck numerals: mono, machined. The face change IS the zone change. */
+.hor .hor-readout {
+  font-family: var(--font-hor-mono), ui-monospace, SFMono-Regular, monospace;
+  font-size: clamp(1.5rem, 3.6vw, 2.05rem);
+  line-height: 1;
+  letter-spacing: -0.035em;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--hor-ink);
+}
+
+.hor .hor-readout-sm {
+  font-family: var(--font-hor-mono), ui-monospace, SFMono-Regular, monospace;
+  font-size: 1.0625rem;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--hor-ink);
+}
+
+.hor .hor-hot {
+  color: var(--hor-sun);
+}
+
+.hor .hor-accented {
+  color: var(--hor-accent);
+}
+
+/* ------------------------------------------------------------------ *
+ * Sky components
+ * ------------------------------------------------------------------ */
+
+.hor .hor-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  height: 31px;
+  padding-inline: 0.8rem 0.95rem;
+  border-radius: 999px;
+  border: 1px solid var(--hor-sky-card-edge);
+  background: var(--hor-sky-card);
+  box-shadow: var(--hor-inset-top), var(--hor-shadow-sky);
+  backdrop-filter: blur(14px) saturate(150%);
+  -webkit-backdrop-filter: blur(14px) saturate(150%);
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--hor-ink-2);
+  white-space: nowrap;
+}
+
+.hor .hor-live {
+  position: relative;
+  width: 7px;
+  height: 7px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--hor-sun);
+  box-shadow: var(--hor-glow-sun);
+}
+
+.hor .hor-live::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  border: 1px solid var(--hor-sun);
+  opacity: 0;
+  animation: hor-halo 3s var(--hor-ease) infinite;
+}
+
+@keyframes hor-halo {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.8;
+  }
+  70%,
+  100% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+
+.hor .hor-card {
+  position: relative;
+  border-radius: var(--hor-radius-sky);
+  border: 1px solid var(--hor-sky-card-edge);
+  background: var(--hor-sky-card);
+  box-shadow: var(--hor-inset-top), var(--hor-shadow-sky);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  transition:
+    transform 0.5s var(--hor-spring),
+    box-shadow 0.5s var(--hor-ease),
+    background-color 0.4s var(--hor-ease),
+    border-color 0.4s var(--hor-ease);
+}
+
+.hor .hor-lift:hover {
+  transform: translateY(-4px);
+  background: var(--hor-sky-card-hover);
+  box-shadow: var(--hor-inset-top), var(--hor-shadow-sky-lift);
+}
+
+.hor .hor-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  height: 43px;
+  padding-inline: 1.1rem;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  background: linear-gradient(170deg, var(--hor-accent-mid), var(--hor-accent-deep));
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+  box-shadow: var(--hor-inset-top), var(--hor-shadow-sky);
+  transition:
+    transform 0.4s var(--hor-spring),
+    box-shadow 0.4s var(--hor-ease),
+    filter 0.3s var(--hor-ease);
+}
+
+.hor .hor-btn:hover {
+  transform: translateY(-2px);
+  filter: saturate(118%) brightness(1.05);
+  box-shadow: var(--hor-inset-top), var(--hor-shadow-sky-lift), var(--hor-glow-accent);
+}
+
+.hor .hor-btn-ghost {
+  background: var(--hor-sky-card);
+  border-color: var(--hor-sky-card-edge);
+  color: var(--hor-ink-2);
+  backdrop-filter: blur(14px) saturate(150%);
+  -webkit-backdrop-filter: blur(14px) saturate(150%);
+}
+
+.hor .hor-btn-ghost:hover {
+  filter: none;
+  color: var(--hor-ink);
+  background: var(--hor-sky-card-hover);
+}
+
+.hor .hor-link {
+  color: var(--hor-ink-2);
+  text-decoration: none;
+  background-image: linear-gradient(currentColor, currentColor);
+  background-repeat: no-repeat;
+  background-size: 0% 1px;
+  background-position: 0 100%;
+  transition:
+    background-size 0.4s var(--hor-ease),
+    color 0.25s var(--hor-ease);
+}
+
+.hor .hor-link:hover {
+  color: var(--hor-accent);
+  background-size: 100% 1px;
+}
+
+.hor .hor-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding-inline: 0.5rem;
+  border-radius: 6px;
+  background: var(--hor-chip);
+  color: var(--hor-ink-3);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.hor .hor-rule {
+  height: 1px;
+  background: var(--hor-line);
+}
+
+.hor .hor-vrule {
+  width: 1px;
+  height: 12px;
+  flex: none;
+  background: var(--hor-line-strong);
+}
+
+/* Shorter rule for micro rows — Tailwind's h-2.5 (0,1,0) loses to the (0,2,0)
+   rule above, so the size change has to live at the same specificity. */
+.hor .hor-vrule-sm {
+  height: 9px;
+}
+
+/* ------------------------------------------------------------------ *
+ * Deck components — instrument panels
+ * ------------------------------------------------------------------ */
+
+.hor .hor-panel {
+  position: relative;
+  border: 1px solid var(--hor-line);
+  border-radius: var(--hor-radius-deck);
+  background:
+    linear-gradient(180deg, var(--hor-panel-top), transparent 40%),
+    var(--hor-panel);
+  box-shadow: var(--hor-shadow-panel);
+  transition:
+    background-color 260ms ease,
+    border-color 260ms ease;
+}
+
+/* Corner ticks — registration marks, only on the instrument panels. */
+.hor .hor-panel::before,
+.hor .hor-panel::after {
+  content: "";
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+.hor .hor-panel::before {
+  top: 4px;
+  left: 4px;
+  border-top: 1px solid var(--hor-line-strong);
+  border-left: 1px solid var(--hor-line-strong);
+}
+
+.hor .hor-panel::after {
+  right: 4px;
+  bottom: 4px;
+  border-right: 1px solid var(--hor-line-strong);
+  border-bottom: 1px solid var(--hor-line-strong);
+}
+
+.hor .hor-panel-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 1.05rem 0.8rem;
+  border-bottom: 1px solid var(--hor-line-soft);
+}
+
+.hor .hor-panel-body {
+  padding: 1.05rem;
+}
+
+@media (max-width: 520px) {
+  .hor .hor-panel-head {
+    padding-inline: 0.8rem;
+  }
+  .hor .hor-panel-body {
+    padding: 0.8rem;
+  }
+}
+
+/* Section head, deck flavour: index · title · rule · meta */
+.hor .hor-sec-head {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  margin-bottom: 1.25rem;
+}
+
+.hor .hor-sec-idx {
+  font-family: var(--font-hor-mono), ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: var(--hor-accent);
+}
+
+.hor .hor-sec-title {
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--hor-ink-2);
+  white-space: nowrap;
+}
+
+.hor .hor-sec-rule {
+  flex: 1;
+  min-width: 12px;
+  height: 1px;
+  background: linear-gradient(90deg, var(--hor-line-strong), var(--hor-line-soft) 60%, transparent);
+}
+
+.hor .hor-sec-meta {
+  display: none;
+}
+
+@media (min-width: 760px) {
+  .hor .hor-sec-meta {
+    display: block;
+    font-family: var(--font-hor-mono), ui-monospace, monospace;
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--hor-ink-4);
+    white-space: nowrap;
+  }
+}
+
+/* Meters and tracks */
+.hor .hor-track {
+  height: 7px;
+  border-radius: 2px;
+  background: var(--hor-l0);
+  overflow: hidden;
+}
+
+.hor .hor-fill {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--hor-accent-deep), var(--hor-accent-mid));
+  transform-origin: left center;
+  animation: hor-grow 1.1s var(--hor-ease) both;
+  animation-delay: var(--hor-delay, 0ms);
+}
+
+.hor .hor-fill[data-hot="1"] {
+  background: linear-gradient(90deg, var(--hor-accent-mid), var(--hor-accent));
+}
+
+@keyframes hor-grow {
+  from {
+    transform: scaleX(0.001);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.hor .hor-split {
+  display: flex;
+  gap: 2px;
+  height: 7px;
+}
+
+.hor .hor-split > span {
+  height: 100%;
+  border-radius: 2px;
+}
+
+/* 10 × 10 dot matrix — "per 100 contributions" */
+.hor .hor-matrix {
+  display: grid;
+  grid-template-columns: repeat(10, 7px);
+  gap: 3px;
+  flex: none;
+}
+
+.hor .hor-matrix > i {
+  display: block;
+  width: 7px;
+  height: 7px;
+  border-radius: 1.5px;
+  background: var(--hor-l2);
+}
+
+.hor .hor-matrix > i[data-k="pub"] {
+  background: var(--hor-l4);
+}
+
+/* Sub-stat strip along the foot of a panel. The 1px gap IS the divider, so
+   the cells never need per-index border classes. */
+.hor .hor-substats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--hor-line-soft);
+  border-top: 1px solid var(--hor-line-soft);
+}
+
+@media (min-width: 640px) {
+  .hor .hor-substats {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.hor .hor-substat {
+  background: var(--hor-panel);
+  padding: 0.95rem 1.05rem 1rem;
+  transition: background-color 260ms ease;
+}
+
+@media (max-width: 520px) {
+  .hor .hor-substat {
+    padding-inline: 0.8rem;
+  }
+}
+
+/* Row readouts */
+.hor .hor-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-block: 0.55rem;
+}
+
+.hor .hor-row + .hor-row {
+  border-top: 1px solid var(--hor-line-soft);
+}
+
+/* ------------------------------------------------------------------ *
+ * Heatmap — hand-built 52 × 7, fixed viewBox so the box is known pre-paint
+ * ------------------------------------------------------------------ */
+
+.hor .hor-heat-scroll {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.hor .hor-heat-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.hor .hor-heat-floor {
+  min-width: 640px;
+}
+
+.hor .hor-heat {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.hor .hor-heat-col {
+  animation: hor-col-in 0.5s var(--hor-ease) both;
+  animation-delay: calc(var(--c, 0) * 11ms + 220ms);
+}
+
+@keyframes hor-col-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.hor .hor-cell {
+  transition: opacity 0.18s var(--hor-ease);
+}
+
+.hor .hor-heat:hover .hor-cell {
+  opacity: 0.5;
+}
+
+.hor .hor-heat .hor-cell:hover {
+  opacity: 1;
+}
+
+/* Fills live in class rules — `var()` inside an SVG presentation attribute is
+   not reliably supported. */
+.hor .hor-lv0 {
+  fill: var(--hor-l0);
+}
+.hor .hor-lv1 {
+  fill: var(--hor-l1);
+}
+.hor .hor-lv2 {
+  fill: var(--hor-l2);
+}
+.hor .hor-lv3 {
+  fill: var(--hor-l3);
+}
+.hor .hor-lv4 {
+  fill: var(--hor-l4);
+}
+
+.hor .hor-heat-txt {
+  font-family: var(--font-hor-mono), ui-monospace, monospace;
+  font-size: 8px;
+  letter-spacing: 0.08em;
+  fill: var(--hor-ink-4);
+}
+
+.hor .hor-peak-ring {
+  fill: none;
+  stroke: var(--hor-sun);
+  stroke-width: 1;
+  opacity: 0.95;
+}
+
+.hor .hor-swatch {
+  display: block;
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  flex: none;
+}
+
+/* ------------------------------------------------------------------ *
+ * Project placeholder art — procedural, keyed off each project's hue
+ * ------------------------------------------------------------------ */
+
+.hor .hor-art {
+  position: relative;
+  overflow: hidden;
+  container-type: inline-size;
+  border-radius: 13px;
+  aspect-ratio: 16 / 10;
+  background: var(--hor-art-base);
+  box-shadow: inset 0 0 0 1px var(--hor-art-line-2);
+}
+
+.hor .hor-art-base {
+  position: absolute;
+  inset: -6%;
+  transition: transform 1.1s var(--hor-ease);
+  background:
+    radial-gradient(
+      70% 70% at 26% 20%,
+      hsl(var(--hor-h) 92% var(--hor-art-l1) / var(--hor-art-a)),
+      transparent 64%
+    ),
+    radial-gradient(
+      74% 66% at 82% 82%,
+      hsl(calc(var(--hor-h) + 42) 86% var(--hor-art-l2) / var(--hor-art-a)),
+      transparent 66%
+    );
+}
+
+.hor .hor-art-overlay {
+  position: absolute;
+  inset: 0;
+}
+
+/* Every tile carries the page's own motif: a horizon line, at a different
+   altitude per project. */
+.hor .hor-art-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: var(--hor-y, 62%);
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--hor-art-horizon), transparent);
+}
+
+.hor .hor-art-veil {
+  position: absolute;
+  inset: 0;
+  background: var(--hor-art-veil);
+}
+
+.hor .hor-art-glyph {
+  position: absolute;
+  right: 4%;
+  bottom: -0.14em;
+  font-size: 24cqw;
+  font-weight: 600;
+  letter-spacing: -0.06em;
+  line-height: 1;
+  color: var(--hor-art-glyph);
+  user-select: none;
+  transition: color 0.6s var(--hor-ease);
+}
+
+/* 0 — fine vertical rules */
+.hor .hor-art-0 .hor-art-overlay {
+  background: repeating-linear-gradient(90deg, var(--hor-art-line) 0 1px, transparent 1px 10px);
+}
+
+/* 1 — concentric ripple from the sun */
+.hor .hor-art-1 .hor-art-overlay {
+  background: repeating-radial-gradient(
+    circle at 74% 24%,
+    var(--hor-art-line) 0 1px,
+    transparent 1px 16px
+  );
+}
+
+/* 2 — dot lattice */
+.hor .hor-art-2 .hor-art-overlay {
+  background-image: radial-gradient(var(--hor-art-line) 1.1px, transparent 1.4px);
+  background-size: 13px 13px;
+}
+
+/* 3 — diagonal weave */
+.hor .hor-art-3 .hor-art-overlay {
+  background:
+    repeating-linear-gradient(46deg, var(--hor-art-line) 0 1px, transparent 1px 12px),
+    repeating-linear-gradient(-46deg, var(--hor-art-line-2) 0 1px, transparent 1px 12px);
+}
+
+.hor .hor-work-card:hover .hor-art-base {
+  transform: scale(1.06) rotate(1deg);
+}
+
+/* ------------------------------------------------------------------ *
+ * Life strip art
+ * ------------------------------------------------------------------ */
+
+.hor .hor-life-art {
+  position: relative;
+  overflow: hidden;
+  border-radius: 11px;
+  aspect-ratio: 1 / 1;
+  box-shadow: inset 0 0 0 1px var(--hor-art-line-2);
+}
+
+.hor .hor-life-art::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--hor-art-veil);
+}
+
+.hor .hor-life-beer {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.5) 0 20%, transparent 32%),
+    linear-gradient(180deg, hsl(42 92% 62%) 0%, hsl(34 88% 50%) 62%, hsl(28 82% 42%) 100%);
+}
+
+.hor .hor-life-coffee {
+  background:
+    radial-gradient(36% 36% at 50% 46%, hsl(28 40% 62%) 0 44%, transparent 46%),
+    radial-gradient(50% 50% at 50% 46%, hsl(22 44% 26%) 0 64%, transparent 66%),
+    linear-gradient(160deg, hsl(30 22% 88%), hsl(28 16% 74%));
+}
+
+.hor .hor-life-walk {
+  background: linear-gradient(
+    180deg,
+    hsl(256 60% 66%) 0 42%,
+    hsl(300 52% 60%) 42% 55%,
+    hsl(38 80% 58%) 55% 62%,
+    hsl(210 32% 32%) 62% 100%
+  );
+}
+
+/* ------------------------------------------------------------------ *
+ * Entrance — one staggered load-time rise. No scroll listeners, no JS.
+ * ------------------------------------------------------------------ */
+
+.hor .hor-rise {
+  animation: hor-rise 0.85s var(--hor-ease) both;
+  animation-delay: var(--hor-delay, 0ms);
+}
+
+@keyframes hor-rise {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 12px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * Reduced motion — everything settles, nothing moves.
+ * ------------------------------------------------------------------ */
+
+@media (prefers-reduced-motion: reduce) {
+  .hor {
+    scroll-behavior: auto;
+    transition: none;
+  }
+
+  .hor .hor-rise,
+  .hor .hor-wash,
+  .hor .hor-heat-col,
+  .hor .hor-fill,
+  .hor .hor-live::after {
+    animation: none !important;
+  }
+
+  .hor .hor-rise,
+  .hor .hor-heat-col {
+    opacity: 1;
+    transform: none;
+  }
+
+  .hor .hor-live::after {
+    display: none;
+  }
+
+  .hor .hor-card,
+  .hor .hor-btn,
+  .hor .hor-link,
+  .hor .hor-toggle,
+  .hor .hor-cell,
+  .hor .hor-art-base,
+  .hor .hor-art-glyph {
+    transition: none !important;
+  }
+
+  .hor .hor-lift:hover,
+  .hor .hor-btn:hover,
+  .hor .hor-work-card:hover .hor-art-base {
+    transform: none;
+  }
+}

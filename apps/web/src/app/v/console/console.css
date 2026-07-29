@@ -1,0 +1,1761 @@
+/*
+ * Console — scoped styles for the /v/console variant.
+ *
+ * Direction: Observatory's discipline (instrument panels, uppercase micro
+ * labels, tabular mono numerals, computed-at readouts) rendered in Aurora's
+ * materials (soft layered shadows, 14–18px radii, quiet glass, calm neutrals).
+ * One accent: a restrained cyan-teal, used sparingly in both themes.
+ *
+ * THE CONTRACT (see src/components/theme/README.md):
+ *   - Every selector nests under `.con`, or under the uniquely-named
+ *     `.con-frame` wrapper the route layout renders above the scope.
+ *   - `.con[data-theme="light"]` and `.con[data-theme="dark"]` are the ONLY
+ *     places a colour is decided. Everything else reads `--con-*`.
+ *   - No `prefers-color-scheme` below the scope — the scope already resolved it.
+ *
+ * LIGHT is the design pole: a paper-white lab bench, ink on paper, depth from
+ * layered shadow. DARK is a true product charcoal — surfaces lift with
+ * lightness rather than borders, shadows give way to a top-edge highlight, and
+ * the accent is the only saturated thing on the page.
+ */
+
+/* ------------------------------------------------------------------ *
+ * Route frame — sits above the scope, carries the fonts only.
+ * ------------------------------------------------------------------ */
+
+.con-frame {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+
+/* ------------------------------------------------------------------ *
+ * Scope root — structural tokens (theme-independent)
+ * ------------------------------------------------------------------ */
+
+.con {
+  --con-max: 1180px;
+  --con-gutter: clamp(1.1rem, 4vw, 2.5rem);
+
+  --con-r-xl: 18px;
+  --con-r-lg: 16px;
+  --con-r-md: 12px;
+  --con-r-sm: 9px;
+  --con-r-xs: 6px;
+
+  --con-ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 100dvh;
+  background-color: var(--con-canvas);
+  color: var(--con-ink);
+  font-family: var(--con-font-sans), ui-sans-serif, system-ui, -apple-system,
+    sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+  letter-spacing: -0.009em;
+  -webkit-font-smoothing: antialiased;
+  transition:
+    background-color 240ms ease,
+    color 240ms ease;
+}
+
+/* ------------------------------------------------------------------ *
+ * LIGHT — paper-white lab bench.
+ *
+ * Contrast, surface (#fff) / canvas (#f3f5f6):
+ *   ink 19.5 / 17.7 · ink-2 10.4 / 9.4 · ink-3 6.3 / 5.8 · ink-4 5.0 / 4.6
+ *   accent 5.9 / 5.3 · white on accent 5.9
+ * Nothing below 4.5:1 carries text; the display type clears 3:1 many times over.
+ * ------------------------------------------------------------------ */
+
+.con[data-theme="light"] {
+  color-scheme: light;
+
+  --con-canvas: #f3f5f6;
+  --con-surface: #ffffff;
+  --con-surface-2: #f7f9fa;
+  --con-surface-glass: rgba(255, 255, 255, 0.78);
+  --con-inset: #eef1f3;
+
+  --con-line: rgba(16, 26, 34, 0.085);
+  --con-line-2: rgba(16, 26, 34, 0.05);
+  --con-line-strong: rgba(16, 26, 34, 0.16);
+
+  --con-ink: #0f1519;
+  --con-ink-2: #39434b;
+  --con-ink-3: #566169;
+  --con-ink-4: #64707c;
+
+  --con-accent: #0b6f7e;
+  --con-accent-hi: #0e8a9c;
+  --con-accent-ink: #ffffff;
+  --con-accent-wash: #e3f1f3;
+  --con-accent-line: rgba(11, 111, 126, 0.3);
+
+  /* "Live" is not a second accent — it is the accent, doing status duty. */
+  --con-live: #0b6f7e;
+  --con-live-halo: rgba(11, 111, 126, 0.13);
+
+  /* Layered, low-alpha shadows — the "soft depth" that replaces the 1px shell. */
+  --con-shadow-1:
+    0 1px 1px rgba(14, 22, 30, 0.04), 0 2px 5px -2px rgba(14, 22, 30, 0.05),
+    0 12px 26px -14px rgba(14, 22, 30, 0.14);
+  --con-shadow-2:
+    0 1px 1px rgba(14, 22, 30, 0.05), 0 6px 14px -4px rgba(14, 22, 30, 0.08),
+    0 26px 50px -22px rgba(14, 22, 30, 0.2);
+  --con-inner: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+
+  /* Sequential heatmap ramp — five steps, monotonic in lightness. */
+  --con-l0: #e8ecee;
+  --con-l1: #c5e2e7;
+  --con-l2: #86c7d2;
+  --con-l3: #2f9aac;
+  --con-l4: #0b6f7e;
+
+  --con-ring-a: #0b6f7e;
+  --con-ring-b: #a8d8e0;
+
+  --con-track: #e8ecee;
+  --con-meter: #7fa9b3;
+
+  /* Procedural card art — scalars, composed at use with each project's --h. */
+  --con-art-bg-s: 50%;
+  --con-art-bg-l: 96.5%;
+  --con-art-s: 68%;
+  --con-art-l: 44%;
+  --con-art-a1: 0.4;
+  --con-art-a2: 0.13;
+  --con-art-veil: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0) 42%,
+    rgba(255, 255, 255, 0.62) 100%
+  );
+  --con-art-label: rgba(15, 25, 32, 0.45);
+
+  /* Life-strip glyph tiles. */
+  --con-tile-s: 56%;
+  --con-tile-l: 94%;
+  --con-icon-s: 58%;
+  --con-icon-l: 32%;
+
+  --con-backdrop:
+    radial-gradient(
+      110% 62% at 10% -8%,
+      rgba(11, 111, 126, 0.055),
+      transparent 62%
+    ),
+    radial-gradient(
+      86% 54% at 94% -2%,
+      rgba(76, 106, 176, 0.045),
+      transparent 60%
+    ),
+    linear-gradient(180deg, #f8fafb 0%, #f3f5f6 32%, #edf0f1 100%);
+}
+
+/* ------------------------------------------------------------------ *
+ * DARK — a true product charcoal, not an inverted light.
+ *
+ * Contrast, surface (#17191c) / canvas (#0e1012):
+ *   ink 15.9 / 17.8 · ink-2 10.6 / 11.9 · ink-3 6.9 / 7.7 · ink-4 4.9 / 5.4
+ *   accent 9.9 / 11.1 · accent-ink on accent 12.5
+ * ------------------------------------------------------------------ */
+
+.con[data-theme="dark"] {
+  color-scheme: dark;
+
+  --con-canvas: #0e1012;
+  --con-surface: #17191c;
+  --con-surface-2: #1b1e21;
+  --con-surface-glass: rgba(18, 21, 24, 0.76);
+  --con-inset: #101315;
+
+  --con-line: rgba(232, 240, 245, 0.09);
+  --con-line-2: rgba(232, 240, 245, 0.055);
+  --con-line-strong: rgba(232, 240, 245, 0.17);
+
+  --con-ink: #eef1f3;
+  --con-ink-2: #c3cace;
+  --con-ink-3: #9aa3aa;
+  --con-ink-4: #7f8992;
+
+  --con-accent: #5fd3de;
+  --con-accent-hi: #86e2ea;
+  --con-accent-ink: #052227;
+  --con-accent-wash: rgba(95, 211, 222, 0.11);
+  --con-accent-line: rgba(95, 211, 222, 0.32);
+
+  --con-live: #5fd3de;
+  --con-live-halo: rgba(95, 211, 222, 0.15);
+
+  /* A drop shadow barely reads on charcoal, so panels lean on the inner
+     top-edge highlight instead; the blur only anchors them off the canvas. */
+  --con-shadow-1:
+    0 1px 2px rgba(0, 0, 0, 0.4), 0 4px 10px -4px rgba(0, 0, 0, 0.5),
+    0 16px 34px -20px rgba(0, 0, 0, 0.8);
+  --con-shadow-2:
+    0 1px 2px rgba(0, 0, 0, 0.45), 0 10px 22px -6px rgba(0, 0, 0, 0.55),
+    0 34px 60px -26px rgba(0, 0, 0, 0.9);
+  --con-inner: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+
+  --con-l0: #212528;
+  --con-l1: #103f48;
+  --con-l2: #17707e;
+  --con-l3: #2fa3b3;
+  --con-l4: #63d8e3;
+
+  --con-ring-a: #5fd3de;
+  --con-ring-b: #1c5c66;
+
+  --con-track: #23272a;
+  --con-meter: #5c7d84;
+
+  --con-art-bg-s: 28%;
+  --con-art-bg-l: 12%;
+  --con-art-s: 74%;
+  --con-art-l: 60%;
+  --con-art-a1: 0.36;
+  --con-art-a2: 0.12;
+  --con-art-veil: linear-gradient(
+    180deg,
+    rgba(10, 12, 14, 0) 40%,
+    rgba(10, 12, 14, 0.55) 100%
+  );
+  --con-art-label: rgba(240, 246, 250, 0.5);
+
+  --con-tile-s: 34%;
+  --con-tile-l: 16%;
+  --con-icon-s: 68%;
+  --con-icon-l: 64%;
+
+  --con-backdrop:
+    radial-gradient(
+      110% 62% at 10% -8%,
+      rgba(95, 211, 222, 0.05),
+      transparent 62%
+    ),
+    radial-gradient(
+      86% 54% at 94% -2%,
+      rgba(88, 122, 200, 0.04),
+      transparent 60%
+    ),
+    linear-gradient(180deg, #131619 0%, #0e1012 34%, #0a0c0e 100%);
+}
+
+/* ------------------------------------------------------------------ *
+ * Canvas
+ * ------------------------------------------------------------------ */
+
+.con .con-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: var(--con-backdrop);
+  transition: background 240ms ease;
+}
+
+.con .con-page {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+
+.con .con-shell {
+  width: 100%;
+  max-width: var(--con-max);
+  margin-inline: auto;
+  padding-inline: var(--con-gutter);
+}
+
+.con ::selection {
+  background: var(--con-accent-wash);
+  color: var(--con-ink);
+}
+
+.con :focus-visible {
+  outline: 2px solid var(--con-accent);
+  outline-offset: 2px;
+}
+
+.con a:focus-visible {
+  border-radius: var(--con-r-xs);
+}
+
+.con a {
+  color: inherit;
+}
+
+/* ------------------------------------------------------------------ *
+ * Type primitives
+ * ------------------------------------------------------------------ */
+
+.con .con-label {
+  font-family: var(--con-font-mono), ui-monospace, SFMono-Regular, monospace;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.3;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--con-ink-4);
+}
+
+.con .con-label-hi {
+  color: var(--con-accent);
+}
+
+.con .con-mono {
+  font-family: var(--con-font-mono), ui-monospace, SFMono-Regular, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.con .con-note {
+  font-size: 13.5px;
+  line-height: 1.62;
+  color: var(--con-ink-3);
+  text-wrap: pretty;
+}
+
+.con .con-note strong {
+  font-weight: 550;
+  color: var(--con-ink);
+}
+
+/* The one emphasis colour, available to inline runs inside panel metadata. */
+.con .con-hi {
+  color: var(--con-accent);
+}
+
+/* Spacing modifiers — kept here so no component ships an inline style that
+   isn't derived from data. */
+.con .con-note-above {
+  margin-top: 1.15rem;
+}
+
+.con .con-note-below {
+  margin-bottom: 0.9rem;
+}
+
+.con .con-stamp {
+  margin-top: 0.85rem;
+}
+
+/* ------------------------------------------------------------------ *
+ * Panel — the instrument surface, in soft materials
+ * ------------------------------------------------------------------ */
+
+.con .con-panel {
+  position: relative;
+  border-radius: var(--con-r-xl);
+  border: 1px solid var(--con-line);
+  background: var(--con-surface);
+  box-shadow: var(--con-shadow-1), var(--con-inner);
+  transition:
+    background-color 240ms ease,
+    border-color 240ms ease,
+    box-shadow 240ms ease,
+    transform 320ms var(--con-ease);
+}
+
+.con .con-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.9rem;
+  min-height: 44px;
+  padding: 0.7rem 1.05rem;
+  border-bottom: 1px solid var(--con-line-2);
+}
+
+.con .con-panel-head-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.con .con-live-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.con .con-panel-meta {
+  font-family: var(--con-font-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 10.5px;
+  letter-spacing: 0.05em;
+  color: var(--con-ink-4);
+  white-space: nowrap;
+  text-align: right;
+}
+
+.con .con-panel-body {
+  padding: 1.05rem;
+}
+
+@media (max-width: 480px) {
+  .con .con-panel-head {
+    padding-inline: 0.85rem;
+  }
+  .con .con-panel-body {
+    padding: 0.85rem;
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * Section heading
+ * ------------------------------------------------------------------ */
+
+.con .con-sec {
+  padding-top: clamp(3.25rem, 7.5vw, 5.75rem);
+}
+
+.con .con-sec-head {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  margin-bottom: 1.15rem;
+}
+
+.con .con-sec-idx {
+  font-family: var(--con-font-mono), ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  color: var(--con-accent);
+}
+
+.con .con-sec-title {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.17em;
+  text-transform: uppercase;
+  color: var(--con-ink-3);
+  white-space: nowrap;
+}
+
+.con .con-sec-rule {
+  flex: 1;
+  min-width: 10px;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    var(--con-line-strong),
+    var(--con-line-2) 60%,
+    transparent
+  );
+}
+
+.con .con-sec-meta {
+  display: none;
+}
+
+@media (min-width: 760px) {
+  .con .con-sec-meta {
+    display: block;
+    font-family: var(--con-font-mono), ui-monospace, monospace;
+    font-size: 10px;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--con-ink-4);
+    white-space: nowrap;
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * Live dot — the only ambient motion on the page
+ * ------------------------------------------------------------------ */
+
+.con .con-dot {
+  position: relative;
+  display: inline-block;
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--con-live);
+  box-shadow: 0 0 0 3px var(--con-live-halo);
+}
+
+/* Exactly one dot on the page pulses — the top bar's system indicator. The
+   others are the same mark held still, so the motion budget stays at one. */
+.con .con-dot-pulse::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: 50%;
+  border: 1px solid var(--con-live);
+  opacity: 0;
+  animation: con-ping 2.8s cubic-bezier(0.2, 0.6, 0.3, 1) infinite;
+}
+
+@keyframes con-ping {
+  0% {
+    opacity: 0.75;
+    transform: scale(0.7);
+  }
+  70%,
+  100% {
+    opacity: 0;
+    transform: scale(2.3);
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * Top bar
+ * ------------------------------------------------------------------ */
+
+.con .con-bar {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  border-bottom: 1px solid var(--con-line-2);
+  background: var(--con-surface-glass);
+  backdrop-filter: blur(18px) saturate(180%);
+  -webkit-backdrop-filter: blur(18px) saturate(180%);
+  transition:
+    background-color 240ms ease,
+    border-color 240ms ease;
+}
+
+.con .con-bar-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  height: 56px;
+}
+
+.con .con-mark {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.con .con-mark-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--con-r-sm);
+  background: linear-gradient(
+    180deg,
+    var(--con-accent-hi),
+    var(--con-accent) 85%
+  );
+  color: var(--con-accent-ink);
+  font-family: var(--con-font-mono), ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 600;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    0 4px 10px -6px var(--con-accent-line);
+}
+
+.con .con-mark-name {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.014em;
+  color: var(--con-ink);
+  white-space: nowrap;
+}
+
+.con .con-mark-sep {
+  width: 1px;
+  height: 14px;
+  flex: none;
+  background: var(--con-line-strong);
+}
+
+.con .con-mark-slug {
+  font-family: var(--con-font-mono), ui-monospace, monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  color: var(--con-ink-4);
+  white-space: nowrap;
+}
+
+@media (max-width: 560px) {
+  .con .con-mark-sep,
+  .con .con-mark-slug {
+    display: none;
+  }
+}
+
+.con .con-bar-live {
+  display: none;
+}
+
+@media (min-width: 900px) {
+  .con .con-bar-live {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    height: 30px;
+    padding-inline: 0.7rem 0.85rem;
+    border-radius: 999px;
+    border: 1px solid var(--con-line);
+    background: var(--con-surface);
+    box-shadow: var(--con-shadow-1);
+  }
+}
+
+.con .con-bar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.con .con-barlink {
+  padding: 0.4rem 0.15rem;
+  font-family: var(--con-font-mono), ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--con-ink-4);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: color 180ms ease;
+}
+
+.con .con-barlink:hover {
+  color: var(--con-accent);
+}
+
+@media (max-width: 420px) {
+  .con .con-barlink {
+    display: none;
+  }
+}
+
+/* Theme toggle — restyled as one of the bar's product-dashboard buttons. */
+.con .con-toggle {
+  --cb-toggle-size: 34px;
+  --cb-toggle-icon-size: 16px;
+  --cb-toggle-radius: var(--con-r-md);
+  --cb-toggle-ring: var(--con-accent);
+
+  border: 1px solid var(--con-line);
+  background: var(--con-surface);
+  box-shadow: var(--con-shadow-1);
+  color: var(--con-ink-3);
+  transition:
+    color 180ms ease,
+    background-color 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.con .con-toggle:hover {
+  color: var(--con-accent);
+  border-color: var(--con-accent-line);
+  box-shadow: var(--con-shadow-2);
+}
+
+/* ------------------------------------------------------------------ *
+ * Hero
+ * ------------------------------------------------------------------ */
+
+.con .con-hero {
+  display: grid;
+  gap: clamp(1.75rem, 4vw, 2.75rem);
+  align-items: end;
+  padding-top: clamp(2.5rem, 7vw, 4.75rem);
+}
+
+@media (min-width: 940px) {
+  .con .con-hero {
+    grid-template-columns: minmax(0, 1.5fr) minmax(300px, 0.86fr);
+  }
+}
+
+.con .con-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  height: 30px;
+  padding-inline: 0.7rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid var(--con-line);
+  background: var(--con-surface);
+  box-shadow: var(--con-shadow-1);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--con-ink-2);
+  white-space: nowrap;
+  transition:
+    background-color 240ms ease,
+    border-color 240ms ease;
+}
+
+.con .con-name {
+  margin: 1.15rem 0 0;
+  font-size: clamp(2.85rem, 9vw, 5.1rem);
+  font-weight: 600;
+  line-height: 0.94;
+  letter-spacing: -0.045em;
+  color: var(--con-ink);
+  text-wrap: balance;
+}
+
+.con .con-role {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.8rem;
+  margin-top: 1rem;
+}
+
+.con .con-role-key {
+  font-family: var(--con-font-mono), ui-monospace, monospace;
+  font-size: clamp(11px, 1.5vw, 12.5px);
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--con-accent);
+}
+
+.con .con-role-rule {
+  flex: 1;
+  min-width: 20px;
+  max-width: 140px;
+  height: 1px;
+  background: linear-gradient(90deg, var(--con-accent-line), transparent);
+}
+
+.con .con-role-loc {
+  font-size: 12.5px;
+  color: var(--con-ink-3);
+  white-space: nowrap;
+}
+
+.con .con-lede {
+  max-width: 50ch;
+  margin-top: 1.35rem;
+  font-size: clamp(15px, 1.5vw, 16.5px);
+  line-height: 1.62;
+  color: var(--con-ink-3);
+  text-wrap: pretty;
+}
+
+.con .con-lede strong {
+  font-weight: 550;
+  color: var(--con-ink-2);
+}
+
+.con .con-cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-top: 1.6rem;
+}
+
+.con .con-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  height: 40px;
+  padding-inline: 1rem;
+  border-radius: var(--con-r-md);
+  border: 1px solid var(--con-line);
+  background: var(--con-surface);
+  box-shadow: var(--con-shadow-1);
+  color: var(--con-ink-2);
+  font-size: 13px;
+  font-weight: 550;
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    transform 300ms var(--con-ease),
+    box-shadow 300ms var(--con-ease),
+    border-color 200ms ease,
+    background-color 240ms ease,
+    color 200ms ease;
+}
+
+.con .con-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--con-shadow-2);
+  border-color: var(--con-line-strong);
+  color: var(--con-ink);
+}
+
+.con .con-btn-primary {
+  border-color: transparent;
+  background: linear-gradient(
+    180deg,
+    var(--con-accent-hi),
+    var(--con-accent) 90%
+  );
+  color: var(--con-accent-ink);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.25),
+    0 6px 16px -8px var(--con-accent-line);
+}
+
+.con .con-btn-primary:hover {
+  color: var(--con-accent-ink);
+  border-color: transparent;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    0 12px 26px -10px var(--con-accent-line);
+}
+
+/* Status readout */
+.con .con-readout-body {
+  padding: 0.35rem 1.05rem 0.55rem;
+}
+
+.con .con-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.6rem 0;
+}
+
+.con .con-row + .con-row {
+  border-top: 1px solid var(--con-line-2);
+}
+
+.con .con-row-flush {
+  padding-top: 0;
+}
+
+/* Legend / key swatch sitting inline with a label. */
+.con .con-sw-inline {
+  margin-right: 7px;
+  vertical-align: -1px;
+}
+
+.con .con-sw-a {
+  background: var(--con-ring-a);
+}
+
+.con .con-sw-b {
+  background: var(--con-ring-b);
+}
+
+.con .con-row-val {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--con-font-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  color: var(--con-ink-2);
+  text-align: right;
+  text-decoration: none;
+}
+
+.con a.con-row-val {
+  transition: color 180ms ease;
+}
+
+.con a.con-row-val:hover {
+  color: var(--con-accent);
+}
+
+.con .con-row-val-dim {
+  color: var(--con-ink-4);
+}
+
+/* KPI rail */
+.con .con-kpi {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: clamp(1.75rem, 4vw, 2.5rem);
+}
+
+@media (min-width: 820px) {
+  .con .con-kpi {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.con .con-kpi-card {
+  padding: 0.95rem 1rem 1.05rem;
+  border-radius: var(--con-r-lg);
+}
+
+.con .con-kpi-val {
+  display: block;
+  margin-top: 0.6rem;
+  font-family: var(--con-font-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: clamp(1.75rem, 4.2vw, 2.3rem);
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  color: var(--con-ink);
+}
+
+.con .con-kpi-card[data-hot="1"] .con-kpi-val {
+  color: var(--con-accent);
+}
+
+.con .con-kpi-unit {
+  margin-left: 0.3rem;
+  font-size: 0.4em;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--con-ink-4);
+  vertical-align: 0.95em;
+}
+
+.con .con-kpi-sub {
+  display: block;
+  margin-top: 0.55rem;
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--con-ink-4);
+}
+
+/* ------------------------------------------------------------------ *
+ * Grid helpers
+ * ------------------------------------------------------------------ */
+
+.con .con-row-grid {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+/* First row under a section head already has the head's margin. */
+.con .con-row-grid-flush {
+  margin-top: 0;
+}
+
+@media (min-width: 900px) {
+  .con .con-cols-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .con .con-cols-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .con .con-cols-5-7 {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * Heatmap — 52 columns × 7 rows, hand-built CSS grid
+ * ------------------------------------------------------------------ */
+
+.con .con-hm {
+  --hm-gap: clamp(2px, 0.3vw, 3px);
+}
+
+/* 52 columns stop being legible under ~500px, so the grid keeps a floor width
+   and scrolls. `direction: rtl` on the scroller (undone on its child) parks the
+   initial scroll position at the right edge — the most recent weeks, where the
+   current streak is. */
+.con .con-hm-scroll {
+  direction: rtl;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--con-line-strong) transparent;
+}
+
+.con .con-hm-inner {
+  direction: ltr;
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  gap: 7px 8px;
+}
+
+.con .con-hm-months {
+  grid-column: 2;
+  grid-row: 1;
+  display: grid;
+  grid-template-columns: repeat(52, minmax(0, 1fr));
+  gap: var(--hm-gap);
+  min-width: 496px;
+}
+
+.con .con-hm-month {
+  font-family: var(--con-font-mono), ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--con-ink-4);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.con .con-hm-days {
+  grid-column: 1;
+  grid-row: 2;
+  display: grid;
+  grid-template-rows: repeat(7, minmax(0, 1fr));
+  gap: var(--hm-gap);
+}
+
+.con .con-hm-day {
+  display: flex;
+  align-items: center;
+  font-family: var(--con-font-mono), ui-monospace, monospace;
+  font-size: 9.5px;
+  line-height: 1;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--con-ink-4);
+}
+
+.con .con-hm-grid {
+  grid-column: 2;
+  grid-row: 2;
+  display: grid;
+  grid-template-columns: repeat(52, minmax(0, 1fr));
+  grid-template-rows: repeat(7, auto);
+  grid-auto-flow: column;
+  gap: var(--hm-gap);
+  min-width: 496px;
+}
+
+@media (max-width: 639px) {
+  .con .con-hm-inner {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .con .con-hm-days {
+    display: none;
+  }
+  .con .con-hm-months,
+  .con .con-hm-grid {
+    grid-column: 1;
+  }
+}
+
+.con .con-cell {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 2px;
+  background: var(--con-l0);
+  transition: background-color 240ms ease;
+}
+
+@media (min-width: 900px) {
+  .con .con-cell {
+    border-radius: 3px;
+  }
+}
+
+.con .con-cell[data-l="1"] {
+  background: var(--con-l1);
+}
+.con .con-cell[data-l="2"] {
+  background: var(--con-l2);
+}
+.con .con-cell[data-l="3"] {
+  background: var(--con-l3);
+}
+.con .con-cell[data-l="4"] {
+  background: var(--con-l4);
+}
+
+.con .con-hm-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  margin-top: 0.95rem;
+}
+
+.con .con-legend {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.con .con-sw {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  flex: none;
+  border-radius: 3px;
+  transition: background-color 240ms ease;
+}
+
+/* ------------------------------------------------------------------ *
+ * Stat strip
+ * ------------------------------------------------------------------ */
+
+.con .con-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+@media (min-width: 760px) {
+  .con .con-stats {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.con .con-stat {
+  padding: 0.9rem 1rem 1rem;
+  border-radius: var(--con-r-lg);
+}
+
+.con .con-stat-val {
+  display: block;
+  margin-top: 0.5rem;
+  font-family: var(--con-font-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 1.45rem;
+  font-weight: 500;
+  line-height: 1.05;
+  letter-spacing: -0.032em;
+  color: var(--con-ink);
+}
+
+.con .con-stat-sub {
+  display: block;
+  margin-top: 0.42rem;
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--con-ink-4);
+}
+
+/* ------------------------------------------------------------------ *
+ * Ring, meters, language rows
+ * ------------------------------------------------------------------ */
+
+.con .con-split {
+  display: flex;
+  align-items: center;
+  gap: 1.35rem;
+  flex-wrap: wrap;
+}
+
+.con .con-ring-wrap {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 136px;
+  height: 136px;
+  flex: none;
+}
+
+.con .con-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(
+    from -90deg,
+    var(--con-ring-a) 0 var(--p),
+    var(--con-ring-b) var(--p) 100%
+  );
+  mask: radial-gradient(
+    farthest-side,
+    transparent calc(100% - 15px),
+    #000 calc(100% - 14px)
+  );
+  -webkit-mask: radial-gradient(
+    farthest-side,
+    transparent calc(100% - 15px),
+    #000 calc(100% - 14px)
+  );
+  transition: background 240ms ease;
+}
+
+.con .con-ring-core {
+  position: relative;
+  text-align: center;
+  line-height: 1.25;
+}
+
+.con .con-ring-num {
+  display: block;
+  font-family: var(--con-font-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 1.5rem;
+  font-weight: 500;
+  letter-spacing: -0.035em;
+  color: var(--con-ink);
+}
+
+.con .con-split-side {
+  flex: 1 1 190px;
+  min-width: 0;
+}
+
+.con .con-meter {
+  margin-bottom: 0.9rem;
+}
+
+.con .con-meter:last-child {
+  margin-bottom: 0;
+}
+
+.con .con-meter-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 0.7rem;
+  margin-bottom: 0.42rem;
+}
+
+.con .con-meter-name {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--con-ink-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.con .con-meter-val {
+  font-family: var(--con-font-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 11.5px;
+  color: var(--con-ink-4);
+  white-space: nowrap;
+}
+
+.con .con-track {
+  position: relative;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--con-track);
+  overflow: hidden;
+  transition: background-color 240ms ease;
+}
+
+.con .con-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--w);
+  border-radius: 999px;
+  background: var(--con-meter);
+  transition: background 240ms ease;
+}
+
+.con .con-fill[data-hot="1"] {
+  background: linear-gradient(90deg, var(--con-accent), var(--con-accent-hi));
+}
+
+.con .con-lang {
+  display: grid;
+  grid-template-columns: 5.5rem minmax(0, 1fr) 2.9rem;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.52rem 0;
+}
+
+.con .con-lang + .con-lang {
+  border-top: 1px solid var(--con-line-2);
+}
+
+.con .con-lang-name {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--con-ink-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.con .con-lang-pct {
+  font-family: var(--con-font-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 11.5px;
+  text-align: right;
+  color: var(--con-ink-4);
+}
+
+/* ------------------------------------------------------------------ *
+ * AI signal
+ * ------------------------------------------------------------------ */
+
+.con .con-big {
+  display: flex;
+  align-items: baseline;
+  gap: 0.55rem;
+  margin-top: 0.65rem;
+}
+
+.con .con-big-num {
+  font-family: var(--con-font-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: clamp(2.4rem, 6vw, 3rem);
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: -0.045em;
+  color: var(--con-accent);
+}
+
+.con .con-cadence {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin-top: 1.15rem;
+  padding: 0.75rem 0.85rem;
+  border-radius: var(--con-r-md);
+  background: var(--con-inset);
+  transition: background-color 240ms ease;
+}
+
+.con .con-cadence-val {
+  display: block;
+  margin-top: 0.32rem;
+  font-family: var(--con-font-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: var(--con-ink);
+}
+
+/* ------------------------------------------------------------------ *
+ * Featured work
+ * ------------------------------------------------------------------ */
+
+.con .con-work {
+  display: grid;
+  gap: 12px;
+}
+
+@media (min-width: 840px) {
+  .con .con-work {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.con .con-card {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.con .con-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--con-shadow-2), var(--con-inner);
+  border-color: var(--con-line-strong);
+}
+
+/* Procedural art — CSS only, composed from each project's own accentHue and
+   the theme's art scalars. There are no image assets; this IS the artwork. */
+.con .con-art {
+  position: relative;
+  flex: none;
+  height: 148px;
+  overflow: hidden;
+  border-bottom: 1px solid var(--con-line-2);
+  background: hsl(var(--h) var(--con-art-bg-s) var(--con-art-bg-l));
+  transition: background-color 240ms ease;
+}
+
+@media (min-width: 560px) {
+  .con .con-art {
+    height: 170px;
+  }
+}
+
+.con .con-art::before,
+.con .con-art::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.con .con-art::after {
+  background: var(--con-art-veil);
+  transition: opacity 300ms ease;
+}
+
+.con .con-card:hover .con-art::after {
+  opacity: 0.7;
+}
+
+/* 00 — ruled pages: a document composed into blocks */
+.con .con-art[data-art="0"]::before {
+  background:
+    repeating-linear-gradient(
+      180deg,
+      hsl(var(--h) var(--con-art-s) var(--con-art-l) / var(--con-art-a1)) 0
+        1.5px,
+      transparent 1.5px 12px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      hsl(var(--h) var(--con-art-s) var(--con-art-l) / var(--con-art-a2)) 0 1px,
+      transparent 1px 58px
+    );
+  mask-image: linear-gradient(
+    162deg,
+    #000 6%,
+    rgba(0, 0, 0, 0.45) 58%,
+    rgba(0, 0, 0, 0.08) 96%
+  );
+  -webkit-mask-image: linear-gradient(
+    162deg,
+    #000 6%,
+    rgba(0, 0, 0, 0.45) 58%,
+    rgba(0, 0, 0, 0.08) 96%
+  );
+}
+
+/* 01 — route contours: concentric arcs from one origin */
+.con .con-art[data-art="1"]::before {
+  background:
+    repeating-radial-gradient(
+      circle at 16% 122%,
+      hsl(var(--h) var(--con-art-s) var(--con-art-l) / var(--con-art-a1)) 0
+        1.5px,
+      transparent 1.5px 20px
+    ),
+    repeating-linear-gradient(
+      62deg,
+      hsl(var(--h) var(--con-art-s) var(--con-art-l) / var(--con-art-a2)) 0 1px,
+      transparent 1px 34px
+    );
+  mask-image: radial-gradient(
+    130% 120% at 16% 118%,
+    #000 18%,
+    rgba(0, 0, 0, 0.12) 92%
+  );
+  -webkit-mask-image: radial-gradient(
+    130% 120% at 16% 118%,
+    #000 18%,
+    rgba(0, 0, 0, 0.12) 92%
+  );
+}
+
+/* 02 — control graph: a lattice with weighted nodes */
+.con .con-art[data-art="2"]::before {
+  background:
+    radial-gradient(
+      circle at 28% 36%,
+      hsl(var(--h) var(--con-art-s) var(--con-art-l)) 0 3px,
+      transparent 3.5px
+    ),
+    radial-gradient(
+      circle at 66% 22%,
+      hsl(var(--h) var(--con-art-s) var(--con-art-l) / 0.8) 0 2.5px,
+      transparent 3px
+    ),
+    radial-gradient(
+      circle at 81% 64%,
+      hsl(var(--h) var(--con-art-s) var(--con-art-l) / 0.65) 0 2px,
+      transparent 2.5px
+    ),
+    radial-gradient(
+      circle at 45% 74%,
+      hsl(var(--h) var(--con-art-s) var(--con-art-l) / 0.75) 0 2.5px,
+      transparent 3px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      hsl(var(--h) var(--con-art-s) var(--con-art-l) / var(--con-art-a2)) 0 1px,
+      transparent 1px 24px
+    ),
+    repeating-linear-gradient(
+      180deg,
+      hsl(var(--h) var(--con-art-s) var(--con-art-l) / var(--con-art-a2)) 0 1px,
+      transparent 1px 24px
+    );
+  mask-image: radial-gradient(
+    120% 110% at 42% 46%,
+    #000 30%,
+    rgba(0, 0, 0, 0.18) 92%
+  );
+  -webkit-mask-image: radial-gradient(
+    120% 110% at 42% 46%,
+    #000 30%,
+    rgba(0, 0, 0, 0.18) 92%
+  );
+}
+
+/* 03 — closing ticks: bid frequency converging on the right edge */
+.con .con-art[data-art="3"]::before {
+  background:
+    repeating-linear-gradient(
+      90deg,
+      hsl(var(--h) var(--con-art-s) var(--con-art-l) / var(--con-art-a1)) 0 2px,
+      transparent 2px 14px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      hsl(var(--h) var(--con-art-s) var(--con-art-l) / var(--con-art-a2)) 0 1px,
+      transparent 1px 5px
+    );
+  mask-image: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0.08) 2%,
+    rgba(0, 0, 0, 0.5) 52%,
+    #000 96%
+  );
+  -webkit-mask-image: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0.08) 2%,
+    rgba(0, 0, 0, 0.5) 52%,
+    #000 96%
+  );
+}
+
+.con .con-art-idx,
+.con .con-art-tag {
+  position: absolute;
+  z-index: 2;
+  font-family: var(--con-font-mono), ui-monospace, monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--con-art-label);
+}
+
+.con .con-art-idx {
+  top: 0.8rem;
+  right: 0.95rem;
+}
+
+.con .con-art-tag {
+  bottom: 0.75rem;
+  left: 0.95rem;
+}
+
+.con .con-card-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  padding: 1.05rem 1.05rem 1.15rem;
+}
+
+.con .con-card-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 600;
+  letter-spacing: -0.026em;
+  color: var(--con-ink);
+}
+
+.con .con-card-swatch {
+  width: 7px;
+  height: 7px;
+  flex: none;
+  border-radius: 50%;
+  background: hsl(var(--h) var(--con-icon-s) var(--con-icon-l));
+}
+
+.con .con-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.con .con-sep {
+  width: 2px;
+  height: 2px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--con-ink-4);
+}
+
+.con .con-card-sum {
+  flex: 1;
+  margin-top: 0.8rem;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--con-ink-3);
+  text-wrap: pretty;
+}
+
+.con .con-stack {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 1.05rem;
+  padding-top: 0.95rem;
+  border-top: 1px solid var(--con-line-2);
+}
+
+.con .con-chip {
+  padding: 3px 8px;
+  border-radius: var(--con-r-xs);
+  border: 1px solid var(--con-line);
+  background: var(--con-surface-2);
+  font-family: var(--con-font-mono), ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--con-ink-3);
+  white-space: nowrap;
+  transition:
+    background-color 240ms ease,
+    border-color 240ms ease;
+}
+
+/* ------------------------------------------------------------------ *
+ * Life strip
+ * ------------------------------------------------------------------ */
+
+.con .con-life {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@media (min-width: 660px) {
+  .con .con-life {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.con .con-life-card {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.8rem;
+  border-radius: var(--con-r-lg);
+}
+
+.con .con-life-tile {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  flex: none;
+  border-radius: 14px;
+  background: hsl(var(--h) var(--con-tile-s) var(--con-tile-l));
+  color: hsl(var(--h) var(--con-icon-s) var(--con-icon-l));
+  box-shadow: inset 0 0 0 1px
+    hsl(var(--h) var(--con-icon-s) var(--con-icon-l) / 0.16);
+  transition:
+    background-color 240ms ease,
+    color 240ms ease;
+}
+
+.con .con-life-body {
+  min-width: 0;
+}
+
+.con .con-life-title {
+  margin-top: 0.3rem;
+  font-size: 13px;
+  font-weight: 550;
+  line-height: 1.35;
+  color: var(--con-ink);
+}
+
+.con .con-life-note {
+  margin-top: 0.25rem;
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--con-ink-4);
+}
+
+/* ------------------------------------------------------------------ *
+ * Footer
+ * ------------------------------------------------------------------ */
+
+.con .con-footer {
+  margin-top: clamp(3.5rem, 8vw, 6rem);
+  border-top: 1px solid var(--con-line-2);
+  transition: border-color 240ms ease;
+}
+
+.con .con-footer-inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1.75rem;
+  padding-block: clamp(2rem, 5vw, 3rem);
+}
+
+.con .con-mail {
+  display: inline-block;
+  margin-top: 0.8rem;
+  padding-bottom: 3px;
+  border-bottom: 1px solid var(--con-accent-line);
+  font-family: var(--con-font-mono), ui-monospace, monospace;
+  font-size: clamp(1rem, 3.2vw, 1.5rem);
+  font-weight: 500;
+  letter-spacing: -0.028em;
+  color: var(--con-ink);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+  transition:
+    color 200ms ease,
+    border-color 200ms ease;
+}
+
+.con .con-mail:hover {
+  color: var(--con-accent);
+  border-bottom-color: var(--con-accent);
+}
+
+.con .con-footer-end {
+  text-align: left;
+}
+
+@media (min-width: 620px) {
+  .con .con-footer-end {
+    margin-left: auto;
+    text-align: right;
+  }
+  .con .con-flinks {
+    justify-content: flex-end;
+  }
+}
+
+.con .con-flinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1.3rem;
+}
+
+.con .con-flink {
+  font-family: var(--con-font-mono), ui-monospace, monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--con-ink-4);
+  text-decoration: none;
+  transition: color 180ms ease;
+}
+
+.con .con-flink:hover {
+  color: var(--con-accent);
+}
+
+/* ------------------------------------------------------------------ *
+ * Reduced motion — kill the pulse and every transition
+ * ------------------------------------------------------------------ */
+
+@media (prefers-reduced-motion: reduce) {
+  .con,
+  .con *,
+  .con *::before,
+  .con *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+  .con .con-btn:hover,
+  .con .con-card:hover {
+    transform: none;
+  }
+}

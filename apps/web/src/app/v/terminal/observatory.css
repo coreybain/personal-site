@@ -1,0 +1,1267 @@
+/*
+ * Observatory — scoped styles for the /v/terminal variant.
+ *
+ * EVERY selector in this file is nested under `.obs`. Nothing here can reach
+ * another variant, the switchboard, or the root layout. Sibling agents are
+ * building concurrently; keep it that way.
+ */
+
+.obs {
+  /* surfaces */
+  --obs-bg: #07090c;
+  --obs-bg-lift: #0a0d12;
+  --obs-line: rgba(150, 175, 210, 0.11);
+  --obs-line-soft: rgba(150, 175, 210, 0.07);
+  --obs-line-strong: rgba(150, 175, 210, 0.2);
+
+  /* ink */
+  --obs-fg: #e7eaef;
+  /* Ink steps are contrast-checked against --obs-bg: dim 7.6:1, faint 5.4:1,
+     ghost 5.0:1. Nothing below ghost carries meaning. */
+  --obs-dim: #98a2b1;
+  --obs-faint: #7d8794;
+  --obs-ghost: #74808e;
+
+  /* one phosphor accent, used with discipline */
+  --obs-amber: hsl(38 96% 60%);
+  --obs-amber-hot: hsl(46 100% 72%);
+  --obs-amber-deep: hsl(32 70% 34%);
+
+  /* muted secondaries */
+  --obs-slate: hsl(205 30% 62%);
+  --obs-teal: hsl(178 40% 52%);
+
+  /* heatmap ramp */
+  --obs-l0: rgba(150, 175, 210, 0.055);
+  --obs-l1: hsl(33 48% 24%);
+  --obs-l2: hsl(36 72% 38%);
+  --obs-l3: hsl(40 90% 54%);
+  --obs-l4: hsl(46 100% 70%);
+
+  --obs-gutter: clamp(1.25rem, 4vw, 2.75rem);
+
+  position: relative;
+  isolation: isolate;
+  flex: 1;
+  min-height: 100dvh;
+  background-color: var(--obs-bg);
+  color: var(--obs-fg);
+  color-scheme: dark;
+  font-family: var(--obs-font-sans), ui-sans-serif, system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  /* No `overflow` here on purpose — it would trap the sticky top bar. */
+}
+
+/* Faint atmosphere: a cold horizon behind everything, no scanlines. */
+.obs::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(120% 60% at 12% -10%, rgba(255, 176, 60, 0.055), transparent 62%),
+    radial-gradient(90% 55% at 92% 4%, rgba(90, 150, 220, 0.05), transparent 60%),
+    linear-gradient(180deg, #090c11 0%, var(--obs-bg) 34%, #06080b 100%);
+}
+
+.obs ::selection {
+  background: hsl(38 96% 60% / 0.24);
+  color: #fff;
+}
+
+/* ---------------------------------------------------------------- *
+ * Primitives
+ * ---------------------------------------------------------------- */
+
+.obs .obs-shell {
+  width: 100%;
+  max-width: 1240px;
+  margin-inline: auto;
+  padding-inline: var(--obs-gutter);
+}
+
+.obs .obs-label {
+  font-family: var(--obs-font-mono), ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: 0.17em;
+  text-transform: uppercase;
+  color: var(--obs-faint);
+}
+
+/* Panel — 1px border, faint inner glow, corner ticks. */
+.obs .obs-panel {
+  position: relative;
+  border: 1px solid var(--obs-line);
+  border-radius: 5px;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.032) 0%,
+      rgba(255, 255, 255, 0.006) 42%,
+      rgba(0, 0, 0, 0.16) 100%
+    ),
+    var(--obs-bg-lift);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    inset 0 0 44px rgba(120, 165, 225, 0.035),
+    0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.obs .obs-panel::before,
+.obs .obs-panel::after {
+  content: "";
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+.obs .obs-panel::before {
+  top: 5px;
+  left: 5px;
+  border-top: 1px solid var(--obs-line-strong);
+  border-left: 1px solid var(--obs-line-strong);
+}
+
+.obs .obs-panel::after {
+  right: 5px;
+  bottom: 5px;
+  border-right: 1px solid var(--obs-line-strong);
+  border-bottom: 1px solid var(--obs-line-strong);
+}
+
+/* Corner ticks belong to the big instrument panels only — on the small cards
+   they collide with the art and the chip rail. */
+.obs .obs-card::before,
+.obs .obs-card::after,
+.obs .obs-life-card::before,
+.obs .obs-life-card::after {
+  content: none;
+}
+
+.obs .obs-panel-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 1.1rem 0.85rem;
+  border-bottom: 1px solid var(--obs-line-soft);
+}
+
+.obs .obs-panel-body {
+  padding: 1.1rem;
+}
+
+@media (max-width: 520px) {
+  .obs .obs-panel-head {
+    padding-inline: 0.85rem;
+  }
+  .obs .obs-panel-body {
+    padding: 0.85rem;
+  }
+}
+
+.obs .obs-hair {
+  height: 1px;
+  background: var(--obs-line-soft);
+}
+
+/* Section heading — index, title, rule, meta. */
+.obs .obs-sec {
+  padding-top: clamp(3.5rem, 8vw, 6rem);
+}
+
+.obs .obs-sec-head {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  margin-bottom: 1.5rem;
+}
+
+.obs .obs-sec-idx {
+  font-family: var(--obs-font-mono), monospace;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: var(--obs-amber);
+  opacity: 0.85;
+}
+
+.obs .obs-sec-title {
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.19em;
+  text-transform: uppercase;
+  color: var(--obs-dim);
+  white-space: nowrap;
+}
+
+.obs .obs-sec-rule {
+  flex: 1;
+  height: 1px;
+  min-width: 12px;
+  background: linear-gradient(90deg, var(--obs-line-strong), var(--obs-line-soft) 55%, transparent);
+}
+
+.obs .obs-sec-meta {
+  display: none;
+}
+
+@media (min-width: 720px) {
+  .obs .obs-sec-meta {
+    display: block;
+    font-family: var(--obs-font-mono), monospace;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--obs-ghost);
+    white-space: nowrap;
+  }
+}
+
+/* ---------------------------------------------------------------- *
+ * Top bar
+ * ---------------------------------------------------------------- */
+
+.obs .obs-bar {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  border-bottom: 1px solid var(--obs-line-soft);
+  background: rgba(7, 9, 12, 0.78);
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+}
+
+.obs .obs-bar-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  height: 46px;
+}
+
+.obs .obs-bar-mark {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-family: var(--obs-font-mono), monospace;
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--obs-dim);
+}
+
+.obs .obs-bar-mid {
+  display: none;
+}
+
+@media (min-width: 860px) {
+  .obs .obs-bar-mid {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    font-family: var(--obs-font-mono), monospace;
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--obs-ghost);
+  }
+}
+
+.obs .obs-back {
+  font-family: var(--obs-font-mono), monospace;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--obs-faint);
+  text-decoration: none;
+  transition: color 0.18s ease;
+}
+
+.obs .obs-back:hover {
+  color: var(--obs-amber);
+}
+
+/* live dot */
+.obs .obs-dot {
+  position: relative;
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--obs-amber);
+  box-shadow: 0 0 8px hsl(38 96% 60% / 0.85);
+}
+
+.obs .obs-dot::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  border: 1px solid var(--obs-amber);
+  opacity: 0;
+  animation: obs-ping 2.8s cubic-bezier(0.2, 0.6, 0.3, 1) infinite;
+}
+
+.obs .obs-dot-teal {
+  background: var(--obs-teal);
+  box-shadow: 0 0 8px hsl(178 40% 52% / 0.8);
+}
+
+.obs .obs-dot-teal::after {
+  border-color: var(--obs-teal);
+}
+
+@keyframes obs-ping {
+  0% {
+    opacity: 0.7;
+    transform: scale(0.7);
+  }
+  70%,
+  100% {
+    opacity: 0;
+    transform: scale(2.1);
+  }
+}
+
+/* ---------------------------------------------------------------- *
+ * Hero
+ * ---------------------------------------------------------------- */
+
+.obs .obs-hero {
+  display: grid;
+  gap: clamp(1.75rem, 4vw, 3rem);
+  padding-top: clamp(3rem, 9vw, 6.5rem);
+  align-items: end;
+}
+
+@media (min-width: 900px) {
+  .obs .obs-hero {
+    grid-template-columns: minmax(0, 1.55fr) minmax(280px, 0.85fr);
+  }
+}
+
+.obs .obs-eyebrow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem;
+  margin-bottom: 1.4rem;
+}
+
+.obs .obs-name {
+  font-size: clamp(2.9rem, 9.5vw, 5.6rem);
+  font-weight: 620;
+  line-height: 0.9;
+  letter-spacing: -0.042em;
+  color: #f3f5f8;
+  margin: 0;
+}
+
+.obs .obs-role {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  margin-top: 1.05rem;
+  font-family: var(--obs-font-mono), monospace;
+  font-size: clamp(11px, 1.6vw, 13px);
+  font-weight: 500;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--obs-amber);
+}
+
+.obs .obs-role-line {
+  flex: 1;
+  height: 1px;
+  max-width: 180px;
+  background: linear-gradient(90deg, hsl(38 96% 60% / 0.45), transparent);
+}
+
+.obs .obs-lede {
+  max-width: 48ch;
+  margin-top: 1.5rem;
+  font-size: clamp(15px, 1.5vw, 17px);
+  line-height: 1.62;
+  color: var(--obs-dim);
+  text-wrap: pretty;
+}
+
+.obs .obs-lede strong {
+  color: #dde2e9;
+  font-weight: 550;
+}
+
+/* status readout */
+.obs .obs-status-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.62rem 0;
+}
+
+.obs .obs-status-row + .obs-status-row {
+  border-top: 1px solid var(--obs-line-soft);
+}
+
+.obs .obs-status-val {
+  font-family: var(--obs-font-mono), monospace;
+  font-size: 12px;
+  letter-spacing: 0.01em;
+  color: var(--obs-fg);
+  text-align: right;
+}
+
+.obs a.obs-status-val {
+  text-decoration: none;
+  transition: color 0.18s ease;
+}
+
+.obs a.obs-status-val:hover {
+  color: var(--obs-amber);
+}
+
+/* KPI rail */
+.obs .obs-kpi {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: clamp(2.5rem, 5vw, 3.75rem);
+}
+
+@media (min-width: 760px) {
+  .obs .obs-kpi {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.obs .obs-kpi-cell {
+  padding: 1.05rem 1.15rem 1.15rem;
+  border-top: 1px solid var(--obs-line-soft);
+}
+
+.obs .obs-kpi-cell + .obs-kpi-cell {
+  border-left: 1px solid var(--obs-line-soft);
+}
+
+/* two-up on small screens: the third cell opens a new row */
+.obs .obs-kpi-cell:nth-child(3) {
+  border-left: 0;
+}
+
+@media (min-width: 760px) {
+  .obs .obs-kpi-cell:nth-child(3) {
+    border-left: 1px solid var(--obs-line-soft);
+  }
+}
+
+.obs .obs-kpi-val {
+  display: block;
+  margin-top: 0.55rem;
+  font-family: var(--obs-font-mono), monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: clamp(1.8rem, 4.4vw, 2.6rem);
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: -0.035em;
+  color: #f1f3f7;
+}
+
+.obs .obs-kpi-cell:first-child .obs-kpi-val {
+  color: var(--obs-amber-hot);
+  text-shadow: 0 0 26px hsl(42 100% 62% / 0.32);
+}
+
+.obs .obs-kpi-unit {
+  margin-left: 0.35rem;
+  font-size: 0.42em;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--obs-faint);
+  vertical-align: 0.9em;
+}
+
+/* ---------------------------------------------------------------- *
+ * Heatmap
+ * ---------------------------------------------------------------- */
+
+.obs .obs-hm-wrap {
+  --hm-gap: clamp(1px, 0.34vw, 4px);
+}
+
+/* On narrow viewports 52 columns would collapse below legibility, so the grid
+   keeps a floor width and scrolls instead. `direction: rtl` on the scroller
+   (undone on its children) starts the scroll position at the right edge — the
+   most recent weeks, where the streak is. Padding + negative margin give the
+   hot cells' glow room so `overflow` doesn't shear it off. */
+.obs .obs-hm-scroll {
+  direction: rtl;
+  overflow-x: auto;
+  padding: 10px 3px;
+  margin: -10px -3px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--obs-line-strong) transparent;
+}
+
+.obs .obs-hm-scroll > * {
+  direction: ltr;
+}
+
+.obs .obs-hm-months {
+  display: none;
+}
+
+@media (min-width: 640px) {
+  .obs .obs-hm-months {
+    display: grid;
+    grid-template-columns: repeat(52, minmax(0, 1fr));
+    gap: var(--hm-gap);
+    margin-bottom: 0.5rem;
+  }
+}
+
+.obs .obs-hm-month {
+  font-family: var(--obs-font-mono), monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--obs-ghost);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.obs .obs-hm {
+  display: grid;
+  grid-template-columns: repeat(52, minmax(0, 1fr));
+  grid-template-rows: repeat(7, auto);
+  grid-auto-flow: column;
+  gap: var(--hm-gap);
+}
+
+/* Floor width: keeps every cell ≥ ~8px. Only binds (and scrolls) on narrow
+   viewports — the panel is wider than this everywhere else. */
+.obs .obs-hm,
+.obs .obs-hm-months {
+  min-width: 470px;
+}
+
+.obs .obs-cell {
+  aspect-ratio: 1 / 1;
+  width: 100%;
+  border-radius: 1.5px;
+  background: var(--obs-l0);
+  animation: obs-cell-in 0.5s ease both;
+  animation-delay: calc(var(--c) * 11ms);
+}
+
+@media (min-width: 900px) {
+  .obs .obs-cell {
+    border-radius: 2px;
+  }
+}
+
+.obs .obs-cell[data-l="1"] {
+  background: var(--obs-l1);
+}
+
+.obs .obs-cell[data-l="2"] {
+  background: var(--obs-l2);
+}
+
+.obs .obs-cell[data-l="3"] {
+  background: var(--obs-l3);
+  box-shadow: 0 0 5px hsl(40 90% 54% / 0.35);
+}
+
+.obs .obs-cell[data-l="4"] {
+  background: var(--obs-l4);
+  box-shadow:
+    0 0 7px hsl(46 100% 70% / 0.55),
+    0 0 16px hsl(42 100% 62% / 0.22);
+}
+
+@keyframes obs-cell-in {
+  from {
+    opacity: 0;
+    transform: scale(0.55);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.obs .obs-hm-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.55rem 1rem;
+  margin-top: 0.9rem;
+}
+
+.obs .obs-legend {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.obs .obs-legend-sw {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+}
+
+/* ---------------------------------------------------------------- *
+ * Git sub-stats
+ * ---------------------------------------------------------------- */
+
+.obs .obs-substats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border-top: 1px solid var(--obs-line-soft);
+}
+
+@media (min-width: 760px) {
+  .obs .obs-substats {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.obs .obs-substat {
+  padding: 0.95rem 1.1rem;
+}
+
+.obs .obs-substat + .obs-substat {
+  border-left: 1px solid var(--obs-line-soft);
+}
+
+.obs .obs-substat:nth-child(3) {
+  border-left: 0;
+}
+
+.obs .obs-substat:nth-child(n + 3) {
+  border-top: 1px solid var(--obs-line-soft);
+}
+
+@media (min-width: 760px) {
+  .obs .obs-substat:nth-child(3) {
+    border-left: 1px solid var(--obs-line-soft);
+  }
+  .obs .obs-substat:nth-child(n + 3) {
+    border-top: 0;
+  }
+}
+
+.obs .obs-substat-val {
+  display: block;
+  margin-top: 0.4rem;
+  font-family: var(--obs-font-mono), monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 1.35rem;
+  font-weight: 500;
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+  color: #eef1f5;
+}
+
+.obs .obs-substat-sub {
+  display: block;
+  margin-top: 0.3rem;
+  font-family: var(--obs-font-mono), monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--obs-ghost);
+}
+
+/* 100-square proportion plot */
+.obs .obs-dots {
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  gap: 4px;
+  max-width: 190px;
+}
+
+.obs .obs-dots i {
+  aspect-ratio: 1;
+  border-radius: 1.5px;
+  background: var(--obs-l2);
+  animation: obs-cell-in 0.45s ease both;
+  animation-delay: calc(var(--c) * 9ms);
+}
+
+.obs .obs-dots i[data-k="pub"] {
+  background: var(--obs-teal);
+  box-shadow: 0 0 6px hsl(178 40% 52% / 0.5);
+}
+
+/* language bars */
+.obs .obs-lang {
+  display: grid;
+  grid-template-columns: 5.7rem minmax(0, 1fr) 3rem;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+}
+
+.obs .obs-lang + .obs-lang {
+  border-top: 1px solid var(--obs-line-soft);
+}
+
+.obs .obs-lang-name {
+  font-family: var(--obs-font-mono), monospace;
+  font-size: 11.5px;
+  letter-spacing: 0.04em;
+  color: var(--obs-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.obs .obs-track {
+  position: relative;
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(150, 175, 210, 0.07);
+  overflow: hidden;
+}
+
+.obs .obs-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--w);
+  border-radius: 3px;
+  background: var(--obs-slate);
+  transform-origin: left center;
+  animation: obs-grow 0.85s cubic-bezier(0.2, 0.75, 0.25, 1) both;
+  animation-delay: var(--d, 0ms);
+}
+
+.obs .obs-fill[data-hot="1"] {
+  background: linear-gradient(90deg, var(--obs-amber-deep), var(--obs-amber));
+  box-shadow: 0 0 12px hsl(38 96% 60% / 0.4);
+}
+
+@keyframes obs-grow {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.obs .obs-lang-pct {
+  font-family: var(--obs-font-mono), monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 11.5px;
+  text-align: right;
+  color: var(--obs-faint);
+}
+
+/* ---------------------------------------------------------------- *
+ * Grid helpers
+ * ---------------------------------------------------------------- */
+
+.obs .obs-row {
+  display: grid;
+  gap: 14px;
+  margin-top: 14px;
+}
+
+@media (min-width: 900px) {
+  .obs .obs-row-5-7 {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  }
+  .obs .obs-row-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .obs .obs-row-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* ---------------------------------------------------------------- *
+ * Agent telemetry
+ * ---------------------------------------------------------------- */
+
+.obs .obs-ai {
+  display: grid;
+  gap: 1.6rem;
+}
+
+@media (min-width: 880px) {
+  .obs .obs-ai {
+    grid-template-columns: minmax(0, 1fr) 1px minmax(0, 1fr) 1px minmax(0, 1fr);
+    gap: 1.9rem;
+    align-items: start;
+  }
+}
+
+.obs .obs-vrule {
+  display: none;
+}
+
+@media (min-width: 880px) {
+  .obs .obs-vrule {
+    display: block;
+    align-self: stretch;
+    background: var(--obs-line-soft);
+  }
+}
+
+.obs .obs-ai-big {
+  display: flex;
+  align-items: baseline;
+  gap: 0.9rem;
+  flex-wrap: wrap;
+}
+
+.obs .obs-ai-num {
+  font-family: var(--obs-font-mono), monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: clamp(2.4rem, 6vw, 3.4rem);
+  font-weight: 500;
+  line-height: 0.95;
+  letter-spacing: -0.04em;
+  color: var(--obs-amber-hot);
+  text-shadow: 0 0 30px hsl(42 100% 62% / 0.3);
+}
+
+.obs .obs-bar-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 0.75rem;
+  margin-bottom: 0.35rem;
+}
+
+.obs .obs-meter {
+  margin-bottom: 0.95rem;
+}
+
+.obs .obs-note {
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--obs-dim);
+  text-wrap: pretty;
+}
+
+/* ---------------------------------------------------------------- *
+ * Work cards
+ * ---------------------------------------------------------------- */
+
+.obs .obs-work {
+  display: grid;
+  gap: 14px;
+}
+
+@media (min-width: 820px) {
+  .obs .obs-work {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.obs .obs-card {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition:
+    border-color 0.25s ease,
+    box-shadow 0.25s ease;
+}
+
+.obs .obs-card:hover {
+  border-color: var(--obs-line-strong);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    inset 0 0 44px rgba(120, 165, 225, 0.05),
+    0 0 0 1px hsl(var(--h) 80% 55% / 0.16),
+    0 8px 30px rgba(0, 0, 0, 0.5);
+}
+
+/* procedural art — CSS only, keyed off each project's accent hue */
+.obs .obs-art {
+  position: relative;
+  height: 168px;
+  flex: none;
+  overflow: hidden;
+  border-bottom: 1px solid var(--obs-line-soft);
+  background-color: #080b0f;
+}
+
+@media (min-width: 560px) {
+  .obs .obs-art {
+    height: 194px;
+  }
+}
+
+.obs .obs-art::before,
+.obs .obs-art::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+/* shared bloom + vignette (plain alpha — a blend mode would eat the vignette) */
+.obs .obs-art::after {
+  background:
+    radial-gradient(
+      120% 88% at 50% 118%,
+      hsl(var(--h) 92% 58% / 0.3),
+      transparent 66%
+    ),
+    linear-gradient(
+      180deg,
+      rgba(7, 9, 12, 0.5) 0%,
+      rgba(7, 9, 12, 0) 42%,
+      rgba(7, 9, 12, 0.7) 100%
+    );
+  transition: opacity 0.3s ease;
+}
+
+.obs .obs-card:hover .obs-art::after {
+  opacity: 0.82;
+}
+
+/* 0 — stacked rules, a document ruled into blocks */
+.obs .obs-art[data-art="0"]::before {
+  background:
+    repeating-linear-gradient(
+      180deg,
+      hsl(var(--h) 80% 62% / 0.34) 0 1px,
+      transparent 1px 9px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      hsl(var(--h) 60% 60% / 0.1) 0 1px,
+      transparent 1px 46px
+    ),
+    linear-gradient(155deg, hsl(var(--h) 70% 22% / 0.9), transparent 62%);
+  mask-image: linear-gradient(200deg, #000 8%, rgba(0, 0, 0, 0.15) 78%);
+  -webkit-mask-image: linear-gradient(200deg, #000 8%, rgba(0, 0, 0, 0.15) 78%);
+}
+
+/* 1 — concentric rings, a route plot */
+.obs .obs-art[data-art="1"]::before {
+  background:
+    repeating-radial-gradient(
+      circle at 24% 118%,
+      hsl(var(--h) 88% 62% / 0.34) 0 1px,
+      transparent 1px 21px
+    ),
+    repeating-linear-gradient(
+      64deg,
+      hsl(var(--h) 70% 60% / 0.08) 0 1px,
+      transparent 1px 30px
+    ),
+    linear-gradient(20deg, hsl(var(--h) 70% 20% / 0.85), transparent 70%);
+}
+
+/* 2 — mesh graph, controls and edges */
+.obs .obs-art[data-art="2"]::before {
+  background:
+    radial-gradient(circle at 30% 38%, hsl(var(--h) 90% 66% / 0.8) 0 2px, transparent 2.5px),
+    radial-gradient(circle at 68% 24%, hsl(var(--h) 90% 66% / 0.65) 0 2px, transparent 2.5px),
+    radial-gradient(circle at 82% 62%, hsl(var(--h) 90% 66% / 0.55) 0 2px, transparent 2.5px),
+    radial-gradient(circle at 46% 74%, hsl(var(--h) 90% 66% / 0.7) 0 2px, transparent 2.5px),
+    repeating-linear-gradient(
+      90deg,
+      hsl(var(--h) 60% 60% / 0.14) 0 1px,
+      transparent 1px 26px
+    ),
+    repeating-linear-gradient(
+      180deg,
+      hsl(var(--h) 60% 60% / 0.14) 0 1px,
+      transparent 1px 26px
+    ),
+    linear-gradient(200deg, hsl(var(--h) 65% 20% / 0.9), transparent 68%);
+  mask-image: radial-gradient(130% 110% at 40% 45%, #000 32%, rgba(0, 0, 0, 0.2) 88%);
+  -webkit-mask-image: radial-gradient(130% 110% at 40% 45%, #000 32%, rgba(0, 0, 0, 0.2) 88%);
+}
+
+/* 3 — bid ticks converging, a closing auction */
+.obs .obs-art[data-art="3"]::before {
+  background:
+    repeating-linear-gradient(
+      90deg,
+      hsl(var(--h) 88% 64% / 0.38) 0 2px,
+      transparent 2px 13px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      hsl(var(--h) 88% 70% / 0.22) 0 1px,
+      transparent 1px 5px
+    ),
+    linear-gradient(180deg, hsl(var(--h) 70% 22% / 0.85), transparent 72%);
+  mask-image: linear-gradient(90deg, rgba(0, 0, 0, 0.12) 4%, #000 92%);
+  -webkit-mask-image: linear-gradient(90deg, rgba(0, 0, 0, 0.12) 4%, #000 92%);
+}
+
+.obs .obs-art-tag {
+  position: absolute;
+  left: 0.9rem;
+  bottom: 0.8rem;
+  z-index: 2;
+  font-family: var(--obs-font-mono), monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.obs .obs-art-idx {
+  position: absolute;
+  right: 0.9rem;
+  top: 0.75rem;
+  z-index: 2;
+  font-family: var(--obs-font-mono), monospace;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: rgba(255, 255, 255, 0.34);
+}
+
+.obs .obs-card-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  padding: 1.15rem 1.15rem 1.25rem;
+}
+
+.obs .obs-card-title {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  font-size: 1.28rem;
+  font-weight: 600;
+  letter-spacing: -0.022em;
+  color: #f0f3f7;
+  margin: 0;
+}
+
+.obs .obs-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.obs .obs-card-sum {
+  margin-top: 0.85rem;
+  font-size: 13.7px;
+  line-height: 1.58;
+  color: var(--obs-dim);
+  text-wrap: pretty;
+}
+
+.obs .obs-stack {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 1.1rem;
+  padding-top: 0.95rem;
+  border-top: 1px solid var(--obs-line-soft);
+}
+
+.obs .obs-chip {
+  padding: 3px 7px;
+  border: 1px solid var(--obs-line-soft);
+  border-radius: 3px;
+  font-family: var(--obs-font-mono), monospace;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--obs-faint);
+  white-space: nowrap;
+}
+
+.obs .obs-dotsep {
+  width: 2px;
+  height: 2px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--obs-ghost);
+}
+
+/* ---------------------------------------------------------------- *
+ * Life strip
+ * ---------------------------------------------------------------- */
+
+.obs .obs-life {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+}
+
+@media (min-width: 620px) {
+  .obs .obs-life {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.obs .obs-life-card {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 0.75rem;
+}
+
+.obs .obs-life-photo {
+  position: relative;
+  width: 74px;
+  height: 60px;
+  flex: none;
+  overflow: hidden;
+  border-radius: 3px;
+  border: 1px solid var(--obs-line-soft);
+  background-color: #0a0d11;
+}
+
+.obs .obs-life-photo::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(80% 70% at 30% 108%, hsl(var(--h) 70% 52% / 0.5), transparent 68%),
+    repeating-linear-gradient(
+      135deg,
+      hsl(var(--h) 50% 60% / 0.09) 0 1px,
+      transparent 1px 7px
+    ),
+    linear-gradient(160deg, hsl(var(--h) 40% 18%), #0a0d11 78%);
+}
+
+.obs .obs-life-photo svg {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  opacity: 0.92;
+}
+
+.obs .obs-life-title {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.35;
+  color: #dfe4ea;
+}
+
+/* ---------------------------------------------------------------- *
+ * Footer
+ * ---------------------------------------------------------------- */
+
+.obs .obs-footer {
+  margin-top: clamp(4rem, 9vw, 7rem);
+  border-top: 1px solid var(--obs-line-soft);
+  background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.32));
+}
+
+.obs .obs-footer-inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1.75rem;
+  padding-block: clamp(2.25rem, 5vw, 3.25rem);
+}
+
+.obs .obs-mail {
+  display: inline-block;
+  font-family: var(--obs-font-mono), monospace;
+  font-size: clamp(1.05rem, 3.4vw, 1.6rem);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: #eef1f5;
+  text-decoration: none;
+  border-bottom: 1px solid hsl(38 96% 60% / 0.35);
+  padding-bottom: 2px;
+  transition:
+    color 0.2s ease,
+    border-color 0.2s ease;
+  overflow-wrap: anywhere;
+}
+
+.obs .obs-mail:hover {
+  color: var(--obs-amber);
+  border-bottom-color: var(--obs-amber);
+}
+
+.obs .obs-footer-end {
+  text-align: left;
+}
+
+@media (min-width: 620px) {
+  .obs .obs-footer-end {
+    margin-left: auto;
+    text-align: right;
+  }
+  .obs .obs-flinks {
+    justify-content: flex-end;
+  }
+}
+
+.obs .obs-flinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1.35rem;
+}
+
+.obs .obs-flink {
+  font-family: var(--obs-font-mono), monospace;
+  font-size: 11px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--obs-faint);
+  text-decoration: none;
+  transition: color 0.18s ease;
+}
+
+.obs .obs-flink:hover {
+  color: var(--obs-amber);
+}
+
+/* ---------------------------------------------------------------- *
+ * Entrance choreography — opacity/transform only, never layout
+ * ---------------------------------------------------------------- */
+
+.obs .obs-rise {
+  animation: obs-rise 0.7s cubic-bezier(0.22, 0.72, 0.3, 1) both;
+  animation-delay: var(--d, 0ms);
+}
+
+@keyframes obs-rise {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 14px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .obs *,
+  .obs *::before,
+  .obs *::after {
+    animation-duration: 0.001ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+  .obs .obs-fill {
+    transform: none !important;
+  }
+}
+
+.obs :focus-visible {
+  outline: 1px solid var(--obs-amber);
+  outline-offset: 3px;
+  border-radius: 2px;
+}

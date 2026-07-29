@@ -1,0 +1,411 @@
+/* ------------------------------------------------------------------ *
+ * Swiss Poster — scoped styles.
+ *
+ * Every selector is a descendant of `.sw` and every class is `sw-`
+ * prefixed, so nothing here can reach another variant's markup.
+ * Flat by decree: no shadows, no radii, no gradients.
+ * ------------------------------------------------------------------ */
+
+.sw {
+  --sw-paper: #ffffff;
+  --sw-ink: #0b0b0b;
+  --sw-red: #ff2d00;
+  /* Same red, one stop down, so 10px labels still clear AA on paper. */
+  --sw-red-ink: #d92200;
+  --sw-mute: #6d6d6d;
+  --sw-hair: #e0e0e0;
+  --sw-hair-strong: #c9c9c9;
+
+  /* Contribution ramp — one hue, five steps. */
+  --sw-l0: #ededed;
+  --sw-l1: #ffcdc2;
+  --sw-l2: #ff9d89;
+  --sw-l3: #ff6540;
+  --sw-l4: #ff2d00;
+
+  --sw-pad: 18px;
+  --sw-max: 1440px;
+
+  color-scheme: light;
+  min-height: 100dvh;
+  width: 100%;
+  background: var(--sw-paper);
+  color: var(--sw-ink);
+  font-family: var(--sw-font-display), "Helvetica Neue", Helvetica, Arial,
+    sans-serif;
+  font-synthesis-weight: none;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+@media (min-width: 768px) {
+  .sw {
+    --sw-pad: 40px;
+  }
+}
+
+/* ---------------------------------------------------------------- *
+ * Shell + exposed grid
+ * ---------------------------------------------------------------- */
+
+.sw .sw-shell {
+  position: relative;
+  max-width: var(--sw-max);
+  margin-inline: auto;
+  padding-inline: var(--sw-pad);
+}
+
+.sw .sw-rules {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--sw-pad);
+  right: var(--sw-pad);
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  pointer-events: none;
+  z-index: 0;
+  border-left: 1px solid var(--sw-hair);
+}
+
+.sw .sw-rules > i {
+  border-right: 1px solid var(--sw-hair);
+}
+
+@media (min-width: 768px) {
+  .sw .sw-rules {
+    grid-template-columns: repeat(12, 1fr);
+  }
+}
+
+.sw .sw-layer {
+  position: relative;
+  z-index: 1;
+}
+
+/* Content sits one hair inside the column line it starts on. */
+.sw .sw-cell {
+  padding-inline: 12px 20px;
+}
+
+@media (max-width: 767px) {
+  .sw .sw-cell {
+    padding-inline: 10px 14px;
+  }
+}
+
+/* ---------------------------------------------------------------- *
+ * Type
+ * ---------------------------------------------------------------- */
+
+.sw .sw-mono {
+  font-family: var(--sw-font-mono), ui-monospace, SFMono-Regular, monospace;
+  font-size: 10px;
+  line-height: 1.2;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+@media (min-width: 768px) {
+  .sw .sw-mono {
+    font-size: 10.5px;
+  }
+}
+
+.sw .sw-name {
+  font-weight: 700;
+  font-size: clamp(4.5rem, 19vw, 14rem);
+  line-height: 0.82;
+  letter-spacing: -0.05em;
+  text-transform: uppercase;
+}
+
+.sw .sw-role {
+  font-weight: 600;
+  font-size: clamp(1.35rem, 5vw, 3.5rem);
+  line-height: 0.94;
+  letter-spacing: -0.04em;
+  text-transform: uppercase;
+  color: var(--sw-red);
+}
+
+/* The headline numeral. Sized against its column at every breakpoint so it
+ * fills the measure without ever spilling out of the grid. */
+.sw .sw-huge {
+  font-weight: 700;
+  font-size: clamp(5rem, 26vw, 17rem);
+  line-height: 0.76;
+  letter-spacing: -0.055em;
+  font-variant-numeric: tabular-nums;
+  display: block;
+}
+
+.sw .sw-huge-sm {
+  font-weight: 700;
+  font-size: clamp(3.25rem, 16vw, 8rem);
+  line-height: 0.78;
+  letter-spacing: -0.05em;
+  font-variant-numeric: tabular-nums;
+  display: block;
+}
+
+@media (min-width: 768px) {
+  .sw .sw-huge {
+    /* "6,434" measures ~2.63em at this weight and tracking. The 7/12 column
+     * holds (100vw − 80px) × 7⁄12 − 32px, so the size tracks that line and
+     * caps at 17rem once the shell hits its 1440px max. */
+    font-size: clamp(8rem, calc(21.5vw - 30px), 17rem);
+  }
+  .sw .sw-huge-sm {
+    font-size: clamp(4rem, 9vw, 8rem);
+  }
+}
+
+.sw .sw-mail {
+  font-weight: 600;
+  font-size: clamp(1.25rem, 4.2vw, 2.9rem);
+  line-height: 1;
+  letter-spacing: -0.035em;
+}
+
+.sw .sw-h3 {
+  font-weight: 600;
+  font-size: clamp(1.5rem, 3.6vw, 2.25rem);
+  line-height: 1;
+  letter-spacing: -0.035em;
+}
+
+.sw .sw-body {
+  font-size: 15px;
+  line-height: 1.45;
+  letter-spacing: -0.011em;
+  color: #2a2a2a;
+}
+
+@media (min-width: 768px) {
+  .sw .sw-body {
+    font-size: 16px;
+  }
+}
+
+.sw .sw-stat-num {
+  font-weight: 600;
+  font-size: clamp(1.65rem, 3.4vw, 2.5rem);
+  line-height: 1;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Mono set as a running caption rather than a label: sentence case, opened up. */
+.sw .sw-note {
+  text-transform: none;
+  letter-spacing: 0.01em;
+  line-height: 1.75;
+  font-size: 11.5px;
+}
+
+/* Colour modifiers last so they win against the type classes above. */
+.sw .sw-mute {
+  color: var(--sw-mute);
+}
+
+.sw .sw-red {
+  color: var(--sw-red-ink);
+}
+
+/* ---------------------------------------------------------------- *
+ * Rules and section frames
+ * ---------------------------------------------------------------- */
+
+.sw .sw-rule-heavy {
+  border-top: 3px solid var(--sw-ink);
+}
+
+.sw .sw-sec {
+  padding-bottom: clamp(56px, 8vw, 116px);
+}
+
+.sw .sw-head {
+  display: grid;
+  grid-template-columns: 2.75rem 1fr auto;
+  align-items: center;
+  gap: 0 12px;
+  min-height: 46px;
+  border-top: 1px solid var(--sw-ink);
+  border-bottom: 1px solid var(--sw-hair);
+  margin-bottom: clamp(28px, 4vw, 56px);
+}
+
+/* ---------------------------------------------------------------- *
+ * Heatmap
+ * ---------------------------------------------------------------- */
+
+.sw .sw-cal-months {
+  position: relative;
+  height: 14px;
+  margin-bottom: 8px;
+  display: none;
+}
+
+@media (min-width: 640px) {
+  .sw .sw-cal-months {
+    display: block;
+  }
+}
+
+.sw .sw-cal-months > span {
+  position: absolute;
+  top: 0;
+  white-space: nowrap;
+}
+
+.sw .sw-cal {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.sw .sw-swatch {
+  width: 10px;
+  height: 10px;
+  display: inline-block;
+}
+
+/* ---------------------------------------------------------------- *
+ * Work tiles
+ * ---------------------------------------------------------------- */
+
+.sw .sw-plate {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  display: block;
+  background: #fff;
+  border: 1px solid var(--sw-ink);
+}
+
+.sw .sw-tile {
+  display: block;
+  border-top: 1px solid var(--sw-ink);
+}
+
+.sw .sw-tile-index {
+  transition: color 140ms linear;
+}
+
+.sw .sw-tile:hover .sw-tile-index {
+  color: var(--sw-red-ink);
+}
+
+.sw .sw-tile-bar {
+  height: 3px;
+  background: var(--sw-ink);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 180ms cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+
+.sw .sw-tile:hover .sw-tile-bar {
+  transform: scaleX(1);
+}
+
+.sw .sw-chip {
+  font-family: var(--sw-font-mono), ui-monospace, monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--sw-mute);
+  border: 1px solid var(--sw-hair-strong);
+  padding: 3px 6px 2px;
+  display: inline-block;
+}
+
+/* ---------------------------------------------------------------- *
+ * Bars / ledger
+ * ---------------------------------------------------------------- */
+
+.sw .sw-track {
+  height: 10px;
+  background: var(--sw-l0);
+  width: 100%;
+}
+
+.sw .sw-fill {
+  height: 100%;
+  background: var(--sw-ink);
+}
+
+.sw .sw-fill-red {
+  background: var(--sw-red);
+}
+
+.sw .sw-langbar {
+  display: flex;
+  width: 100%;
+  height: 36px;
+  border: 1px solid var(--sw-ink);
+}
+
+@media (min-width: 768px) {
+  .sw .sw-langbar {
+    height: 46px;
+  }
+}
+
+.sw .sw-langbar > span + span {
+  border-left: 1px solid var(--sw-paper);
+}
+
+/* ---------------------------------------------------------------- *
+ * Links
+ * ---------------------------------------------------------------- */
+
+.sw .sw-link {
+  color: inherit;
+  text-decoration: none;
+  border-bottom: 1px solid var(--sw-hair-strong);
+  transition: color 140ms linear, border-color 140ms linear;
+}
+
+.sw .sw-link:hover {
+  color: var(--sw-red-ink);
+  border-color: var(--sw-red);
+}
+
+.sw .sw-tile:focus-visible,
+.sw .sw-link:focus-visible {
+  outline: 2px solid var(--sw-red);
+  outline-offset: 3px;
+}
+
+/* ---------------------------------------------------------------- *
+ * Motion — almost none, and none at all on request.
+ * ---------------------------------------------------------------- */
+
+@keyframes sw-in {
+  from {
+    opacity: 0;
+    transform: translateY(7px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.sw .sw-in {
+  animation: sw-in 520ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
+  animation-delay: var(--d, 0ms);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sw .sw-in {
+    animation: none;
+  }
+  .sw *,
+  .sw *::before,
+  .sw *::after {
+    transition-duration: 0.001ms !important;
+  }
+}

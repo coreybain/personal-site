@@ -1,0 +1,73 @@
+/*
+ * Base styling hooks for <ThemeToggle>. Deliberately thin — every variant is
+ * expected to pass its own `className` and restyle from there.
+ *
+ * Everything here is either inherited (`color: inherit`, `currentColor` icons)
+ * or driven by a custom property a variant can override, so restyling never
+ * requires fighting specificity.
+ */
+
+.toggle {
+  --cb-toggle-size: 2.25rem;
+  --cb-toggle-icon-size: 1.125rem;
+  --cb-toggle-radius: 999px;
+  --cb-toggle-ring: currentColor;
+
+  display: inline-grid;
+  place-items: center;
+  inline-size: var(--cb-toggle-size);
+  block-size: var(--cb-toggle-size);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--cb-toggle-radius);
+  background: none;
+  color: inherit;
+  font: inherit;
+  line-height: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.toggle:focus-visible {
+  outline: 2px solid var(--cb-toggle-ring);
+  outline-offset: 2px;
+}
+
+.icon {
+  display: block;
+  inline-size: var(--cb-toggle-icon-size);
+  block-size: var(--cb-toggle-icon-size);
+}
+
+/* Screen-reader-only label text. */
+.srOnly {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/*
+ * The light/dark swap is pure CSS, keyed off the `data-theme` the ThemeScope
+ * inline script set before paint. Doing it in CSS rather than in React means
+ * the correct glyph *and* the correct accessible name are in the DOM on the
+ * very first frame, with no hydration involved and no ARIA state that could go
+ * stale. `.light` is the fallback when no scope is found.
+ */
+.dark {
+  display: none;
+}
+
+:global([data-theme="dark"]) .light {
+  display: none;
+}
+
+:global([data-theme="dark"]) .dark {
+  display: block;
+}
