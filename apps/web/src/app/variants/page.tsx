@@ -58,9 +58,9 @@ const rounds: Round[] = [
         blurb: "Panels and readouts, softened edges, both lights on.",
       },
       {
-        href: "/v/horizon",
-        name: "Horizon",
-        blurb: "One long gradient band, wide type, data on the skyline.",
+        href: "/",
+        name: "Horizon — chosen",
+        blurb: "One long gradient band, wide type, data on the skyline. Now the live homepage.",
       },
       {
         href: "/v/prism",
@@ -77,11 +77,11 @@ export default function Home() {
       <main className="w-full max-w-xl">
         <header className="mb-12">
           <h1 className="text-2xl font-semibold tracking-tight text-balance">
-            coreybaines.com — homepage style explorations
+            coreybaines.com — design exploration archive
           </h1>
           <p className="mt-3 text-sm leading-relaxed opacity-60">
             Eight directions for the same site, each reading from one shared
-            snapshot. Pick one.
+            snapshot. Horizon won and now lives at the root.
           </p>
         </header>
 

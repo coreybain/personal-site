@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { IBM_Plex_Mono, Inter } from "next/font/google";
 
-import { num } from "@/components/v/horizon/format";
+import { num } from "@/components/site/format";
 import { snapshot } from "@/lib/snapshot";
 
 import "./horizon.css";

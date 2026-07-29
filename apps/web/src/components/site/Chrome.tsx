@@ -119,8 +119,8 @@ export function Footer() {
             >
               github.com/{identity.github}
             </a>
-            <Link href="/" className="hor-link text-[13px]">
-              All variants
+            <Link href="/variants" className="hor-link text-[13px]">
+              Design explorations
             </Link>
             <span className="hor-label mt-1.5">
               Snapshot {stampTime(snapshot.computedAt)}
