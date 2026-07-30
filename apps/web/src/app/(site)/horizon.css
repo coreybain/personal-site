@@ -1491,6 +1491,13 @@
   transform: translateX(-50%) rotate(225deg);
 }
 
+.hor .hor-heat-tooltip-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
 .hor .hor-heat-tooltip-date {
   display: block;
   color: var(--hor-ink-4);
@@ -1499,6 +1506,29 @@
   line-height: 1;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.hor .hor-heat-tooltip-peak {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--hor-sun);
+  font-family: var(--font-hor-mono), ui-monospace, monospace;
+  font-size: 8px;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.hor .hor-heat-tooltip-peak i {
+  width: 5px;
+  height: 5px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--hor-sun);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--hor-sun) 16%, transparent);
 }
 
 .hor .hor-heat-tooltip-row {

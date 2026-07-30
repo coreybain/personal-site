@@ -1,0 +1,2018 @@
+/*
+ * The admin's stylesheet. Imported once, by src/app/admin/layout.tsx, so every
+ * route under /admin has it and no public route does.
+ *
+ * ── Relationship to the public site ────────────────────────────────────────
+ *
+ * The admin reads the *same tokens* as the Horizon site — the scope element in
+ * the layout carries `class="hor adm"`, so every `--hor-*` custom property from
+ * @home/ui/tokens.css resolves here, including the light/dark pair keyed off the
+ * `data-theme` attribute <ThemeScope> writes.
+ *
+ * It does **not** import horizon.css. That file is the public design language:
+ * washes, glows, orbits, a 1180px shell, the horizon boundary. Loading it here
+ * would make the admin look like the site, which is exactly wrong. An editing
+ * surface competing for attention with the content it edits is a worse editing
+ * surface, and the visual quiet is also a safety feature: you can tell at a
+ * glance whether you are looking at the site or at the thing that changes it.
+ *
+ * So: same palette, same hairlines, same radii, same easing — deliberately
+ * flatter type, denser spacing, no decoration, one accent used only for "this is
+ * the current thing" and "this is the primary action".
+ *
+ * ── Conventions ────────────────────────────────────────────────────────────
+ *
+ *   - Every selector is prefixed `.adm-` and scoped under `.adm`. Two reasons:
+ *     the token layer needs `.hor` on the same element, and specificity ties
+ *     with Tailwind utilities resolve in the admin's favour.
+ *   - No colour literals below. If a value is not in tokens.css it is a
+ *     `color-mix()` of something that is, so a theme change reaches everything.
+ *   - Component-local custom properties (`--adm-*`) are not tokens and stay
+ *     here, per rule 4 in tokens.css.
+ *   - Type is the app's default Geist (loaded by the root layout). The admin
+ *     deliberately does not load Inter or IBM Plex Mono: two extra font
+ *     requests to make a form look like the site is a bad trade, and the mono
+ *     bits below read fine in Geist Mono.
+ */
+
+/* ================================================================== *
+ * Scope
+ * ================================================================== */
+
+.adm {
+  /* The scope is a flex child of <body class="min-h-full flex flex-col">. */
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+
+  background: var(--hor-bg);
+  color: var(--hor-ink);
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+
+  /* Sidebar width, in one place — the topbar's left edge lines up with it. */
+  --adm-side: 236px;
+  --adm-gutter: clamp(1rem, 3vw, 2rem);
+  --adm-radius: var(--hor-radius-deck);
+
+  /*
+   * ── Vertical rhythm, in three steps ──────────────────────────────────────
+   *
+   * These replaced a scatter of one-off `margin-top: 1.1rem` / `1.4rem` /
+   * `1.05rem` values that were all trying to mean the same thing and drifted
+   * apart. Three steps is enough for this surface and any more would stop being
+   * a scale:
+   *
+   *   --adm-flow    between the big blocks of a page: header → content, panel →
+   *                 panel, notice → whatever it warns about.
+   *   --adm-stack   between the parts of one block: the fields of a form, the
+   *                 rows of a button cluster's own stack.
+   *   --adm-snug    between a label and its control, an icon and its text.
+   *
+   * The pass that introduced them also tightened them. The admin was laid out on
+   * public-site spacing, which is generous because the site is read; an editing
+   * surface is *scanned*, and 30% more of it on screen is 30% fewer scrolls to
+   * find the field you came for.
+   */
+  --adm-flow: 1.15rem;
+  --adm-stack: 0.85rem;
+  --adm-snug: 0.35rem;
+}
+
+.adm *,
+.adm *::before,
+.adm *::after {
+  box-sizing: border-box;
+}
+
+.adm :focus-visible {
+  outline: 2px solid var(--hor-focus);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+.adm ::selection {
+  background: var(--hor-accent-wash);
+}
+
+/* ── Sign-in ─────────────────────────────────────────────────────── */
+
+/* The sign-in page has no sidebar and no topbar, so it centres itself in the
+   scope rather than living in a main column. */
+.adm .adm-signin {
+  flex: 1 1 auto;
+  display: grid;
+  place-items: center;
+  padding: 3rem var(--adm-gutter);
+}
+
+.adm .adm-signin-panel {
+  max-width: 46ch;
+}
+
+.adm .adm-signin-panel code {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.9em;
+  color: var(--hor-ink-2);
+}
+
+/* ================================================================== *
+ * Shell — sidebar + main column
+ * ================================================================== */
+
+.adm .adm-shell {
+  flex: 1 1 auto;
+  display: grid;
+  grid-template-columns: var(--adm-side) minmax(0, 1fr);
+  align-items: start;
+}
+
+/* The gap and padding here are tighter than they were (1.25rem / 1.15rem). Ten
+   nav links plus a brand and a status strip fit in 100dvh on a laptop with room
+   to spare now, which is the difference between a sidebar you read and a sidebar
+   you scroll. */
+.adm .adm-side {
+  position: sticky;
+  top: 0;
+  height: 100dvh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  padding: 0.9rem 0.75rem 1.1rem;
+  background: var(--hor-deck);
+  border-right: 1px solid var(--hor-line);
+}
+
+.adm .adm-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
+/* Below the breakpoint the sidebar stops being a column and becomes a
+   horizontally scrollable strip above the content. Same markup, same links,
+   no duplicate nav to keep in sync. */
+@media (max-width: 900px) {
+  .adm .adm-shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .adm .adm-side {
+    position: static;
+    height: auto;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.9rem;
+    overflow-x: auto;
+    padding: 0.75rem var(--adm-gutter);
+    border-right: 0;
+    border-bottom: 1px solid var(--hor-line);
+  }
+
+  .adm .adm-main {
+    min-height: 0;
+  }
+
+  .adm .adm-nav {
+    flex-direction: row;
+    flex-wrap: nowrap;
+  }
+
+  .adm .adm-nav-label,
+  .adm .adm-side-foot {
+    display: none;
+  }
+}
+
+/* ── Brand ───────────────────────────────────────────────────────── */
+
+.adm .adm-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.35rem 0.5rem;
+  flex-shrink: 0;
+  text-decoration: none;
+  color: inherit;
+}
+
+.adm .adm-brand-mark {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  border-radius: 7px;
+  border: 1px solid var(--hor-line-strong);
+  background: var(--hor-chip);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--hor-ink-2);
+}
+
+.adm .adm-brand-name {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  white-space: nowrap;
+}
+
+.adm .adm-brand-sub {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--hor-ink-4);
+}
+
+/* ── Nav ─────────────────────────────────────────────────────────── */
+
+.adm .adm-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.adm .adm-nav-label {
+  padding: 0.55rem 0.6rem 0.25rem;
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--hor-ink-4);
+}
+
+.adm .adm-navlink {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.42rem 0.6rem;
+  border-radius: var(--adm-radius);
+  color: var(--hor-ink-2);
+  font-size: 13px;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 140ms var(--hor-ease), color 140ms var(--hor-ease);
+}
+
+.adm .adm-navlink:hover {
+  background: var(--hor-chip);
+  color: var(--hor-ink);
+}
+
+.adm .adm-navlink[data-active="true"] {
+  background: var(--hor-accent-wash);
+  color: var(--hor-ink);
+  font-weight: 500;
+}
+
+/* The active marker is a bar on the sidebar's own edge, not a border on the
+   link — a border would shift the label by 2px on activation. */
+.adm .adm-navlink[data-active="true"]::before {
+  content: "";
+  position: absolute;
+  inset-block: 5px;
+  /* Must equal `.adm-side`'s inline padding, negated — that is what puts the bar
+     on the sidebar's own edge rather than floating in the gutter. Change one and
+     change the other. */
+  left: -0.75rem;
+  width: 2px;
+  border-radius: 0 2px 2px 0;
+  background: var(--hor-accent);
+}
+
+@media (max-width: 900px) {
+  .adm .adm-navlink[data-active="true"]::before {
+    inset-block: auto;
+    left: 0.6rem;
+    right: 0.6rem;
+    bottom: -0.75rem;
+    width: auto;
+    height: 2px;
+    border-radius: 2px 2px 0 0;
+  }
+}
+
+.adm .adm-navlink svg {
+  flex-shrink: 0;
+  opacity: 0.75;
+}
+
+.adm .adm-navlink[data-active="true"] svg {
+  opacity: 1;
+  color: var(--hor-accent);
+}
+
+.adm .adm-side-foot {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--adm-snug);
+  padding: 0.5rem 0.6rem 0;
+  border-top: 1px solid var(--hor-line-soft);
+}
+
+/* Service status, bottom of the sidebar. Definition list because that is what
+   it is: two terms with two values. */
+.adm .adm-status {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin: 0;
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+}
+
+.adm .adm-status > div {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+}
+
+.adm .adm-status dt {
+  color: var(--hor-ink-4);
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+}
+
+.adm .adm-status dd {
+  margin: 0;
+  color: var(--hor-ink-4);
+}
+
+.adm .adm-status dd[data-ok="true"] {
+  color: var(--hor-accent);
+}
+
+/* ── Topbar ──────────────────────────────────────────────────────── */
+
+.adm .adm-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  min-height: 50px;
+  padding: 0 var(--adm-gutter);
+  background: color-mix(in oklab, var(--hor-bg) 88%, transparent);
+  border-bottom: 1px solid var(--hor-line);
+  backdrop-filter: blur(10px);
+}
+
+.adm .adm-crumbs {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--hor-ink-3);
+}
+
+.adm .adm-crumbs a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.adm .adm-crumbs a:hover {
+  color: var(--hor-ink);
+}
+
+.adm .adm-topbar-end {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+/* <ThemeToggle> keeps its own base class (which owns the sun/moon swap) and is
+   resized through the custom properties that class declares. Overriding its
+   className instead would drop `--cb-toggle-icon-size` and leave the glyphs at
+   their intrinsic size. */
+.adm .adm-theme-toggle {
+  --cb-toggle-size: 1.85rem;
+  --cb-toggle-icon-size: 0.95rem;
+  --cb-toggle-ring: var(--hor-focus);
+  color: var(--hor-ink-3);
+}
+
+.adm .adm-theme-toggle:hover {
+  background: var(--hor-chip);
+  color: var(--hor-ink);
+}
+
+/* A full-bleed strip directly under the topbar, for facts about the whole
+   deployment rather than the current page (auth off, backend absent). Distinct
+   from .adm-notice, which lives inside a page's content flow. */
+.adm .adm-banner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  padding: 0.55rem var(--adm-gutter);
+  border-bottom: 1px solid var(--hor-line);
+  background: var(--hor-chip);
+  font-size: 12.5px;
+  color: var(--hor-ink-2);
+}
+
+.adm .adm-banner strong {
+  color: var(--hor-ink);
+  font-weight: 600;
+}
+
+.adm .adm-banner code {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.9em;
+  color: var(--hor-ink-3);
+}
+
+.adm .adm-banner[data-tone="warn"] {
+  box-shadow: inset 2px 0 0 var(--hor-sun);
+}
+
+.adm .adm-banner[data-tone="info"] {
+  box-shadow: inset 2px 0 0 var(--hor-accent);
+}
+
+/* ================================================================== *
+ * Page furniture
+ * ================================================================== */
+
+.adm .adm-page {
+  width: 100%;
+  max-width: 1040px;
+  padding: 1.25rem var(--adm-gutter) 4rem;
+}
+
+/*
+ * ── The compact header ────────────────────────────────────────────────────
+ *
+ * A column of at most three things: the back link, the title row, and the
+ * deprecated description. The title row is where the tightening happened — title,
+ * info icon and actions on **one line**, which is what removed a whole band of
+ * page.
+ *
+ * The rule under it is gone. A header that is already the largest type on the
+ * page, at the top of the page, does not need a line drawn under it to be read as
+ * a header; the rule was pure furniture, and it cost the 1.1rem of padding above
+ * it plus the 1.4rem below. `--adm-flow` alone now separates the header from the
+ * content, and the page starts about 45px higher than it did.
+ */
+.adm .adm-page-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--adm-snug);
+  margin-bottom: var(--adm-flow);
+}
+
+/* Title (+ info icon) on the left, actions on the right, one line.
+   `baseline` rather than `center`: the actions are buttons of a different height
+   to the title, and aligning their text to the title's text is what makes the row
+   read as one line rather than as two things that happen to overlap. It only
+   works because the eyebrow is *outside* this row — see AdminPage.tsx. */
+.adm .adm-page-head-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem 1.25rem;
+}
+
+/* Title + info icon. The icon is a sibling of the h1 (see AdminPage.tsx for
+   why it must not be a child) so this row is what puts them on one line. */
+.adm .adm-page-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.adm .adm-page-title {
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  line-height: 1.25;
+  min-width: 0;
+}
+
+/* One line of prose under a title. `AdminPageHeader` no longer renders this —
+   its `description` prop is gone, which is the point of the compact header — and
+   the single remaining user is the sign-in screen, the one page outside the shell
+   that has no page header at all. Not for section screens: their explanation goes
+   in `info`. */
+.adm .adm-page-sub {
+  max-width: 62ch;
+  font-size: 13px;
+  color: var(--hor-ink-3);
+}
+
+.adm .adm-page-actions {
+  margin-left: auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* ── Back link ───────────────────────────────────────────────────────────── */
+
+/* Sits above the title, aligned to the same left edge — the chevron hangs into
+   the gutter via a negative offset so the *label* lines up with the h1 rather
+   than the icon, which is what makes the two lines read as a stack instead of an
+   indent. */
+.adm .adm-back {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  margin-left: -0.2rem;
+  padding: 0.1rem 0.2rem;
+  border-radius: 4px;
+  color: var(--hor-ink-4);
+  font-size: 12px;
+  text-decoration: none;
+  transition: color 140ms var(--hor-ease);
+}
+
+.adm .adm-back:hover {
+  color: var(--hor-ink-2);
+}
+
+.adm .adm-back svg {
+  flex-shrink: 0;
+  /* Nudges toward the label on hover: the affordance is "back", and a chevron
+     that moves the way the click will is the cheapest way to say so. */
+  transition: transform 160ms var(--hor-spring);
+}
+
+.adm .adm-back:hover svg {
+  transform: translateX(-2px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .adm .adm-back svg {
+    transition-duration: 1ms;
+  }
+
+  .adm .adm-back:hover svg {
+    transform: none;
+  }
+}
+
+/* ── InfoTip ─────────────────────────────────────────────────────────────── */
+
+.adm .adm-tip {
+  display: inline-flex;
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+
+.adm .adm-tip-trigger {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--hor-ink-4);
+  cursor: help;
+  transition: color 140ms var(--hor-ease), background 140ms var(--hor-ease);
+}
+
+.adm .adm-tip-trigger:hover,
+.adm .adm-tip-trigger[data-open="true"] {
+  background: var(--hor-chip);
+  color: var(--hor-accent);
+}
+
+/*
+ * The panel.
+ *
+ * `position: fixed` with the coordinates written by InfoTip.tsx — see its
+ * docblock for why (an InfoTip inside `.adm-table-wrap` would otherwise be
+ * clipped by that container's `overflow-x`, and "near the viewport edge" is a
+ * question about the viewport).
+ *
+ * Hidden with `visibility`, never `display: none`, for two reasons that both
+ * matter: a directly-referenced `aria-describedby` target is included in the
+ * accessible description even while hidden, so the text is available to a screen
+ * reader at all times; and the panel keeps a measurable box, which is what lets
+ * the component place it correctly before its first paint instead of one frame
+ * after it.
+ */
+.adm .adm-tip-panel {
+  position: fixed;
+  /* Off-screen until the first measurement, which only matters for the frame
+     before any interaction — it is invisible either way. */
+  left: -9999px;
+  top: -9999px;
+  z-index: 60;
+
+  max-inline-size: min(34ch, calc(100vw - 2rem));
+  padding: 0.5rem 0.65rem;
+  border: 1px solid var(--hor-line-strong);
+  border-radius: var(--adm-radius);
+  /* `--hor-panel` is the only *opaque* surface token in both themes (#0d0f1a /
+     #ffffff). A floating panel over arbitrary content cannot use `--hor-chip` or
+     `--hor-panel-top`, which are translucent overlays meant to sit on a known
+     background — the text behind would show through the explanation.
+
+     `--hor-shadow-sky` rather than `--hor-shadow-panel`: the latter is mostly
+     `inset`, which describes a surface flush with the page. This one is above
+     the page and needs a real drop shadow to say so. */
+  background: var(--hor-panel);
+  box-shadow: var(--hor-shadow-sky);
+
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--hor-ink-2);
+  text-align: left;
+  /* Normal weight and normal case regardless of what it is nested inside — these
+     land in `<th>` (mono uppercase 10px) and in labels (12px 500), and inheriting
+     either makes a sentence unreadable. */
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
+  white-space: normal;
+
+  visibility: hidden;
+  opacity: 0;
+  transform: translateY(-2px);
+  /* `visibility` is stepped at the end of the out-transition so the fade is
+     visible on the way out; on the way in it flips immediately. Transform is
+     translate-only — a scale would change the box and invalidate the
+     measurement the component just took. */
+  transition: opacity 120ms var(--hor-ease), transform 120ms var(--hor-ease),
+    visibility 0s linear 120ms;
+}
+
+.adm .adm-tip-panel[data-open="true"] {
+  visibility: visible;
+  opacity: 1;
+  transform: translateY(0);
+  transition-delay: 0s;
+}
+
+.adm .adm-tip-panel code {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.92em;
+  color: var(--hor-ink-3);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .adm .adm-tip-panel {
+    transition-duration: 1ms;
+    transition-delay: 0s;
+    transform: none;
+  }
+}
+
+/* ── View on site ────────────────────────────────────────────────────────── */
+
+.adm .adm-viewsite {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 12px;
+  color: var(--hor-ink-3);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: color 140ms var(--hor-ease);
+}
+
+.adm .adm-viewsite svg {
+  flex-shrink: 0;
+  opacity: 0.8;
+}
+
+.adm .adm-viewsite[data-state="live"]:hover {
+  color: var(--hor-accent);
+}
+
+/* The two "there is nothing to look at" states. Muted rather than absent: a
+   control that disappears reads as a bug and answers no question. Not
+   interactive, and it must not look interactive. */
+.adm .adm-viewsite[data-state="draft"],
+.adm .adm-viewsite[data-state="planned"] {
+  color: var(--hor-ink-4);
+  cursor: default;
+}
+
+.adm .adm-viewsite[data-state="draft"] svg,
+.adm .adm-viewsite[data-state="planned"] svg {
+  opacity: 0.45;
+}
+
+.adm .adm-viewsite[data-state="planned"] code {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.9em;
+  color: var(--hor-ink-4);
+}
+
+/* The shell's topbar variant, which is an `.adm-btn` rather than a bare link
+   because it sits in a cluster with the theme toggle and the sign-out button and
+   should match their hit target. */
+.adm .adm-viewsite-btn {
+  text-decoration: none;
+  color: var(--hor-ink-2);
+}
+
+.adm .adm-viewsite-btn svg {
+  flex-shrink: 0;
+}
+
+/* Below the sidebar's breakpoint the topbar is carrying a breadcrumb, three
+   controls and a 1rem gutter. The arrow glyph is unambiguous on its own, and the
+   button keeps its accessible name from the `.adm-sr-only` span either way. */
+@media (max-width: 640px) {
+  .adm .adm-viewsite-btn > span:not(.adm-sr-only) {
+    display: none;
+  }
+}
+
+.adm .adm-eyebrow {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--hor-ink-4);
+}
+
+.adm .adm-micro {
+  font-size: 12px;
+  color: var(--hor-ink-3);
+}
+
+/* Visually hidden, still announced. Used for headings a sighted reader gets from
+   context (an actions column) but a screen reader would otherwise hear as blank. */
+.adm .adm-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.adm .adm-mono {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.adm .adm-link {
+  color: var(--hor-ink-2);
+  text-decoration: underline;
+  text-decoration-color: var(--hor-line-strong);
+  text-underline-offset: 3px;
+}
+
+.adm .adm-link:hover {
+  color: var(--hor-ink);
+  text-decoration-color: var(--hor-accent);
+}
+
+/* ── Panel ───────────────────────────────────────────────────────── */
+
+.adm .adm-panel {
+  border: 1px solid var(--hor-line);
+  border-radius: var(--adm-radius);
+  background: var(--hor-panel);
+}
+
+.adm .adm-panel + .adm-panel {
+  margin-top: var(--adm-flow);
+}
+
+.adm .adm-panel-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  padding: 0.7rem 0.95rem;
+  border-bottom: 1px solid var(--hor-line-soft);
+}
+
+/* Panel title + its info icon. See `.adm-label-row` and `.adm-page-title-row` —
+   the same construction at the three scales a tip can attach to. */
+.adm .adm-panel-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.adm .adm-panel-title {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.adm .adm-panel-body {
+  padding: 1rem 0.95rem;
+}
+
+.adm .adm-panel-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.7rem 0.95rem;
+  border-top: 1px solid var(--hor-line-soft);
+  background: color-mix(in oklab, var(--hor-panel) 92%, var(--hor-deck));
+  border-radius: 0 0 var(--adm-radius) var(--adm-radius);
+}
+
+/* ── Notice ──────────────────────────────────────────────────────── */
+
+.adm .adm-notice {
+  display: flex;
+  gap: 0.65rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--hor-line);
+  border-left-width: 2px;
+  border-radius: var(--adm-radius);
+  background: var(--hor-chip);
+  font-size: 13px;
+  color: var(--hor-ink-2);
+}
+
+.adm .adm-notice + * {
+  margin-top: var(--adm-flow);
+}
+
+.adm .adm-notice[data-tone="info"] {
+  border-left-color: var(--hor-accent);
+}
+
+.adm .adm-notice[data-tone="warn"] {
+  border-left-color: var(--hor-sun);
+}
+
+.adm .adm-notice[data-tone="danger"] {
+  border-left-color: var(--hor-l3);
+}
+
+.adm .adm-notice-title {
+  font-weight: 600;
+  color: var(--hor-ink);
+}
+
+.adm .adm-notice code {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.92em;
+  padding: 0.05em 0.3em;
+  border-radius: 3px;
+  background: var(--hor-chip);
+}
+
+/* ── Dashboard cards ─────────────────────────────────────────────── */
+
+.adm .adm-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(268px, 100%), 1fr));
+  gap: 0.7rem;
+}
+
+.adm .adm-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.85rem 0.9rem;
+  border: 1px solid var(--hor-line);
+  border-radius: var(--adm-radius);
+  background: var(--hor-panel);
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 140ms var(--hor-ease), background 140ms var(--hor-ease);
+}
+
+.adm .adm-card:hover {
+  border-color: color-mix(in oklab, var(--hor-accent) 40%, var(--hor-line));
+  background: color-mix(in oklab, var(--hor-panel) 82%, var(--hor-accent-wash));
+}
+
+.adm .adm-card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.adm .adm-card-label {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--hor-ink);
+}
+
+.adm .adm-card-count {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.adm .adm-card-value {
+  font-size: 15px;
+  color: var(--hor-ink-2);
+}
+
+.adm .adm-card-note {
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--hor-sun);
+}
+
+.adm .adm-card-blurb {
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--hor-ink-3);
+}
+
+.adm .adm-card-backing {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 10px;
+  color: var(--hor-ink-4);
+}
+
+/* ================================================================== *
+ * Form primitives
+ * ================================================================== */
+
+.adm .adm-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--adm-stack);
+}
+
+/* Two-up on wide screens, stacked below. Fields opt in per-instance. */
+.adm .adm-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
+  gap: var(--adm-stack);
+}
+
+.adm .adm-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--adm-snug);
+  min-width: 0;
+}
+
+/* Label + its info icon, the field-level twin of `.adm-page-title-row`. The icon
+   is a sibling of the `<label>` rather than a child (a `<button>` in a label is
+   invalid and steals the label's click), so this row is what puts them on one
+   line. `width: fit-content` keeps the icon against the end of the label text
+   instead of at the far edge of a full-width field — which is the one thing the
+   per-section shims this replaced could not do. */
+.adm .adm-label-row {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  width: fit-content;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.adm .adm-label {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--hor-ink-2);
+}
+
+.adm .adm-required {
+  color: var(--hor-sun);
+  font-size: 11px;
+}
+
+.adm .adm-optional {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--hor-ink-4);
+}
+
+.adm .adm-hint {
+  font-size: 12px;
+  color: var(--hor-ink-4);
+}
+
+.adm .adm-error {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 12px;
+  color: var(--hor-l3);
+}
+
+.adm .adm-input,
+.adm .adm-textarea,
+.adm .adm-select {
+  width: 100%;
+  min-width: 0;
+  padding: 0.42rem 0.6rem;
+  border: 1px solid var(--hor-line-strong);
+  border-radius: var(--adm-radius);
+  background: color-mix(in oklab, var(--hor-bg) 60%, var(--hor-panel));
+  color: var(--hor-ink);
+  font: inherit;
+  font-size: 13px;
+  transition: border-color 140ms var(--hor-ease), box-shadow 140ms var(--hor-ease);
+}
+
+.adm .adm-input::placeholder,
+.adm .adm-textarea::placeholder {
+  color: var(--hor-ink-4);
+}
+
+.adm .adm-input:hover,
+.adm .adm-textarea:hover,
+.adm .adm-select:hover {
+  border-color: color-mix(in oklab, var(--hor-accent) 35%, var(--hor-line-strong));
+}
+
+.adm .adm-input:focus-visible,
+.adm .adm-textarea:focus-visible,
+.adm .adm-select:focus-visible {
+  outline: none;
+  border-color: var(--hor-accent);
+  box-shadow: 0 0 0 3px var(--hor-accent-wash);
+}
+
+.adm .adm-input[aria-invalid="true"],
+.adm .adm-textarea[aria-invalid="true"],
+.adm .adm-select[aria-invalid="true"] {
+  border-color: var(--hor-l3);
+}
+
+.adm .adm-input:disabled,
+.adm .adm-textarea:disabled,
+.adm .adm-select:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.adm .adm-textarea {
+  min-height: 5.5rem;
+  resize: vertical;
+  line-height: 1.55;
+}
+
+.adm .adm-textarea[data-mono="true"] {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 12.5px;
+}
+
+.adm .adm-select {
+  appearance: none;
+  padding-right: 1.8rem;
+  /* Chevron, drawn in CSS so it inherits the ink colour and needs no asset. */
+  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%),
+    linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position: calc(100% - 1.05rem) 55%, calc(100% - 0.75rem) 55%;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
+
+.adm .adm-input[type="date"],
+.adm .adm-input[type="datetime-local"],
+.adm .adm-input[type="number"] {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Toggle ──────────────────────────────────────────────────────── */
+
+.adm .adm-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  cursor: pointer;
+}
+
+.adm .adm-toggle[data-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.adm .adm-toggle-track {
+  position: relative;
+  flex-shrink: 0;
+  width: 34px;
+  height: 20px;
+  margin-top: 1px;
+  border-radius: 999px;
+  border: 1px solid var(--hor-line-strong);
+  background: var(--hor-chip);
+  transition: background 160ms var(--hor-ease), border-color 160ms var(--hor-ease);
+}
+
+.adm .adm-toggle-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--hor-ink-3);
+  transition: transform 180ms var(--hor-spring), background 160ms var(--hor-ease);
+}
+
+.adm .adm-toggle input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.adm .adm-toggle input:checked + .adm-toggle-track {
+  background: var(--hor-accent-mid);
+  border-color: var(--hor-accent-mid);
+}
+
+.adm .adm-toggle input:checked + .adm-toggle-track .adm-toggle-thumb {
+  transform: translateX(14px);
+  background: #fff;
+}
+
+.adm .adm-toggle input:focus-visible + .adm-toggle-track {
+  outline: 2px solid var(--hor-focus);
+  outline-offset: 2px;
+}
+
+.adm .adm-toggle-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.adm .adm-toggle-label {
+  font-size: 13px;
+  color: var(--hor-ink);
+}
+
+/* ── Slug ────────────────────────────────────────────────────────── */
+
+.adm .adm-slug {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--hor-line-strong);
+  border-radius: var(--adm-radius);
+  background: color-mix(in oklab, var(--hor-bg) 60%, var(--hor-panel));
+  overflow: hidden;
+  transition: border-color 140ms var(--hor-ease), box-shadow 140ms var(--hor-ease);
+}
+
+.adm .adm-slug:focus-within {
+  border-color: var(--hor-accent);
+  box-shadow: 0 0 0 3px var(--hor-accent-wash);
+}
+
+.adm .adm-slug[data-invalid="true"] {
+  border-color: var(--hor-l3);
+}
+
+.adm .adm-slug-prefix {
+  display: flex;
+  align-items: center;
+  padding: 0 0.55rem;
+  border-right: 1px solid var(--hor-line-soft);
+  background: var(--hor-chip);
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 12px;
+  color: var(--hor-ink-4);
+  white-space: nowrap;
+}
+
+.adm .adm-slug input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  padding: 0.42rem 0.6rem;
+  color: var(--hor-ink);
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 12.5px;
+}
+
+.adm .adm-slug input:focus-visible {
+  outline: none;
+}
+
+.adm .adm-slug-lock {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0 0.6rem;
+  border: 0;
+  border-left: 1px solid var(--hor-line-soft);
+  background: transparent;
+  color: var(--hor-ink-4);
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.adm .adm-slug-lock:hover {
+  background: var(--hor-chip);
+  color: var(--hor-ink-2);
+}
+
+.adm .adm-slug-lock[data-linked="true"] {
+  color: var(--hor-accent);
+}
+
+/* ================================================================== *
+ * Buttons
+ * ================================================================== */
+
+.adm .adm-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--hor-line-strong);
+  border-radius: var(--adm-radius);
+  background: var(--hor-chip);
+  color: var(--hor-ink);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 140ms var(--hor-ease), border-color 140ms var(--hor-ease),
+    opacity 140ms var(--hor-ease);
+}
+
+.adm .adm-btn:hover:not(:disabled) {
+  background: color-mix(in oklab, var(--hor-chip) 55%, var(--hor-accent-wash));
+  border-color: color-mix(in oklab, var(--hor-accent) 40%, var(--hor-line-strong));
+}
+
+.adm .adm-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.adm .adm-btn[data-variant="primary"] {
+  background: var(--hor-accent-mid);
+  border-color: var(--hor-accent-mid);
+  color: #fff;
+}
+
+.adm .adm-btn[data-variant="primary"]:hover:not(:disabled) {
+  background: var(--hor-accent);
+  border-color: var(--hor-accent);
+}
+
+.adm .adm-btn[data-variant="ghost"] {
+  background: transparent;
+  border-color: transparent;
+  color: var(--hor-ink-2);
+}
+
+.adm .adm-btn[data-variant="ghost"]:hover:not(:disabled) {
+  background: var(--hor-chip);
+  border-color: var(--hor-line);
+  color: var(--hor-ink);
+}
+
+.adm .adm-btn[data-variant="danger"] {
+  background: transparent;
+  border-color: color-mix(in oklab, var(--hor-l3) 45%, var(--hor-line-strong));
+  color: var(--hor-l3);
+}
+
+.adm .adm-btn[data-variant="danger"]:hover:not(:disabled) {
+  background: color-mix(in oklab, var(--hor-l3) 12%, transparent);
+  border-color: var(--hor-l3);
+}
+
+/* Confirm-armed delete: the second click is the destructive one, and the
+   button says so rather than opening a dialog nobody reads. */
+.adm .adm-btn[data-armed="true"] {
+  background: var(--hor-l3);
+  border-color: var(--hor-l3);
+  color: #fff;
+}
+
+.adm .adm-btn[data-size="sm"] {
+  padding: 0.22rem 0.5rem;
+  font-size: 11.5px;
+}
+
+.adm .adm-btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.adm .adm-btn-note {
+  font-size: 12px;
+  color: var(--hor-ink-4);
+}
+
+.adm .adm-btn-note[data-tone="error"] {
+  color: var(--hor-l3);
+}
+
+.adm .adm-btn-note[data-tone="ok"] {
+  color: var(--hor-ink-2);
+}
+
+/* ── Spinner ─────────────────────────────────────────────────────── */
+
+.adm .adm-spinner {
+  width: 11px;
+  height: 11px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  border: 1.6px solid currentColor;
+  border-top-color: transparent;
+  animation: adm-spin 640ms linear infinite;
+}
+
+@keyframes adm-spin {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .adm .adm-spinner {
+    animation-duration: 1600ms;
+  }
+
+  .adm .adm-toggle-thumb,
+  .adm .adm-navlink,
+  .adm .adm-btn {
+    transition-duration: 1ms;
+  }
+}
+
+/* ================================================================== *
+ * Status badge
+ * ================================================================== */
+
+.adm .adm-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.12rem 0.44rem 0.12rem 0.36rem;
+  border: 1px solid var(--hor-line);
+  border-radius: 999px;
+  background: var(--hor-chip);
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--hor-ink-3);
+  white-space: nowrap;
+}
+
+.adm .adm-badge::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.adm .adm-badge[data-state="published"] {
+  color: var(--hor-accent);
+  border-color: color-mix(in oklab, var(--hor-accent) 35%, var(--hor-line));
+  background: var(--hor-accent-wash);
+}
+
+.adm .adm-badge[data-state="draft"] {
+  color: var(--hor-ink-4);
+}
+
+.adm .adm-badge[data-state="featured"] {
+  color: var(--hor-sun);
+  border-color: color-mix(in oklab, var(--hor-sun) 35%, var(--hor-line));
+}
+
+.adm .adm-badge[data-state="revoked"],
+.adm .adm-badge[data-state="spam"] {
+  color: var(--hor-l3);
+  border-color: color-mix(in oklab, var(--hor-l3) 35%, var(--hor-line));
+}
+
+/* ================================================================== *
+ * Entity table
+ * ================================================================== */
+
+.adm .adm-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--hor-line);
+  border-bottom: 0;
+  border-radius: var(--adm-radius) var(--adm-radius) 0 0;
+  background: var(--hor-deck);
+}
+
+.adm .adm-toolbar-end {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.adm .adm-table-wrap {
+  /* Wide tables scroll inside themselves. The page never scrolls sideways. */
+  overflow-x: auto;
+  border: 1px solid var(--hor-line);
+  border-radius: var(--adm-radius);
+  background: var(--hor-panel);
+}
+
+.adm .adm-toolbar + .adm-table-wrap {
+  border-radius: 0 0 var(--adm-radius) var(--adm-radius);
+}
+
+.adm .adm-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.adm .adm-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 0.5rem 0.7rem;
+  text-align: left;
+  white-space: nowrap;
+  background: var(--hor-deck);
+  border-bottom: 1px solid var(--hor-line);
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--hor-ink-4);
+}
+
+.adm .adm-table td {
+  padding: 0.5rem 0.7rem;
+  border-bottom: 1px solid var(--hor-line-soft);
+  vertical-align: middle;
+  color: var(--hor-ink-2);
+}
+
+.adm .adm-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.adm .adm-table tbody tr:hover td {
+  background: color-mix(in oklab, var(--hor-chip) 50%, transparent);
+}
+
+.adm .adm-table td[data-align="right"],
+.adm .adm-table th[data-align="right"] {
+  text-align: right;
+}
+
+.adm .adm-table td[data-numeric="true"] {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.adm .adm-cell-primary {
+  color: var(--hor-ink);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.adm .adm-cell-primary:hover {
+  color: var(--hor-accent);
+}
+
+.adm .adm-cell-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.35rem;
+}
+
+.adm .adm-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 2rem 0.95rem;
+  color: var(--hor-ink-3);
+  font-size: 13px;
+}
+
+.adm .adm-empty-title {
+  color: var(--hor-ink);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* Skeleton rows while a Convex subscription is still resolving. */
+.adm .adm-skeleton {
+  display: block;
+  height: 0.8em;
+  border-radius: 3px;
+  background: linear-gradient(
+    90deg,
+    var(--hor-chip),
+    color-mix(in oklab, var(--hor-chip) 40%, var(--hor-line)),
+    var(--hor-chip)
+  );
+  background-size: 200% 100%;
+  animation: adm-shimmer 1.4s var(--hor-ease) infinite;
+}
+
+@keyframes adm-shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .adm .adm-skeleton {
+    animation: none;
+  }
+}
+
+/* ================================================================== *
+ * Media / upload
+ * ================================================================== */
+
+.adm .adm-media {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.adm .adm-drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 1.15rem 1rem;
+  border: 1px dashed var(--hor-line-strong);
+  border-radius: var(--adm-radius);
+  background: color-mix(in oklab, var(--hor-bg) 55%, var(--hor-panel));
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 140ms var(--hor-ease), background 140ms var(--hor-ease);
+}
+
+.adm .adm-drop:hover,
+.adm .adm-drop[data-dragging="true"] {
+  border-color: var(--hor-accent);
+  background: var(--hor-accent-wash);
+}
+
+.adm .adm-drop[data-disabled="true"] {
+  cursor: not-allowed;
+  border-style: solid;
+  border-color: var(--hor-line);
+  background: var(--hor-chip);
+  color: var(--hor-ink-4);
+}
+
+.adm .adm-drop[data-disabled="true"]:hover {
+  border-color: var(--hor-line);
+  background: var(--hor-chip);
+}
+
+.adm .adm-drop input[type="file"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.adm .adm-drop-title {
+  font-size: 13px;
+  color: var(--hor-ink-2);
+}
+
+.adm .adm-drop-title strong {
+  color: var(--hor-ink);
+  font-weight: 600;
+}
+
+.adm .adm-progress {
+  width: 100%;
+  max-width: 260px;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--hor-chip);
+  overflow: hidden;
+}
+
+.adm .adm-progress i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--hor-accent-mid);
+  transition: width 200ms var(--hor-ease);
+}
+
+.adm .adm-asset {
+  display: grid;
+  grid-template-columns: 116px minmax(0, 1fr);
+  gap: 0.85rem;
+  padding: 0.7rem;
+  border: 1px solid var(--hor-line);
+  border-radius: var(--adm-radius);
+  background: color-mix(in oklab, var(--hor-bg) 45%, var(--hor-panel));
+}
+
+@media (max-width: 560px) {
+  .adm .adm-asset {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.adm .adm-asset-thumb {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  border-radius: 4px;
+  border: 1px solid var(--hor-line);
+  background: var(--hor-deck);
+}
+
+.adm .adm-asset-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.adm .adm-asset-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.adm .adm-asset-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.7rem;
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 10.5px;
+  color: var(--hor-ink-4);
+}
+
+.adm .adm-asset-meta span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 22ch;
+}
+
+/* ================================================================== *
+ * Rich text editor
+ * ================================================================== */
+
+/*
+ * `RichTextEditor` — a Tiptap surface that has to read as one more field on an
+ * admin form rather than as an app embedded in one. So the frame is the same
+ * frame `.adm-input` and `.adm-textarea` wear (same border token, same radius,
+ * same tinted panel background, same focus treatment), and everything inside it
+ * is quieter than the public site's prose: no washes, no drop caps, headings
+ * only a little larger than body text, because the point of the type scale here
+ * is to tell an h3 from a paragraph at a glance, not to be beautiful.
+ *
+ * Two structural notes:
+ *
+ *   - The **focus ring is on the container**, via `:focus-within`, not on the
+ *     contenteditable. A composite widget whose toolbar and writing area are one
+ *     control should look like one control when any part of it has focus, and the
+ *     scope's global `:focus-visible` outline is switched off for the editable
+ *     specifically so there are not two rings.
+ *   - The padding lives on `.ProseMirror` (`.adm-rte-content`) and not on its
+ *     wrapper, so clicking anywhere in the writing area — including the empty
+ *     space below the last paragraph — lands inside the editable and places a
+ *     caret. Padding on the wrapper would produce a dead 12px gutter that looks
+ *     clickable and is not.
+ */
+
+.adm .adm-rte-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--adm-snug);
+}
+
+.adm .adm-rte {
+  /* Set per-instance from the `minRows` prop; the default matches the prop's. */
+  --adm-rte-rows: 8;
+
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border: 1px solid var(--hor-line-strong);
+  border-radius: var(--adm-radius);
+  background: color-mix(in oklab, var(--hor-bg) 60%, var(--hor-panel));
+  transition: border-color 140ms var(--hor-ease), box-shadow 140ms var(--hor-ease);
+}
+
+.adm .adm-rte:hover {
+  border-color: color-mix(in oklab, var(--hor-accent) 35%, var(--hor-line-strong));
+}
+
+.adm .adm-rte:focus-within {
+  border-color: var(--hor-accent);
+  box-shadow: 0 0 0 3px var(--hor-accent-wash);
+}
+
+.adm .adm-rte[data-invalid="true"] {
+  border-color: var(--hor-l3);
+}
+
+.adm .adm-rte[data-disabled="true"] {
+  opacity: 0.55;
+}
+
+/* ── Toolbar ─────────────────────────────────────────────────────── */
+
+/*
+ * One row, and it keeps its height whether or not the editor has mounted yet —
+ * `min-height` rather than content-derived height, so the field does not jump
+ * when the client-only editor appears a tick after hydration.
+ *
+ * It wraps rather than scrolls below ~430px. A toolbar you have to scroll
+ * horizontally hides the button you were looking for behind a gesture; a second
+ * row costs 26px and hides nothing.
+ */
+.adm .adm-rte-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.15rem 0.3rem;
+  min-height: 30px;
+  padding: 0.22rem 0.3rem;
+  border-bottom: 1px solid var(--hor-line);
+}
+
+.adm .adm-rte-group {
+  display: flex;
+  align-items: center;
+  gap: 0.1rem;
+}
+
+/* Hairline between groups, drawn as a pseudo-element rather than a border so it
+   does not add to the group's box and can be inset from the row's full height. */
+.adm .adm-rte-group + .adm-rte-group::before {
+  content: "";
+  align-self: stretch;
+  width: 1px;
+  margin: 0.2rem 0.25rem;
+  background: var(--hor-line);
+}
+
+.adm .adm-rte-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 0.3rem;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--hor-ink-3);
+  /* Mono, because eleven of the thirteen glyphs *are* Markdown punctuation — `-`,
+     `1.`, backtick, ``` and `---` only line up in a monospaced face. */
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 120ms var(--hor-ease), color 120ms var(--hor-ease);
+}
+
+.adm .adm-rte-btn:hover:not(:disabled) {
+  background: var(--hor-chip);
+  color: var(--hor-ink);
+}
+
+.adm .adm-rte-btn[data-active="true"] {
+  background: var(--hor-accent-wash);
+  color: var(--hor-accent);
+}
+
+.adm .adm-rte-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* The glyph span carries the weight/slant so `B` and `I` say what they do. */
+.adm .adm-rte-btn strong {
+  font-weight: 700;
+}
+
+.adm .adm-rte-btn em {
+  font-style: italic;
+}
+
+.adm .adm-rte-btn svg {
+  display: block;
+}
+
+/* ── Writing area ────────────────────────────────────────────────── */
+
+.adm .adm-rte-body {
+  position: relative;
+  display: grid;
+  min-width: 0;
+}
+
+/* EditorContent's own wrapper. It has to stretch so that `.ProseMirror` inside
+   it can fill the body and stay clickable to its bottom edge. */
+.adm .adm-rte-mount {
+  display: grid;
+  min-width: 0;
+}
+
+.adm .adm-rte-content {
+  min-block-size: calc(var(--adm-rte-rows) * 1.6em);
+  padding: 0.5rem 0.6rem 0.7rem;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--hor-ink);
+  /* Long unbroken tokens — a pasted URL, a hash — must not widen the field and
+     hand the whole form a horizontal scrollbar. */
+  overflow-wrap: break-word;
+}
+
+/* The container owns the focus ring; two rings on one control is a bug. */
+.adm .adm-rte-content:focus,
+.adm .adm-rte-content:focus-visible {
+  outline: none;
+}
+
+/* Placeholder. `aria-hidden` in the markup, so this is purely visual — it sits
+   over the first line and must never intercept the click that would put a caret
+   there. Its offsets mirror `.adm-rte-content`'s padding. */
+.adm .adm-rte-ph {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.6rem;
+  right: 0.6rem;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--hor-ink-4);
+  pointer-events: none;
+  user-select: none;
+}
+
+/* ── Content type scale ──────────────────────────────────────────── */
+
+/*
+ * Deliberately compressed. h2/h3/h4 in a body are 15/14/13.5px against 13px
+ * text: enough to read as a hierarchy in a 500px-wide field, nowhere near the
+ * public site's scale. Margins are collapsed to a single rhythm — the first
+ * child never has a top margin, so the text starts where the padding says it
+ * does.
+ */
+.adm .adm-rte-content > * + * {
+  margin-top: 0.7em;
+}
+
+.adm .adm-rte-content > :first-child {
+  margin-top: 0;
+}
+
+.adm .adm-rte-content h2,
+.adm .adm-rte-content h3,
+.adm .adm-rte-content h4 {
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--hor-ink);
+}
+
+.adm .adm-rte-content h2 {
+  font-size: 15px;
+}
+
+.adm .adm-rte-content h3 {
+  font-size: 14px;
+}
+
+.adm .adm-rte-content h4 {
+  font-size: 13.5px;
+  color: var(--hor-ink-2);
+}
+
+.adm .adm-rte-content ul,
+.adm .adm-rte-content ol {
+  padding-left: 1.35em;
+}
+
+.adm .adm-rte-content ul {
+  list-style: disc;
+}
+
+.adm .adm-rte-content ol {
+  list-style: decimal;
+}
+
+.adm .adm-rte-content li + li {
+  margin-top: 0.2em;
+}
+
+/* A list item's paragraph is still a paragraph; without this a tight list gets
+   the 0.7em block rhythm between the bullet and its own text. */
+.adm .adm-rte-content li > p {
+  margin: 0;
+}
+
+.adm .adm-rte-content blockquote {
+  padding-left: 0.7em;
+  border-left: 2px solid var(--hor-line-strong);
+  color: var(--hor-ink-2);
+}
+
+.adm .adm-rte-content code {
+  padding: 0.05em 0.3em;
+  border-radius: 3px;
+  background: var(--hor-chip);
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.9em;
+  color: var(--hor-ink-2);
+}
+
+.adm .adm-rte-content pre {
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--hor-line);
+  border-radius: var(--adm-radius);
+  background: var(--hor-deck);
+  overflow-x: auto;
+}
+
+/* Inside a fence the code is the block, so it must not repeat the inline chip. */
+.adm .adm-rte-content pre code {
+  padding: 0;
+  border-radius: 0;
+  background: none;
+  font-size: 12px;
+  color: var(--hor-ink-2);
+}
+
+.adm .adm-rte-content a {
+  color: var(--hor-accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.adm .adm-rte-content hr {
+  border: 0;
+  border-top: 1px solid var(--hor-line-strong);
+  margin: 1em 0;
+}
+
+/* ProseMirror's own affordances, retinted. The gap cursor is what lets you put
+   the caret before a leading `<hr>`; the drop cursor is coloured from TS instead,
+   because prosemirror-dropcursor writes it as an inline style. Both ship in
+   colours that belong to no theme (and prosemirror's default drop cursor is
+   black, i.e. invisible on the dark chrome). */
+.adm .adm-rte-content .ProseMirror-gapcursor::after {
+  border-top-color: var(--hor-accent);
+}
+
+.adm .adm-rte-content .ProseMirror-selectednode {
+  outline: 2px solid var(--hor-accent);
+  outline-offset: 1px;
+}

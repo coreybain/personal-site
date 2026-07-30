@@ -279,7 +279,17 @@ export function Heatmap({
                 } as CSSProperties
               }
             >
-              <span className="hor-heat-tooltip-date">{longDate(active.day.date)}</span>
+              <span className="hor-heat-tooltip-head">
+                <span className="hor-heat-tooltip-date">
+                  {longDate(active.day.date)}
+                </span>
+                {active.day.date === peak ? (
+                  <span className="hor-heat-tooltip-peak">
+                    <i aria-hidden="true" />
+                    Busiest day
+                  </span>
+                ) : null}
+              </span>
               <span className="hor-heat-tooltip-row">
                 <span className="hor-heat-tooltip-project">
                   <i aria-hidden="true" />

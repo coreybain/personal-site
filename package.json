@@ -8,10 +8,10 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "turbo run build",
-    "dev": "turbo run dev",
-    "lint": "turbo run lint",
-    "typecheck": "turbo run typecheck"
+    "build": "bun --env-file=.env run turbo run build",
+    "dev": "bun --env-file=.env run turbo run dev",
+    "lint": "bun --env-file=.env run turbo run lint",
+    "typecheck": "bun --env-file=.env run turbo run typecheck"
   },
   "devDependencies": {
     "turbo": "^2.5.8",

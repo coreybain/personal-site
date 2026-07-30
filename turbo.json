@@ -2,24 +2,30 @@
   "$schema": "https://turbo.build/schema.json",
   "ui": "tui",
   "globalDependencies": [".env"],
-  "globalEnv": ["NODE_ENV"],
+  // Bun loads the repo-root .env before invoking Turbo. Strict environment
+  // mode then exposes only variables declared here (or on an individual task),
+  // so list the public values that can affect generated application output.
+  "globalEnv": [
+    "NODE_ENV",
+    "NEXT_PUBLIC_CONVEX_URL",
+    "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY"
+  ],
+  // Server and CLI credentials still need to reach the app processes, but they
+  // are runtime inputs rather than public values baked into client bundles.
+  "globalPassThroughEnv": [
+    "CLERK_SECRET_KEY",
+    "CONVEX_DEPLOYMENT",
+    "CONVEX_DEPLOY_KEY",
+    "UPLOADTHING_TOKEN"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      // NEXT_PUBLIC_ variables are inlined into the client bundle at build time,
-      // so their values are part of the build's identity. Declaring them here is
-      // what stops Turbo replaying a cached build that baked in the old Convex
-      // deployment or Clerk instance. Server-only secrets (CLERK_SECRET_KEY) are
-      // deliberately absent: they are read at runtime, so listing them would
-      // invalidate the cache for no reason.
-      "env": ["NEXT_PUBLIC_CONVEX_URL", "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY"],
-      // The `env` key above only covers variables Turbo can see in its own
-      // process. Locally they arrive from `apps/web/.env.local`, which Next
-      // loads itself long after Turbo has computed the hash — so without this,
-      // editing `.env.local` would replay a cached build with the previous
-      // Convex URL baked into the client bundle. `$TURBO_DEFAULT$` keeps the
-      // normal source-file inputs; the two patterns add the env files, resolved
-      // per package (so apps/web's, not the repo root's).
+      // The public variables declared globally above are included in the build
+      // hash when they come from the root .env. Keep package-local env files as
+      // inputs too, so a developer override loaded directly by Next also
+      // invalidates that package's cached output. `$TURBO_DEFAULT$` preserves
+      // the normal source-file inputs.
       "inputs": ["$TURBO_DEFAULT$", ".env", ".env.*"],
       "outputs": [".next/**", "!.next/cache/**", "dist/**"]
     },
