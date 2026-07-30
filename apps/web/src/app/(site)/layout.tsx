@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { IBM_Plex_Mono, Inter } from "next/font/google";
 
+import { MotionProvider } from "@/components/motion";
 import { Footer, NavPill } from "@/components/site/Chrome";
 import { num } from "@/components/site/format";
 import { ThemeScope } from "@/components/theme/ThemeScope";
@@ -48,7 +49,11 @@ export const metadata: Metadata = {
  *
  *   fonts wrapper  — carries the two font variables into the scope
  *   ThemeScope     — the `.hor` element that owns `data-theme`; the only
- *                    client boundary in the shell (wrapper + pre-paint script)
+ *                    client boundary in the shell that renders DOM (wrapper +
+ *                    pre-paint script)
+ *   MotionProvider — LazyMotion + MotionConfig (ADR 013). Renders no DOM, and
+ *                    sits *inside* ThemeScope so the pre-paint boot script
+ *                    stays the scope's first child
  *   NavPill        — floating glyph nav, persists across route changes
  *   {children}     — the page's own zones (sky / deck / sky)
  *   Footer         — contact block + theme picker, persists across routes
@@ -64,9 +69,11 @@ export default function SiteLayout({
   return (
     <div className={`hor-fonts ${horSans.variable} ${horMono.variable}`}>
       <ThemeScope className="hor" defaultTheme="dark">
-        <NavPill />
-        {children}
-        <Footer />
+        <MotionProvider>
+          <NavPill />
+          {children}
+          <Footer />
+        </MotionProvider>
       </ThemeScope>
     </div>
   );

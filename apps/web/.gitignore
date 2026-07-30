@@ -32,6 +32,9 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+# …except the documented template. A `.gitignore` in a subdirectory wins over
+# the root one, so the root's `!.env.example` cannot reach this directory.
+!.env.example
 
 # vercel
 .vercel

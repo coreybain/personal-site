@@ -467,7 +467,7 @@
  * only match while this page's <main> is in the tree.
  *
  * `html` in the selector lifts every override to (0,2,1), so it beats the
- * (0,2,0) theme blocks in horizon.css regardless of stylesheet order.
+ * (0,2,0) theme blocks in @home/ui/tokens.css regardless of stylesheet order.
  * ------------------------------------------------------------------ */
 
 @page {

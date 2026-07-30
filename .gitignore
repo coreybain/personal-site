@@ -17,6 +17,15 @@ dist/
 .env.*
 !.env.example
 
+# convex
+# Local CLI state only. `packages/convex/.env.local` (CONVEX_DEPLOYMENT) is
+# already covered by the env rules above.
+#
+# NOTE: packages/convex/convex/_generated/ is deliberately NOT ignored — apps/web
+# imports it (@home/convex/api), so it is committed and refreshed with
+# `bun run codegen` in packages/convex.
+.convex/
+
 # logs
 *.log
 npm-debug.log*

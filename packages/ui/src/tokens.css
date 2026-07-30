@@ -1,0 +1,226 @@
+/*
+ * @home/ui — design tokens. The single place a colour, radius, shadow, ramp
+ * stop or easing curve is *defined* in this monorepo.
+ *
+ * Consumed as a stylesheet, not as a module — apps/web pulls it in from
+ * src/app/globals.css with:
+ *
+ *     @import "@home/ui/tokens.css";
+ *
+ * Tailwind v4 resolves that bare specifier through this package's `exports`
+ * map and inlines the file, so the rules below land in the importing
+ * stylesheet's cascade position — unlayered, ahead of every route stylesheet.
+ *
+ * Two sections, and the split is the important part:
+ *
+ *   BASE     `:root`, follows `prefers-color-scheme`. The neutral surface the
+ *            switchboard at /variants and the round-1 explorations stand on.
+ *            Opinionated only about "page background" and "text colour".
+ *
+ *   HORIZON  the `.hor` token layer — the design system the real site runs on.
+ *            Keyed off the `data-theme` attribute that <ThemeScope> writes, so
+ *            it never reads `prefers-color-scheme` itself: the user may have
+ *            overridden the OS. See apps/web/src/components/theme/README.md.
+ *
+ * Rules that hold for anything added here:
+ *
+ *   1. Definitions only. A rule in this file sets custom properties and
+ *      nothing else — no layout, no type, no background. Consumers read the
+ *      vars; a `background:` in here would be a component in disguise.
+ *   2. Namespaced per design system (`--hor-*`). CSS Modules hash class names
+ *      but never custom property names, so an unprefixed `--bg` leaks.
+ *   3. Only the root class declares the light/dark pairs. Deeper rules read
+ *      vars and never branch on `data-theme` themselves — which keeps a wrong
+ *      colour to exactly two places to look, both of them in this file.
+ *   4. Component-local custom properties (`--hor-nav-*`, `--labs-*`, `--fun-h`,
+ *      `--cb-toggle-*`) are NOT tokens. They stay with the component that owns
+ *      them, in apps/web.
+ *
+ * Route-level token overrides are legal and live with the route: the print
+ * stylesheet in apps/web/src/app/(site)/resume/resume.css re-declares the
+ * Horizon palette for paper at (0,2,1) so it wins regardless of load order.
+ */
+
+/* ================================================================== *
+ * BASE — neutral surface, driven by the OS preference.
+ * ================================================================== */
+
+:root {
+  --background: #ffffff;
+  --foreground: #16161a;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0b0b0d;
+    --foreground: #ededf0;
+  }
+}
+
+/* ================================================================== *
+ * HORIZON — structural tokens (theme-independent)
+ * ================================================================== */
+
+.hor {
+  --hor-shell: 1180px;
+  --hor-gutter: clamp(1.15rem, 4vw, 2.5rem);
+  --hor-radius-sky: 20px;
+  --hor-radius-deck: 6px;
+  --hor-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --hor-spring: cubic-bezier(0.34, 1.4, 0.5, 1);
+  --hor-boundary-h: 84px;
+}
+
+/* ------------------------------------------------------------------ *
+ * HORIZON THEME — dark. The design pole.
+ * ------------------------------------------------------------------ */
+
+.hor[data-theme="dark"] {
+  /* Canvas. Sky sits above the deck and is a touch lighter, so descending
+     below the horizon reads as going *under* something. */
+  --hor-bg: #090a12;
+  --hor-sky-top: #0a0b14;
+  --hor-sky-bottom: #0c0d18;
+  --hor-deck: #05060c;
+  --hor-grid: rgba(150, 160, 220, 0.055);
+
+  /* Ink — checked against --hor-bg: ink 17.4:1 · ink-2 9.0:1
+     · ink-3 6.0:1 · ink-4 4.9:1. Nothing below ink-4 carries meaning. */
+  --hor-ink: #eef0f7;
+  --hor-ink-2: #a9aec2;
+  --hor-ink-3: #868da4;
+  --hor-ink-4: #767d94;
+
+  /* Hairlines */
+  --hor-line: rgba(160, 172, 225, 0.13);
+  --hor-line-soft: rgba(160, 172, 225, 0.075);
+  --hor-line-strong: rgba(160, 172, 225, 0.26);
+
+  /* Surfaces */
+  --hor-sky-card: rgba(255, 255, 255, 0.035);
+  --hor-sky-card-hover: rgba(255, 255, 255, 0.055);
+  --hor-sky-card-edge: rgba(255, 255, 255, 0.085);
+  --hor-panel: #0d0f1a;
+  --hor-panel-top: rgba(255, 255, 255, 0.035);
+  --hor-chip: rgba(255, 255, 255, 0.06);
+
+  /* One accent family: dusk violet, with the ramp's hot end as its sun. */
+  --hor-accent: hsl(258 92% 76%);
+  /* 62% keeps the button's white label ≥ 5:1 at the light end of its gradient. */
+  --hor-accent-mid: hsl(256 84% 62%);
+  --hor-accent-deep: hsl(252 62% 44%);
+  --hor-accent-wash: hsl(258 92% 70% / 0.16);
+  --hor-sun: hsl(38 96% 64%);
+
+  /* Sequential ramp — night to dawn. Lightness climbs 36 → 50 → 58 → 62. */
+  --hor-l0: rgba(160, 172, 225, 0.07);
+  --hor-l1: hsl(252 48% 36%);
+  --hor-l2: hsl(280 58% 50%);
+  --hor-l3: hsl(322 74% 58%);
+  --hor-l4: hsl(36 96% 62%);
+
+  /* Depth — on dark, glows do the work that shadows do on light. */
+  --hor-shadow-sky: 0 1px 2px rgba(0, 0, 0, 0.5), 0 24px 60px -32px rgba(0, 0, 0, 0.9);
+  --hor-shadow-sky-lift: 0 2px 4px rgba(0, 0, 0, 0.55), 0 36px 80px -34px rgba(0, 0, 0, 1);
+  --hor-shadow-panel: inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    inset 0 0 48px rgba(140, 130, 255, 0.045), 0 1px 2px rgba(0, 0, 0, 0.55);
+  --hor-inset-top: inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  --hor-rule-glow: 0 0 26px 1px hsl(262 90% 60% / 0.32);
+  --hor-glow-sun: 0 0 9px hsl(38 96% 64% / 0.55);
+  --hor-glow-accent: 0 0 14px hsl(258 92% 70% / 0.4);
+  --hor-focus: hsl(258 92% 76%);
+
+  /* The one soft wash sitting on the horizon line. */
+  --hor-wash:
+    radial-gradient(58% 88% at 50% 108%, hsl(38 96% 62% / 0.13), transparent 62%),
+    radial-gradient(88% 100% at 50% 118%, hsl(300 84% 60% / 0.13), transparent 64%),
+    radial-gradient(130% 118% at 50% 132%, hsl(256 92% 62% / 0.2), transparent 66%),
+    radial-gradient(90% 60% at 14% -6%, hsl(214 80% 58% / 0.07), transparent 62%);
+
+  /* Project placeholder art */
+  --hor-art-base: #0c0d17;
+  --hor-art-a: 0.78;
+  --hor-art-l1: 60%;
+  --hor-art-l2: 46%;
+  --hor-art-line: rgba(255, 255, 255, 0.11);
+  --hor-art-line-2: rgba(255, 255, 255, 0.055);
+  --hor-art-veil: linear-gradient(180deg, rgba(6, 7, 14, 0) 46%, rgba(6, 7, 14, 0.6));
+  --hor-art-glyph: rgba(255, 255, 255, 0.13);
+  --hor-art-horizon: rgba(255, 255, 255, 0.5);
+}
+
+/* ------------------------------------------------------------------ *
+ * HORIZON THEME — light. Not an inversion: re-tuned surface, depth and ramp.
+ * ------------------------------------------------------------------ */
+
+.hor[data-theme="light"] {
+  --hor-bg: #fbfbfe;
+  --hor-sky-top: #ffffff;
+  --hor-sky-bottom: #f7f7fc;
+  /* Below the horizon the light page goes cooler and slightly darker, so the
+     white instrument panels lift off it exactly the way they do on dark. */
+  --hor-deck: #eef0f7;
+  --hor-grid: rgba(28, 30, 74, 0.05);
+
+  /* Ink — the binding constraint is the *deck* (#eef0f7), not the page
+     background: ink 17.4:1 · ink-2 6.8:1 · ink-3 5.2:1 · ink-4 4.8:1
+     against the deck (higher against --hor-bg and the white panels). */
+  --hor-ink: #101018;
+  --hor-ink-2: #4e5266;
+  --hor-ink-3: #5f6478;
+  --hor-ink-4: #646980;
+
+  --hor-line: rgba(24, 26, 70, 0.11);
+  --hor-line-soft: rgba(24, 26, 70, 0.06);
+  --hor-line-strong: rgba(24, 26, 70, 0.2);
+
+  --hor-sky-card: rgba(255, 255, 255, 0.78);
+  --hor-sky-card-hover: rgba(255, 255, 255, 0.94);
+  --hor-sky-card-edge: rgba(255, 255, 255, 0.9);
+  --hor-panel: #ffffff;
+  --hor-panel-top: rgba(255, 255, 255, 0.9);
+  --hor-chip: rgba(24, 26, 70, 0.045);
+
+  --hor-accent: hsl(256 76% 52%);
+  --hor-accent-mid: hsl(256 80% 60%);
+  --hor-accent-deep: hsl(254 68% 40%);
+  --hor-accent-wash: hsl(256 90% 62% / 0.1);
+  /* Doubles as text via .hor-hot on white panels — 38% lightness holds 4.7:1. */
+  --hor-sun: hsl(28 88% 38%);
+
+  /* Same dawn arc, run the other way: lightness falls 86 → 70 → 55 → 46. */
+  --hor-l0: rgba(24, 26, 70, 0.07);
+  --hor-l1: hsl(248 62% 86%);
+  --hor-l2: hsl(268 62% 70%);
+  --hor-l3: hsl(312 62% 55%);
+  --hor-l4: hsl(28 88% 46%);
+
+  /* Depth — on light, layered shadows do the work. Glows are switched off. */
+  --hor-shadow-sky: 0 1px 1px rgba(20, 20, 55, 0.03), 0 5px 12px -5px rgba(20, 20, 55, 0.06),
+    0 22px 44px -22px rgba(20, 20, 55, 0.16);
+  --hor-shadow-sky-lift: 0 1px 1px rgba(20, 20, 55, 0.03), 0 10px 22px -8px rgba(20, 20, 55, 0.09),
+    0 36px 68px -28px rgba(20, 20, 55, 0.24);
+  --hor-shadow-panel: inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 1px 1px rgba(20, 20, 55, 0.04), 0 8px 20px -12px rgba(20, 20, 55, 0.16);
+  --hor-inset-top: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  --hor-rule-glow: 0 6px 22px -8px hsl(256 70% 50% / 0.28);
+  --hor-glow-sun: 0 1px 3px hsl(28 88% 44% / 0.4);
+  --hor-glow-accent: 0 1px 3px hsl(256 76% 52% / 0.35);
+  --hor-focus: hsl(256 76% 52%);
+
+  --hor-wash:
+    radial-gradient(58% 88% at 50% 108%, hsl(36 96% 60% / 0.16), transparent 60%),
+    radial-gradient(88% 100% at 50% 118%, hsl(310 84% 66% / 0.13), transparent 62%),
+    radial-gradient(130% 120% at 50% 134%, hsl(256 92% 68% / 0.2), transparent 64%),
+    radial-gradient(90% 60% at 14% -6%, hsl(214 88% 62% / 0.1), transparent 62%);
+
+  --hor-art-base: #f1f2f9;
+  --hor-art-a: 0.72;
+  --hor-art-l1: 66%;
+  --hor-art-l2: 78%;
+  --hor-art-line: rgba(255, 255, 255, 0.55);
+  --hor-art-line-2: rgba(255, 255, 255, 0.3);
+  --hor-art-veil: linear-gradient(180deg, rgba(255, 255, 255, 0) 48%, rgba(22, 22, 55, 0.09));
+  --hor-art-glyph: rgba(255, 255, 255, 0.5);
+  --hor-art-horizon: rgba(255, 255, 255, 0.85);
+}

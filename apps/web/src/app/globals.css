@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "@home/ui/tokens.css";
 
 /*
  * Deliberately minimal and neutral.
@@ -7,21 +8,18 @@
  * scoped to its own route. Nothing opinionated belongs here — this file only
  * sets up Tailwind, a sane base font, and light/dark surface colors so the
  * switchboard at / has something to stand on.
+ *
+ * The tokens themselves are no longer declared here: every design token in the
+ * monorepo lives in @home/ui/tokens.css, imported above. That import is also
+ * what puts the `.hor` token layer in scope for the real site — globals.css is
+ * loaded by the root layout, so one import covers every route.
  */
 
-:root {
-  --background: #ffffff;
-  --foreground: #16161a;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0b0b0d;
-    --foreground: #ededf0;
-  }
-}
-
 @theme inline {
+  /* Tailwind configuration, not token definitions. It maps the tokens from
+     @home/ui onto Tailwind's `bg-background` / `text-foreground` utilities, and
+     the two font variables next/font creates in src/app/layout.tsx — which is
+     why this block stays in the app rather than moving to the package. */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;

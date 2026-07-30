@@ -1,0 +1,36 @@
+{
+  "compilerOptions": {
+    /* Just-in-time TypeScript, same as @home/types: `exports` points straight
+     * at ./src/*.ts, there is no build step, and nothing is ever emitted. This
+     * config exists only so `bun run typecheck` has something to check.
+     *
+     * `tokens.css` is not TypeScript and is not covered here — it is consumed
+     * by the CSS pipeline (Tailwind v4 resolves the `@home/ui/tokens.css`
+     * import via the package's `exports` map), never by tsc. */
+    "target": "ES2022",
+    "lib": ["ES2022", "dom"],
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "moduleDetection": "force",
+
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+
+    /* Consumers bundle this source directly, so imports must survive
+     * transpilation unchanged and type-only imports must be explicit. */
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+
+    "jsx": "react-jsx",
+
+    "noEmit": true,
+    "declaration": false
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "exclude": ["node_modules"]
+}

@@ -1,0 +1,29 @@
+{
+  /*
+   * Typecheck config for the whole package. `convex dev` also drops its own
+   * `convex/tsconfig.json` for the editor/CLI; this one is what `bun run
+   * typecheck` (tsc --noEmit) uses, and it deliberately DOES include
+   * `convex/_generated` so a stale or missing codegen surfaces as a failure
+   * rather than silently passing.
+   *
+   * Settings mirror what the Convex CLI generates: the functions run on
+   * Convex's own V8 runtime, not Node, so this is ESNext + bundler resolution.
+   */
+  "compilerOptions": {
+    "target": "ESNext",
+    "lib": ["ES2021", "dom"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "types": ["node"],
+    "strict": true,
+    "noEmit": true,
+    "allowJs": true,
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": ["convex/**/*.ts"],
+  "exclude": ["node_modules"]
+}
