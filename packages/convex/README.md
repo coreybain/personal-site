@@ -6,10 +6,15 @@ mutations, crons and HTTP ingest routes all live in `convex/`.
 ```
 packages/convex/
 ├── convex/
-│   ├── schema.ts        # all 11 tables — mirrors the Zod schemas in @home/types
-│   ├── auth.config.ts   # Clerk as the JWT issuer (ADR 006)
-│   ├── snapshot.ts      # `api.snapshot.get` — the pattern-setting query
-│   └── _generated/      # written by codegen, NOT by hand
+│   ├── schema.ts            # all 11 tables — mirrors the Zod schemas in @home/types
+│   ├── auth.config.ts       # Clerk as the JWT issuer (ADR 006)
+│   ├── snapshot.ts          # `api.snapshot.get` — the pattern-setting query
+│   ├── lib/auth.ts          # requireAdmin — every mutation's first line
+│   ├── lib/validate.ts      # nowIso + the format checks Convex validators cannot express
+│   ├── ingestTokens.ts      # issue / revoke / list / verifyToken (ADR 006a)
+│   ├── contactMessages.ts   # public submit + the admin inbox
+│   ├── siteSettings.ts      # the singleton the phone edits
+│   └── _generated/          # written by codegen, NOT by hand
 ├── .env.example
 └── package.json
 ```
@@ -25,7 +30,17 @@ by Convex rather than chosen:
   checkout typechecks without running anything. Re-run codegen after adding or
   renaming a function file.
 
-> **Codegen is not offline in Convex 1.42.x, and `api.d.ts` is currently a stub.**
+> **RESOLVED as of 2026-07-30 (phase 2): the deployment now exists, and
+> `api.d.ts` is the real, fully typed article.** `packages/convex/.env.local`
+> carries `CONVEX_DEPLOYMENT=dev:hip-dragon-50`, so `convex dev` regenerates
+> `_generated/api.d.ts` on every save and `api.*` references ARE typechecked —
+> a typo in `api.snapshot.get`, or a call with the wrong args, now fails
+> `bun run typecheck` in `apps/web`. Commit the `api.d.ts` diff whenever you add
+> or rename a function file. The history below is kept because it explains why
+> `_generated` is committed at all, and it becomes true again on any checkout
+> that has no `.env.local` (CI, a fresh clone).
+>
+> **Codegen is not offline in Convex 1.42.x, and `api.d.ts` was initially a stub.**
 >
 > `convex codegen` resolves a deployment before it generates anything. With no
 > `CONVEX_DEPLOYMENT` it exits immediately (`✖ No CONVEX_DEPLOYMENT set`), and

@@ -142,6 +142,34 @@ export const funEntryType = v.union(
   v.literal('pub'),
 );
 
+/**
+ * What an ingest token is allowed to do. Mirrors `IngestScopeSchema` (ADR 006a).
+ *
+ * Extracted out of the `ingestTokens` table in build phase 2 (backend core) so
+ * `ingestTokens.issue`'s argument validator is literally the same definition as
+ * the stored field — a scope added to one and not the other would otherwise be a
+ * token that can be issued and never used, or used and never issued.
+ */
+export const ingestScope = v.union(
+  v.literal('ai-usage:write'),
+  v.literal('health:write'),
+  v.literal('git:write'),
+);
+
+/**
+ * Contact triage state. Mirrors `ContactStatusSchema`.
+ *
+ * Extracted in build phase 2 (backend core) for `contactMessages.setStatus`,
+ * which must accept exactly the states the column stores and nothing else.
+ */
+export const contactStatus = v.union(
+  v.literal('new'),
+  v.literal('read'),
+  v.literal('replied'),
+  v.literal('archived'),
+  v.literal('spam'),
+);
+
 /** `{ name, sessions }` — mirrors `AgentUsageSchema` and `ProjectUsageSchema`. */
 const namedSessions = v.object({ name: v.string(), sessions: v.number() });
 
@@ -269,6 +297,39 @@ export const identity = v.object({
   linkedin: v.string(),
   x: v.optional(v.string()),
   email: v.string(),
+});
+
+/**
+ * Hand-picked slugs for the dashboard, in render order. Mirrors
+ * `FeaturedSelectionsSchema`.
+ *
+ * Extracted from `siteSettings` in build phase 2 (backend core) so
+ * `siteSettings.upsert` writes the exact stored shape rather than a re-typed
+ * copy of it.
+ */
+export const featuredSelections = v.object({
+  projectSlugs: v.array(slug),
+  labSlugs: v.array(slug),
+  postSlugs: v.array(slug),
+});
+
+/**
+ * Which top-level routes appear in the nav. Mirrors `NavVisibilitySchema`.
+ *
+ * Enumerated rather than a `v.record()` so adding a route is a typecheck failure
+ * everywhere it needs handling. `/` and `/admin` are absent on purpose: one is
+ * always shown, the other never is. ADR 018: `blog` ships `false`.
+ *
+ * Extracted from `siteSettings` in build phase 2 (backend core), as above.
+ */
+export const navVisibility = v.object({
+  work: v.boolean(),
+  labs: v.boolean(),
+  blog: v.boolean(),
+  fun: v.boolean(),
+  resume: v.boolean(),
+  ask: v.boolean(),
+  contact: v.boolean(),
 });
 
 /** One role as the resume renders it. Mirrors `ResumeRoleSchema`. */
@@ -449,7 +510,16 @@ export default defineSchema({
     // Every `/work/[slug]` page is one lookup on this.
     .index('by_slug', ['slug'])
     // The listing: filter to published, already in display order.
-    .index('by_published_sortOrder', ['published', 'sortOrder']),
+    .index('by_published_sortOrder', ['published', 'sortOrder'])
+    // ── Added in build phase 2 (backend core) ─────────────────────────────
+    // The dashboard's hero row, mirroring the index `labs` already had. Both
+    // sections feed the same grid, and it would be a trap for one of them to
+    // reach it by index and the other by scan-and-filter.
+    .index('by_published_featured', ['published', 'featured'])
+    // The admin listing, which — unlike the public one — includes drafts, so it
+    // cannot use `by_published_sortOrder`: that index's leading field pins
+    // `published` to one value, and admin wants both in a single ordered read.
+    .index('by_sortOrder', ['sortOrder']),
 
   /**
    * Labs — personal side projects. Mirrors `LabSchema`.
@@ -505,7 +575,10 @@ export default defineSchema({
     // The /labs listing, already in display order.
     .index('by_published_sortOrder', ['published', 'sortOrder'])
     // The dashboard's hero row.
-    .index('by_published_featured', ['published', 'featured']),
+    .index('by_published_featured', ['published', 'featured'])
+    // ── Added in build phase 2 (backend core) ─────────────────────────────
+    // The admin listing, drafts included — see the same addition on `projects`.
+    .index('by_sortOrder', ['sortOrder']),
 
   /**
    * Blog posts. Mirrors `PostSchema`. May launch empty (ADR 018).
@@ -621,13 +694,7 @@ export default defineSchema({
      * future read scope has to be a different string rather than a widening of
      * an existing one.
      */
-    scopes: v.array(
-      v.union(
-        v.literal('ai-usage:write'),
-        v.literal('health:write'),
-        v.literal('git:write'),
-      ),
-    ),
+    scopes: v.array(ingestScope),
     /** Last successful authenticated request. `null` if never used. */
     lastUsedAt: v.union(isoDateTime, v.null()),
     /**
@@ -715,17 +782,21 @@ export default defineSchema({
      * the admin inbox needs somewhere to put a finished conversation that is not
      * an accusation.
      */
-    status: v.union(
-      v.literal('new'),
-      v.literal('read'),
-      v.literal('replied'),
-      v.literal('archived'),
-      v.literal('spam'),
-    ),
+    status: contactStatus,
     createdAt: isoDateTime,
   })
-    // The admin inbox: unread first, newest first.
-    .index('by_status_createdAt', ['status', 'createdAt']),
+    // The admin inbox, filtered to one triage state and newest-first within it.
+    .index('by_status_createdAt', ['status', 'createdAt'])
+    // ── Added in build phase 2 (backend core) ─────────────────────────────
+    // The index above cannot serve the inbox's default view. A Convex index is
+    // usable only from its leading field, so `by_status_createdAt` orders by
+    // `createdAt` *within a single status*; "everything, newest first" — which is
+    // what `contactMessages.list` returns when no status filter is passed —
+    // would otherwise be a full table scan sorted by `_creationTime`. That would
+    // happen to look right (rows are inserted in `createdAt` order) and would
+    // silently stop being right the first time a message is backfilled or
+    // imported with a `createdAt` the insert order does not match.
+    .index('by_createdAt', ['createdAt']),
 
   /**
    * Site settings — singleton. Mirrors `SiteSettingsSchema`. The editable chrome
@@ -757,11 +828,7 @@ export default defineSchema({
      * says "in this order, in this many slots". The grid has fixed dimensions to
      * hold the CLS budget, so the count matters as much as the membership.
      */
-    featured: v.object({
-      projectSlugs: v.array(slug),
-      labSlugs: v.array(slug),
-      postSlugs: v.array(slug),
-    }),
+    featured: featuredSelections,
     /**
      * Which top-level routes appear in the nav. Enumerated rather than a
      * `Record<string, boolean>` so adding a route is a typecheck failure
@@ -772,15 +839,7 @@ export default defineSchema({
      * to an empty list is worse than no link. The key is `blog`, matching the
      * route, rather than the section's display name.
      */
-    nav: v.object({
-      work: v.boolean(),
-      labs: v.boolean(),
-      blog: v.boolean(),
-      fun: v.boolean(),
-      resume: v.boolean(),
-      ask: v.boolean(),
-      contact: v.boolean(),
-    }),
+    nav: navVisibility,
     /**
      * Last edit, shown in admin. `_creationTime` cannot answer this: the
      * singleton is patched in place rather than re-inserted.
