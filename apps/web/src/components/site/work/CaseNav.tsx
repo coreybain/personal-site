@@ -1,15 +1,20 @@
 import type { CSSProperties } from "react";
 import Link from "next/link";
 
+import type { WorkDerived } from "@/lib/derive";
+import { pad2 } from "@/lib/derive";
 import type { Project } from "@/lib/snapshot";
 
 import { ArrowLeft, ArrowRight, WorkArt } from "./WorkArt";
-import { pad2, projectIndex } from "./data";
 
 /**
  * Sky zone, at the foot of a case study. Two cards, always — the neighbour
  * list wraps at both ends, so there is no dead corner on the first or last
  * platform and no layout that changes shape between pages.
+ *
+ * `projectIndex` is threaded down rather than imported: the numeral on a nav
+ * card and the art variant behind it are both positions in the fetched list, so
+ * they have to be measured against the list the page actually rendered.
  */
 
 function delay(ms: number): CSSProperties {
@@ -20,11 +25,12 @@ function NavCard({
   project,
   direction,
   ms,
+  projectIndex,
 }: {
   project: Project;
   direction: "prev" | "next";
   ms: number;
-}) {
+} & Pick<WorkDerived, "projectIndex">) {
   const index = projectIndex(project.slug);
   const isNext = direction === "next";
 
@@ -61,10 +67,11 @@ function NavCard({
 export function CaseNav({
   prev,
   next,
+  projectIndex,
 }: {
   prev: Project;
   next: Project;
-}) {
+} & Pick<WorkDerived, "projectIndex">) {
   return (
     <nav
       className="pt-16 pb-16 sm:pt-20 sm:pb-20"
@@ -82,8 +89,18 @@ export function CaseNav({
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 sm:gap-4">
-        <NavCard project={prev} direction="prev" ms={60} />
-        <NavCard project={next} direction="next" ms={120} />
+        <NavCard
+          project={prev}
+          direction="prev"
+          ms={60}
+          projectIndex={projectIndex}
+        />
+        <NavCard
+          project={next}
+          direction="next"
+          ms={120}
+          projectIndex={projectIndex}
+        />
       </div>
     </nav>
   );

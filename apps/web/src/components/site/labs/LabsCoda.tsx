@@ -1,16 +1,21 @@
 import type { CSSProperties } from "react";
 
-import { snapshot } from "@/lib/snapshot";
-
-import { labs } from "./data";
-
-const { identity, gitStats } = snapshot;
+import type { LabsDerived } from "@/lib/derive";
+import type { GitStats, Identity } from "@/lib/snapshot";
 
 /**
  * The page surfaces one last time. Sky material — rounded glass, sans face — so
  * the closing note reads as an aside rather than another instrument.
+ *
+ * Prop-fed: the "N of M public repositories" line pairs the written-up labs
+ * with `gitStats.publicRepoCount`, and both halves have to come from the same
+ * fetched snapshot or the sentence stops being true.
  */
-export function LabsCoda() {
+export function LabsCoda({
+  identity,
+  gitStats,
+  labs,
+}: { identity: Identity; gitStats: GitStats } & Pick<LabsDerived, "labs">) {
   return (
     <section className="pt-16 pb-16 sm:pt-20 sm:pb-20">
       <div

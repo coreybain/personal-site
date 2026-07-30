@@ -2,22 +2,8 @@ import type { CSSProperties } from "react";
 
 import { DeckHead, Panel } from "@/components/site/Panel";
 import { num } from "@/components/site/format";
-
-import {
-  activePhrase,
-  axisMax,
-  axisPos,
-  axisTicks,
-  band,
-  cadence,
-  combinedCadence,
-  freshest,
-  labs,
-  maxCommits,
-  totalCommits,
-  totalForks,
-  totalStars,
-} from "./data";
+import type { LabsDerived } from "@/lib/derive";
+import { activePhrase, band, cadence } from "@/lib/derive";
 
 /**
  * The recency window — one shared axis, one dot per repository.
@@ -30,45 +16,81 @@ import {
  *
  * Fixed 38px rows and a fixed axis foot: the panel reserves its exact box on
  * first layout and cannot shift.
+ *
+ * Prop-fed. `busiest` and `SUBSTATS` were module constants folded from the mock
+ * at import time; both are now computed per render from the list the page
+ * fetched. The `Pick<LabsDerived, …>` names exactly which derived figures this
+ * panel reads, so the page can spread `{...deriveLabs(labs)}` and the signature
+ * still documents what is used.
  */
 
-const busiest = labs.reduce((a, b) =>
-  b.liveStats.commitsYear > a.liveStats.commitsYear ? b : a,
-);
-
-const SUBSTATS = [
-  {
-    label: "Last push",
-    value:
-      freshest.liveStats.lastPushDaysAgo <= 0
-        ? "Today"
-        : `${freshest.liveStats.lastPushDaysAgo} d`,
-    sub: `${freshest.title} · ${activePhrase(freshest.liveStats.lastPushDaysAgo)}`,
-  },
-  {
-    label: "Combined cadence",
-    value: combinedCadence.toFixed(1),
-    sub: `commits a week across ${labs.length} repos`,
-  },
-  {
-    label: "Commits, 12 mo",
-    value: num(totalCommits),
-    sub: `busiest: ${busiest.title}, ${cadence(busiest).toFixed(1)}/wk`,
-  },
-  {
-    label: "Stars, all repos",
-    value: num(totalStars),
-    sub: `${totalForks} forks · counted, not chased`,
-  },
-];
+type RecencyWindowProps = Pick<
+  LabsDerived,
+  | "axisMax"
+  | "axisPos"
+  | "axisTicks"
+  | "combinedCadence"
+  | "freshest"
+  | "labs"
+  | "maxCommits"
+  | "totalCommits"
+  | "totalForks"
+  | "totalStars"
+>;
 
 /** `--labs-x` positions a mark along the plotted range; `p` is 0 → 1. */
 function at(p: number): CSSProperties {
   return { "--labs-x": `${(p * 100).toFixed(2)}%` } as CSSProperties;
 }
 
-export function RecencyWindow() {
+export function RecencyWindow({
+  axisMax,
+  axisPos,
+  axisTicks,
+  combinedCadence,
+  freshest,
+  labs,
+  maxCommits,
+  totalCommits,
+  totalForks,
+  totalStars,
+}: RecencyWindowProps) {
   const stepPct = `${(100 / (axisTicks.length - 1)).toFixed(4)}%`;
+
+  // Seeded, unlike the original module-scope reduce: `getLabs()` guarantees a
+  // non-empty list by falling back to the mock, but a seedless `reduce` on an
+  // empty array is a TypeError rather than a bad number, and this panel is not
+  // worth 500-ing the page for.
+  const busiest = labs.reduce(
+    (a, b) => (b.liveStats.commitsYear > a.liveStats.commitsYear ? b : a),
+    freshest,
+  );
+
+  const substats = [
+    {
+      label: "Last push",
+      value:
+        freshest.liveStats.lastPushDaysAgo <= 0
+          ? "Today"
+          : `${freshest.liveStats.lastPushDaysAgo} d`,
+      sub: `${freshest.title} · ${activePhrase(freshest.liveStats.lastPushDaysAgo)}`,
+    },
+    {
+      label: "Combined cadence",
+      value: combinedCadence.toFixed(1),
+      sub: `commits a week across ${labs.length} repos`,
+    },
+    {
+      label: "Commits, 12 mo",
+      value: num(totalCommits),
+      sub: `busiest: ${busiest.title}, ${cadence(busiest).toFixed(1)}/wk`,
+    },
+    {
+      label: "Stars, all repos",
+      value: num(totalStars),
+      sub: `${totalForks} forks · counted, not chased`,
+    },
+  ];
 
   return (
     <section id="recency" className="scroll-mt-20">
@@ -153,7 +175,7 @@ export function RecencyWindow() {
         </div>
 
         <div className="hor-substats">
-          {SUBSTATS.map((s) => (
+          {substats.map((s) => (
             <div key={s.label} className="hor-substat">
               <span className="hor-label">{s.label}</span>
               <div className="hor-readout-sm mt-2.5">{s.value}</div>

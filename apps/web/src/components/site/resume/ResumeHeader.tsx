@@ -1,14 +1,7 @@
 import type { CSSProperties } from "react";
 
 import { stamp } from "@/components/site/format";
-
-import {
-  companyCount,
-  computedAt,
-  identity,
-  resumeDocument,
-  yearsShipping,
-} from "./data";
+import type { Identity } from "@/lib/snapshot";
 
 /**
  * The document header — sky zone.
@@ -18,24 +11,44 @@ import {
  * The PDF control sits under the primary action, visibly disabled: the export
  * pipeline is a later phase, and a link to a route that 404s would be worse
  * than a key that plainly isn't wired yet.
+ *
+ * ── Props, not module state ────────────────────────────────────────────────
+ *
+ * `identity` and the contact rows built from it were module constants read off
+ * the mock. They arrive from the page's one `getSiteData()` now, which is what
+ * makes `siteSettings.setAvailability` — the "Status" row below — visible within
+ * an ISR window instead of at the next deploy.
  */
 
 function delay(ms: number): CSSProperties {
   return { "--hor-delay": `${ms}ms` } as CSSProperties;
 }
 
-const CONTACT = [
-  { label: "Email", value: identity.email, href: `mailto:${identity.email}` },
-  {
-    label: "GitHub",
-    value: `github.com/${identity.github}`,
-    href: `https://github.com/${identity.github}`,
-  },
-  { label: "Location", value: identity.location, href: null },
-  { label: "Status", value: identity.availability, href: null },
-] as const;
+export function ResumeHeader({
+  identity,
+  summary,
+  companyCount,
+  yearsShipping,
+  computedAt,
+}: {
+  identity: Identity;
+  /** `resumeDocument.summary` — the one paragraph the document opens with. */
+  summary: string;
+  companyCount: number;
+  yearsShipping: number;
+  computedAt: string;
+}) {
+  const contact = [
+    { label: "Email", value: identity.email, href: `mailto:${identity.email}` },
+    {
+      label: "GitHub",
+      value: `github.com/${identity.github}`,
+      href: `https://github.com/${identity.github}`,
+    },
+    { label: "Location", value: identity.location, href: null },
+    { label: "Status", value: identity.availability, href: null },
+  ] as const;
 
-export function ResumeHeader() {
   return (
     <header className="res-head pt-24 pb-14 sm:pt-28 sm:pb-16 lg:pt-32">
       <div>
@@ -72,7 +85,7 @@ export function ResumeHeader() {
           className="hor-lede hor-rise mt-7 max-w-[56ch] text-pretty"
           style={delay(220)}
         >
-          {resumeDocument.summary}
+          {summary}
         </p>
 
         {/* Both keys are screen affordances: on paper the contact card and the
@@ -151,7 +164,7 @@ export function ResumeHeader() {
         </div>
 
         <div className="mt-1">
-          {CONTACT.map((row) => (
+          {contact.map((row) => (
             <div key={row.label} className="res-vrow">
               <span className="hor-label">{row.label}</span>
               {row.href ? (

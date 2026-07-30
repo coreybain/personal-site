@@ -1,10 +1,24 @@
 /**
- * snapshot.ts — the single source of truth every homepage variant reads from.
+ * snapshot.ts — the `Snapshot` contract, plus the fallback data that satisfies it.
  *
- * This is MOCK data standing in for the future Convex `snapshot` row (one document,
- * recomputed on a schedule by tooling/collector). The shape here is the contract:
- * when Convex lands, this module gets swapped for a query returning the same object
- * and nothing in the variants should have to change.
+ * Two jobs, and it is worth being precise about which is which:
+ *
+ *   1. **The types are the contract.** `Snapshot` is the shape every `(site)` page,
+ *      every component and all of `@/lib/derive` is written against. Convex does not
+ *      widen it, narrow it, or replace it — the read layer maps rows *into* this
+ *      shape. Change the contract here and both sources have to follow.
+ *
+ *   2. **The `snapshot` object is the fallback.** `@/lib/data` assembles a `Snapshot`
+ *      from Convex and falls back to this object **per domain** — an empty table, a
+ *      null singleton or a failed query substitutes the mock for that domain only, so
+ *      seeded case studies render against mock telemetry rather than nothing. With no
+ *      `NEXT_PUBLIC_CONVEX_URL` at all, nothing is queried and this object is returned
+ *      verbatim: zero-env renders exactly what the site rendered before Convex.
+ *
+ * Consumers do not import this module for data — they take a `Snapshot` from
+ * `@/lib/data`, which is the only thing that knows which source it came from. The
+ * exceptions are the `/v/*` exploration routes and `/variants`, which read this
+ * object directly on purpose: they are design studies pinned to fixed data.
  *
  * Everything is deterministic. The contribution calendar is generated at module load
  * from a seeded PRNG (never Math.random), so every import — server render, client
@@ -669,7 +683,21 @@ export const snapshot = {
       },
     ],
     embedGitStats: true,
-  } satisfies ResumeDocument,
+    /*
+     * `satisfies` checks the literal against the contract; the `as` then widens
+     * the *inferred* type back to `ResumeDocument`.
+     *
+     * Without the second half, `Snapshot['resumeDocument']['embedGitStats']` is
+     * the literal type `true` rather than `boolean` — a boolean literal keeps its
+     * literal type when the contextual type contains it — which makes the
+     * contract unsatisfiable by any document that is not this one. A Convex row
+     * with `embedGitStats: false` could not be assigned to `Snapshot`, and
+     * /resume's `embedGitStats ? … : null` would have a provably dead branch.
+     *
+     * No runtime change: this is types only, and the rendered output is
+     * byte-identical.
+     */
+  } satisfies ResumeDocument as ResumeDocument,
 
   funEntries,
 

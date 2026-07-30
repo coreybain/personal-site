@@ -1,8 +1,8 @@
 import Link from "next/link";
 import type { CSSProperties } from "react";
 
+import { countWord } from "@/lib/derive";
 import type { Project } from "@/lib/snapshot";
-import { snapshot } from "@/lib/snapshot";
 
 import { SkyHead } from "./Panel";
 
@@ -17,23 +17,6 @@ import { SkyHead } from "./Panel";
 
 const ART_CLASS = ["hor-art-0", "hor-art-1", "hor-art-2", "hor-art-3"] as const;
 const ART_HORIZON = ["58%", "70%", "46%", "64%"] as const;
-
-const COUNT_WORDS = [
-  "Zero",
-  "One",
-  "Two",
-  "Three",
-  "Four",
-  "Five",
-  "Six",
-  "Seven",
-  "Eight",
-  "Nine",
-  "Ten",
-] as const;
-
-const projectCount =
-  COUNT_WORDS[snapshot.projects.length] ?? String(snapshot.projects.length);
 
 function WorkCard({ project, index }: { project: Project; index: number }) {
   const titleId = `featured-work-${project.slug}-title`;
@@ -97,14 +80,26 @@ function WorkCard({ project, index }: { project: Project; index: number }) {
   );
 }
 
-export function FeaturedWork() {
+/**
+ * The tile grid, and the spelled-out count in the heading above it.
+ *
+ * `countWord` comes from `@/lib/derive` rather than a second copy of the word
+ * list here — /work's intro prints the same sentence about the same array, and
+ * two ladders of number words is one too many to keep in step.
+ *
+ * `projects[0].client` is safe: `getSiteData()` falls back to the mock for the
+ * whole projects domain when Convex has none, so the array is never empty.
+ */
+export function FeaturedWork({ projects }: { projects: Project[] }) {
+  const projectCount = countWord(projects.length);
+
   return (
     <section id="work" className="scroll-mt-20 pt-16 sm:pt-20 lg:pt-24">
       <SkyHead
         index="03"
         eyebrow="Featured work"
         title={`${projectCount} platforms carrying real load.`}
-        lede={`Principal Engineer on each — architecture, delivery and the teams around them. All ${projectCount.toLowerCase()} for ${snapshot.projects[0].client}.`}
+        lede={`Principal Engineer on each — architecture, delivery and the teams around them. All ${projectCount.toLowerCase()} for ${projects[0].client}.`}
         aside={
           <span className="hor-pill">
             <span
@@ -118,7 +113,7 @@ export function FeaturedWork() {
       />
 
       <div className="grid gap-4 sm:gap-5 md:grid-cols-2">
-        {snapshot.projects.map((project, i) => (
+        {projects.map((project, i) => (
           <WorkCard key={project.slug} project={project} index={i} />
         ))}
       </div>

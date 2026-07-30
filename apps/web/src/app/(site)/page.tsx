@@ -5,7 +5,14 @@ import { GitSignal } from "@/components/site/GitSignal";
 import { Hero } from "@/components/site/Hero";
 import { LifeStrip } from "@/components/site/LifeStrip";
 import { stampTime } from "@/components/site/format";
-import { snapshot } from "@/lib/snapshot";
+import { getSiteData } from "@/lib/data";
+
+/**
+ * ISR — five minutes, the same window every `(site)` route declares. Written as
+ * a literal because Next requires the value to be statically analysable; see the
+ * header of `@/lib/data` for why 300 and not 60 or 3600.
+ */
+export const revalidate = 300;
 
 /**
  * Horizon — the homepage.
@@ -26,27 +33,55 @@ import { snapshot } from "@/lib/snapshot";
  * theme picker. Every colour below the scope resolves from `--hor-*`, so
  * changing `data-theme` re-skins the page without moving a pixel.
  *
- * Every number is read from `@/lib/snapshot` or derived from it in place.
+ * ── Where the numbers come from ────────────────────────────────────────────
+ *
+ * `getSiteData()` — Convex where there is a row, the mock per domain where
+ * there is not, one `Snapshot` either way. It is read **once, here**, and passed
+ * down as props; no section below reaches for data itself. That rule is the
+ * whole reason the sections take props at all, and it is what keeps a homepage
+ * request at one round of queries no matter how many panels get added.
+ *
+ * The read is shared with the layout and with `generateMetadata` through
+ * React's `cache()`, so the footer's snapshot stamp and the deck's telemetry are
+ * measured against the same `computedAt` — a page that contradicts itself is the
+ * failure mode a per-component fetch produces.
+ *
+ * PHASE 4 (ADR 004) — the target is *one* document read. It is six today because
+ * the denormalising cron does not exist yet: the snapshot row already embeds
+ * `identity` and `latestFunEntry`, and the same cron is what will let this page
+ * stop reaching for projects, labs, fun entries and the resume separately. When
+ * it lands the extra queries collapse into the singleton inside `@/lib/data`,
+ * and nothing on this page changes.
  */
-export default function HomePage() {
+export default async function HomePage() {
+  const { identity, gitStats, aiUsage, projects, funEntries, computedAt } =
+    await getSiteData();
+
   return (
     <main>
       {/* ── above the horizon: calm ───────────────────────────────── */}
       <section className="hor-sky">
         <div className="hor-wash" aria-hidden="true" />
         <div className="hor-shell">
-          <Hero />
+          <Hero
+            identity={identity}
+            gitStats={gitStats}
+            aiUsage={aiUsage}
+            projects={projects}
+          />
         </div>
       </section>
 
-      <Boundary label={`Telemetry · ${stampTime(snapshot.computedAt)}`} />
+      <Boundary label={`Telemetry · ${stampTime(computedAt)}`} />
 
       {/* ── below the horizon: dense ──────────────────────────────── */}
       <div className="hor-deck-zone">
         <div className="hor-deck-grid" aria-hidden="true" />
         <div className="hor-shell pb-16 sm:pb-20">
-          <GitSignal />
-          <AiSignal />
+          <GitSignal gitStats={gitStats} />
+          {/* The cadence figures divide by the same window the heatmap
+              draws, so the week count is read once and handed to both. */}
+          <AiSignal aiUsage={aiUsage} weeks={gitStats.calendar.length} />
         </div>
       </div>
 
@@ -55,8 +90,8 @@ export default function HomePage() {
       {/* ── back above the horizon: calm again ────────────────────── */}
       <section className="hor-sky">
         <div className="hor-shell">
-          <FeaturedWork />
-          <LifeStrip />
+          <FeaturedWork projects={projects} />
+          <LifeStrip entries={funEntries} location={identity.location} />
         </div>
       </section>
     </main>

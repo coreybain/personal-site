@@ -7,27 +7,38 @@ import { Education } from "@/components/site/resume/Education";
 import { Experience } from "@/components/site/resume/Experience";
 import { LiveSignal } from "@/components/site/resume/LiveSignal";
 import { ResumeHeader } from "@/components/site/resume/ResumeHeader";
-import {
-  aiUsage,
-  computedAt,
-  gitStats,
-  identity,
-  resumeDocument,
-  yearsShipping,
-} from "@/components/site/resume/data";
+import { getSiteData } from "@/lib/data";
+import { deriveResume } from "@/lib/derive";
 
 import "./resume.css";
 
-export const metadata: Metadata = {
-  title: `Résumé — ${identity.name}, ${identity.role}`,
-  description: `${identity.role} in ${identity.location}, ${yearsShipping} years shipping platforms. ${num(
-    gitStats.totalContributionsYear,
-  )} contributions and ${num(
-    aiUsage.totalSessions,
-  )} agent sessions in the last 12 months, read live from the snapshot of ${stampTime(
-    computedAt,
-  )}.`,
-};
+/**
+ * ISR, five minutes — the literal, not an import. See the ISR section of
+ * `@/lib/data`'s header for the reasoning behind the number.
+ */
+export const revalidate = 300;
+
+/**
+ * The description quotes live telemetry, so it is generated per render rather
+ * than frozen in a module-scope `metadata` const. Shares the page's queries:
+ * `getSiteData()` is `cache()`d, so this is not a second read.
+ */
+export async function generateMetadata(): Promise<Metadata> {
+  const site = await getSiteData();
+  const { identity, gitStats, aiUsage, computedAt } = site;
+  const { yearsShipping } = deriveResume(site);
+
+  return {
+    title: `Résumé — ${identity.name}, ${identity.role}`,
+    description: `${identity.role} in ${identity.location}, ${yearsShipping} years shipping platforms. ${num(
+      gitStats.totalContributionsYear,
+    )} contributions and ${num(
+      aiUsage.totalSessions,
+    )} agent sessions in the last 12 months, read live from the snapshot of ${stampTime(
+      computedAt,
+    )}.`,
+  };
+}
 
 /**
  * /resume — a print-clean document that is also a Horizon page.
@@ -40,18 +51,30 @@ export const metadata: Metadata = {
  * `resumeDocument.embedGitStats` is the contract switch: when it is false the
  * telemetry deck is not rendered at all and the document stays a document.
  *
- * Server component end to end. Every number comes from `@/lib/snapshot` via
- * `resume/data.ts`; the prose is draft copy. The print stylesheet lives in
- * `resume.css` and hides the shared nav and footer without touching them.
+ * Server component end to end. **One read**: `getSiteData()` is called once
+ * here, reduced once by `deriveResume()`, and both results are passed down as
+ * props — nothing under this page fetches or imports the snapshot. The print
+ * stylesheet lives in `resume.css` and hides the shared nav and footer without
+ * touching them.
  */
-export default function ResumePage() {
+export default async function ResumePage() {
+  const site = await getSiteData();
+  const { identity, gitStats, aiUsage, resumeDocument, computedAt } = site;
+  const derived = deriveResume(site);
+
   return (
     <main className="res-doc">
       {/* ── above the horizon: the document ───────────────────────── */}
       <section className="hor-sky">
         <div className="hor-wash" aria-hidden="true" />
         <div className="hor-shell">
-          <ResumeHeader />
+          <ResumeHeader
+            identity={identity}
+            summary={resumeDocument.summary}
+            companyCount={derived.companyCount}
+            yearsShipping={derived.yearsShipping}
+            computedAt={computedAt}
+          />
         </div>
       </section>
 
@@ -63,7 +86,13 @@ export default function ResumePage() {
           <div className="hor-deck-zone">
             <div className="hor-deck-grid" aria-hidden="true" />
             <div className="hor-shell pb-16 sm:pb-20">
-              <LiveSignal />
+              <LiveSignal
+                gitStats={gitStats}
+                aiUsage={aiUsage}
+                embedGitStats={resumeDocument.embedGitStats}
+                computedAt={computedAt}
+                derived={derived}
+              />
             </div>
           </div>
 
@@ -74,9 +103,21 @@ export default function ResumePage() {
       {/* ── back above the horizon: the record ────────────────────── */}
       <section className="hor-sky">
         <div className="hor-shell">
-          <Experience />
-          <Capabilities />
-          <Education />
+          <Experience
+            experience={resumeDocument.experience}
+            companyCount={derived.companyCount}
+            yearsShipping={derived.yearsShipping}
+            tenureYears={derived.tenureYears}
+          />
+          <Capabilities
+            languages={gitStats.languages}
+            capabilities={resumeDocument.capabilities}
+          />
+          <Education
+            identity={identity}
+            education={resumeDocument.education}
+            computedAt={computedAt}
+          />
         </div>
       </section>
     </main>

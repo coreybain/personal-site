@@ -1,11 +1,13 @@
 import type { CSSProperties } from "react";
 
-import { snapshot } from "@/lib/snapshot";
+import type { AiUsage, GitStats, Identity, Project } from "@/lib/snapshot";
 
 import { PersonalCard } from "./PersonalCard";
 import { num } from "./format";
 
-const { identity, gitStats, aiUsage, projects } = snapshot;
+function delay(ms: number): CSSProperties {
+  return { "--hor-delay": `${ms}ms` } as CSSProperties;
+}
 
 /**
  * Sky zone. Generous whitespace, one soft wash behind, quiet display type.
@@ -13,18 +15,33 @@ const { identity, gitStats, aiUsage, projects } = snapshot;
  * The three numbers along the bottom edge are set in the *sans* face — they are
  * the last calm thing before the horizon. Below the rule the same class of
  * number switches to IBM Plex Mono, and that face change is the zone change.
+ *
+ * `SKYLINE` used to be a module constant folded from the mock at import time.
+ * It is built per render now for the reason `@/lib/derive` exists: a
+ * module-scope reduction is computed once per process and can never see a
+ * Convex row. Three `Intl` formats is not a cost worth caching.
+ *
+ * `projects` is taken whole rather than as a count so the hero's third readout
+ * and the tile grid below the horizon can never disagree about how many
+ * platforms there are.
  */
-const SKYLINE = [
-  { value: num(gitStats.totalContributionsYear), label: "Contributions, 12 mo" },
-  { value: num(aiUsage.totalSessions), label: "Agent sessions" },
-  { value: String(projects.length), label: "Platforms in production" },
-];
+export function Hero({
+  identity,
+  gitStats,
+  aiUsage,
+  projects,
+}: {
+  identity: Identity;
+  gitStats: GitStats;
+  aiUsage: AiUsage;
+  projects: Project[];
+}) {
+  const SKYLINE = [
+    { value: num(gitStats.totalContributionsYear), label: "Contributions, 12 mo" },
+    { value: num(aiUsage.totalSessions), label: "Agent sessions" },
+    { value: String(projects.length), label: "Platforms in production" },
+  ];
 
-function delay(ms: number): CSSProperties {
-  return { "--hor-delay": `${ms}ms` } as CSSProperties;
-}
-
-export function Hero() {
   return (
     <header className="pt-24 pb-16 sm:pt-28 sm:pb-20 lg:pt-36 lg:pb-24">
       <div className="flex flex-col lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:items-center lg:gap-x-14 xl:gap-x-20">
@@ -88,7 +105,7 @@ export function Hero() {
           className="hor-rise order-first mb-14 w-full lg:order-none lg:mb-0 lg:justify-self-end"
           style={delay(70)}
         >
-          <PersonalCard />
+          <PersonalCard identity={identity} />
         </div>
       </div>
 

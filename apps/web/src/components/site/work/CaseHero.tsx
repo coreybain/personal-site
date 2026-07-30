@@ -1,10 +1,9 @@
 import type { CSSProperties } from "react";
 
-import type { Project } from "@/lib/snapshot";
-import { snapshot } from "@/lib/snapshot";
+import { pad2 } from "@/lib/derive";
+import type { Identity, Project } from "@/lib/snapshot";
 
 import { WorkArt } from "./WorkArt";
-import { pad2 } from "./data";
 
 /**
  * Sky zone. The head of a case study: where you are, what it is, who it was
@@ -12,6 +11,10 @@ import { pad2 } from "./data";
  *
  * The attribution sits directly under the title in full ink — role at client,
  * stated before a single claim is made about the work.
+ *
+ * Prop-fed. `projectCount` is the denominator in the `01 / 04` stamp and comes
+ * from the same fetched list the index in front of it was measured against;
+ * `identity` supplies the location line under the title.
  */
 
 function delay(ms: number): CSSProperties {
@@ -21,16 +24,20 @@ function delay(ms: number): CSSProperties {
 export function CaseHero({
   project,
   index,
+  projectCount,
+  identity,
 }: {
   project: Project;
   index: number;
+  projectCount: number;
+  identity: Identity;
 }) {
   return (
     <header className="pt-24 pb-14 sm:pt-28 sm:pb-16 lg:pt-32">
       <div className="hor-rise" style={delay(80)}>
         <span className="hor-eyebrow">
           <span className="hor-mono">
-            {pad2(index + 1)} / {pad2(snapshot.projects.length)}
+            {pad2(index + 1)} / {pad2(projectCount)}
           </span>
           <span className="hor-tick" aria-hidden="true" />
           Case study
@@ -61,7 +68,7 @@ export function CaseHero({
           {project.client}
         </span>
         <span className="hor-vrule" aria-hidden="true" />
-        <span className="hor-body">{snapshot.identity.location}</span>
+        <span className="hor-body">{identity.location}</span>
       </div>
 
       <p

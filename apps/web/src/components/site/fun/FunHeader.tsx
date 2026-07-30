@@ -2,32 +2,47 @@ import type { CSSProperties } from "react";
 import Link from "next/link";
 
 import { num } from "@/components/site/format";
-import { snapshot } from "@/lib/snapshot";
-
-import { KIND_LABEL, KIND_ORDER, tally } from "./data";
-
-const { identity } = snapshot;
-
-/** The weekend Swift app the beer entries come from — cross-linked, not quoted. */
-const pintlog = snapshot.labs.find((lab) => lab.slug === "pintlog");
-
-/**
- * The four numbers that actually mean something here, in the *sans* face —
- * this page never crosses the horizon, so its numerals stay sky-side. The
- * walks bring the only mono readouts on the page, down in the cards.
- */
-const SKYLINE = [
-  { value: num(tally.entries), label: "Moments logged" },
-  { value: tally.km.toFixed(1), label: "Kilometres on foot" },
-  { value: num(tally.steps), label: "Steps counted" },
-  { value: num(tally.spanDays), label: "Days covered" },
-];
+import type { FunTally } from "@/lib/derive";
+import { KIND_LABEL, KIND_ORDER } from "@/lib/derive";
+import type { Identity, Lab } from "@/lib/snapshot";
 
 function delay(ms: number): CSSProperties {
   return { "--hor-delay": `${ms}ms` } as CSSProperties;
 }
 
-export function FunHeader() {
+/**
+ * The header of /fun — the tally, in prose and in four numerals.
+ *
+ * ── Props, not module state ────────────────────────────────────────────────
+ *
+ * `identity`, `tally` and the Pintlog cross-link were read here off the mock at
+ * module load. They arrive as props now, from the page's one `getSiteData()` /
+ * `deriveFun()` pair. `pintlog` is passed already-found rather than as the whole
+ * lab list: the page owns the lookup, so this component cannot quietly become a
+ * second reader of the snapshot.
+ */
+export function FunHeader({
+  identity,
+  tally,
+  pintlog,
+}: {
+  identity: Identity;
+  tally: FunTally;
+  /** The weekend Swift app the beer entries come from — cross-linked, not quoted. */
+  pintlog: Lab | undefined;
+}) {
+  /**
+   * The four numbers that actually mean something here, in the *sans* face —
+   * this page never crosses the horizon, so its numerals stay sky-side. The
+   * walks bring the only mono readouts on the page, down in the cards.
+   */
+  const skyline = [
+    { value: num(tally.entries), label: "Moments logged" },
+    { value: tally.km.toFixed(1), label: "Kilometres on foot" },
+    { value: num(tally.steps), label: "Steps counted" },
+    { value: num(tally.spanDays), label: "Days covered" },
+  ];
+
   return (
     <header className="pt-28 pb-14 sm:pt-32 sm:pb-16 lg:pt-36">
       <div className="hor-rise" style={delay(40)}>
@@ -78,7 +93,7 @@ export function FunHeader() {
       <div className="hor-rise mt-12 sm:mt-14" style={delay(300)}>
         <div className="hor-rule" />
         <dl className="grid grid-cols-2 gap-x-8 gap-y-7 pt-7 sm:grid-cols-4">
-          {SKYLINE.map((item) => (
+          {skyline.map((item) => (
             /* dt before dd keeps the <dl> grouping valid; column-reverse puts
                the numeral on top the way the homepage's skyline does. */
             <div key={item.label} className="flex flex-col-reverse">

@@ -2,36 +2,48 @@ import type { CSSProperties } from "react";
 
 import { SkyHead } from "@/components/site/Panel";
 import { num } from "@/components/site/format";
-import { snapshot } from "@/lib/snapshot";
-
-const { aiUsage, projects, resumeDocument } = snapshot;
-
-const TOPICS = [
-  {
-    index: "01",
-    title: "A role",
-    body: "The team, the systems it owns, and what principal means where you are. A band and a location expectation in the first message saves us both a round.",
-  },
-  {
-    index: "02",
-    title: "A hard problem",
-    body: `Real-time correctness, rendering pipelines, risk modelled as a graph — the shape of the ${projects.length} platforms already carrying load. Advisory, review, or hands on the code.`,
-  },
-  {
-    index: "03",
-    title: "An engineering question",
-    body: `Agent-assisted delivery, or anything on this site. ${num(
-      aiUsage.totalSessions,
-    )} sessions in, the opinions come with receipts.`,
-  },
-];
+import type { AiUsage, Identity, ResumeDocument } from "@/lib/snapshot";
 
 /**
  * The page surfaces again: three kinds of first message, and the ground each
  * one can cover. The chip row is `resumeDocument.capabilities` verbatim — the
  * same list the résumé renders, so the two pages can never drift apart.
+ *
+ * The copy quotes two live figures (how many platforms, how many agent
+ * sessions), so the topics are built per render from props rather than frozen in
+ * a module constant.
  */
-export function ContactTopics() {
+export function ContactTopics({
+  identity,
+  aiUsage,
+  projectCount,
+  capabilities,
+}: {
+  identity: Identity;
+  aiUsage: AiUsage;
+  projectCount: number;
+  capabilities: ResumeDocument["capabilities"];
+}) {
+  const topics = [
+    {
+      index: "01",
+      title: "A role",
+      body: "The team, the systems it owns, and what principal means where you are. A band and a location expectation in the first message saves us both a round.",
+    },
+    {
+      index: "02",
+      title: "A hard problem",
+      body: `Real-time correctness, rendering pipelines, risk modelled as a graph — the shape of the ${projectCount} platforms already carrying load. Advisory, review, or hands on the code.`,
+    },
+    {
+      index: "03",
+      title: "An engineering question",
+      body: `Agent-assisted delivery, or anything on this site. ${num(
+        aiUsage.totalSessions,
+      )} sessions in, the opinions come with receipts.`,
+    },
+  ];
+
   return (
     <section className="pt-16 pb-16 sm:pt-20 sm:pb-20">
       <SkyHead
@@ -42,13 +54,13 @@ export function ContactTopics() {
         aside={
           <span className="hor-pill">
             <span className="hor-live" aria-hidden="true" />
-            {snapshot.identity.availability}
+            {identity.availability}
           </span>
         }
       />
 
       <div className="grid gap-4 sm:grid-cols-3">
-        {TOPICS.map((topic, i) => (
+        {topics.map((topic, i) => (
           <article
             key={topic.index}
             className="hor-card hor-lift contact-topic hor-rise"
@@ -69,7 +81,7 @@ export function ContactTopics() {
         <div className="pt-7">
           <span className="hor-eyebrow">Ground I can cover</span>
           <ul className="mt-4 flex flex-wrap gap-1.5">
-            {resumeDocument.capabilities.map((capability) => (
+            {capabilities.map((capability) => (
               <li key={capability} className="hor-chip">
                 {capability}
               </li>

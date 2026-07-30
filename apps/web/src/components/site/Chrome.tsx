@@ -1,14 +1,12 @@
 import { Suspense, type CSSProperties, type ReactNode } from "react";
 import Link from "next/link";
 
-import { snapshot } from "@/lib/snapshot";
+import type { Identity } from "@/lib/snapshot";
 
 import { FooterThemePicker } from "./FooterThemePicker";
 import { SiteNavLink } from "./SiteNavLink";
 import { WorkBackNavLink } from "./WorkBackNavLink";
 import { stampTime } from "./format";
-
-const { identity } = snapshot;
 
 /* 20×20 line icons, 1.6px stroke — the pill speaks in glyphs, so every item
    carries its name as an aria-label and a hover/focus tooltip. */
@@ -130,7 +128,26 @@ export function NavPill() {
   );
 }
 
-export function Footer() {
+/**
+ * The contact block every `(site)` route ends on.
+ *
+ * Prop-fed rather than reading `@/lib/snapshot` at module scope, because the
+ * footer is mounted by the layout and the layout is now a Convex reader. A
+ * module-scope `const { identity } = snapshot` is evaluated once per *process*,
+ * so it could never see a row — and `siteSettings.setAvailability` changing
+ * Corey's email or handle would have gone unnoticed here until a redeploy.
+ *
+ * `identity` and `computedAt` arrive from the layout's single `getSiteData()`
+ * call, which is the same cached read the page below it uses.
+ */
+export function Footer({
+  identity,
+  computedAt,
+}: {
+  identity: Identity;
+  /** ISO instant the snapshot was assembled — the footer's `Snapshot …` stamp. */
+  computedAt: string;
+}) {
   return (
     <footer
       className="hor-footer hor-rise pb-14 sm:pb-20"
@@ -165,7 +182,7 @@ export function Footer() {
               Design explorations
             </Link>
             <span className="hor-label mt-1.5">
-              Snapshot {stampTime(snapshot.computedAt)}
+              Snapshot {stampTime(computedAt)}
             </span>
           </div>
         </div>

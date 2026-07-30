@@ -1,16 +1,9 @@
 import type { CSSProperties } from "react";
 import Image from "next/image";
 
-import { snapshot } from "@/lib/snapshot";
+import type { Identity } from "@/lib/snapshot";
 
 import { CopyAddress } from "./CopyAddress";
-
-const { identity } = snapshot;
-
-/** The mailto behind the button: same address, a subject already filled in. */
-const WRITE_HREF = `mailto:${identity.email}?subject=${encodeURIComponent(
-  "Enquiry via coreybaines.com",
-)}`;
 
 function delay(ms: number): CSSProperties {
   return { "--hor-delay": `${ms}ms` } as CSSProperties;
@@ -22,8 +15,19 @@ function delay(ms: number): CSSProperties {
  *
  * The availability pill is the first thing on the page for the same reason it
  * is first on the homepage: it answers the question most people arrive with.
+ * It is also the line `siteSettings.setAvailability` changes from a phone, so
+ * it is read from `identity` per render rather than frozen at module load.
+ *
+ * The direct address stays exactly as it was, whatever the composer below the
+ * horizon is wired to. A stored message is a convenience; the inbox is the
+ * commitment.
  */
-export function ContactHero() {
+export function ContactHero({ identity }: { identity: Identity }) {
+  /** The mailto behind the button: same address, a subject already filled in. */
+  const writeHref = `mailto:${identity.email}?subject=${encodeURIComponent(
+    "Enquiry via coreybaines.com",
+  )}`;
+
   return (
     <header className="pt-24 pb-14 sm:pt-28 sm:pb-16 lg:pt-36 lg:pb-20">
       <div className="hor-rise" style={delay(40)}>
@@ -66,7 +70,7 @@ export function ContactHero() {
         </div>
 
         <div className="mt-7 flex flex-wrap items-center gap-3">
-          <a className="hor-btn" href={WRITE_HREF}>
+          <a className="hor-btn" href={writeHref}>
             Write an email
             <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true">
               <path

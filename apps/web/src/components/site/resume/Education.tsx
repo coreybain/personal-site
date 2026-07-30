@@ -3,21 +3,28 @@ import Link from "next/link";
 
 import { SkyHead } from "@/components/site/Panel";
 import { stampTime } from "@/components/site/format";
-
-import { computedAt, identity, resumeDocument } from "./data";
+import type { Identity, ResumeDocument } from "@/lib/snapshot";
 
 /**
  * Education, then the colophon — the last line of the document, which says
  * where it came from and when. On paper it is the only footer there is, since
  * the shared site footer is hidden by the print rules.
  */
-export function Education() {
+export function Education({
+  identity,
+  education,
+  computedAt,
+}: {
+  identity: Identity;
+  education: ResumeDocument["education"];
+  computedAt: string;
+}) {
   return (
     <section id="education" className="res-section scroll-mt-20 pt-16 pb-16 sm:pt-20 sm:pb-20">
       <SkyHead index="05" eyebrow="Education" title="Where it started." />
 
       <div className="grid gap-3">
-        {resumeDocument.education.map((entry, i) => (
+        {education.map((entry, i) => (
           <article
             key={`${entry.institution}-${entry.credential}`}
             className="hor-card res-edu hor-rise"

@@ -327,8 +327,67 @@
   }
 }
 
-.hor .contact-status[data-state="handoff"] {
+/* Every settled state reads one step brighter than the resting hint, so the
+   line that describes what just happened is the one the eye lands on.
+   `handoff` is the mailto transport; the rest are the Server Action's. */
+.hor .contact-status[data-state="handoff"],
+.hor .contact-status[data-state="sending"],
+.hor .contact-status[data-state="sent"],
+.hor .contact-status[data-state="error"] {
   color: var(--hor-ink-2);
+}
+
+/* A refusal borrows the hot end of the ramp. No new colour is introduced —
+   `--hor-sun` is the same token `.hor-hot` and every peak readout resolve to,
+   and the palette has no red in it on purpose. */
+.hor .contact-status[data-state="error"] {
+  color: var(--hor-sun);
+}
+
+/* Three lines of reserved box while the action can still fail — a validation
+   message from `contactMessages.submit` is longer than the resting hint, and
+   the panel must not grow underneath the button as it appears. */
+.hor .contact-status[data-state="sending"],
+.hor .contact-status[data-state="sent"],
+.hor .contact-status[data-state="error"] {
+  min-height: 4.35em;
+}
+
+@media (max-width: 520px) {
+  .hor .contact-status[data-state="sending"],
+  .hor .contact-status[data-state="sent"],
+  .hor .contact-status[data-state="error"] {
+    min-height: 5.8em;
+  }
+}
+
+/* In flight, the dot breathes on the same cadence as the site's live pip. */
+.hor .contact-status[data-state="sending"] .contact-dot {
+  animation: hor-contact-pulse 1.6s var(--hor-ease) infinite;
+}
+
+@keyframes hor-contact-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* A refusal's dot drops the sun glow — it is not good news. */
+.hor .contact-status[data-state="error"] .contact-dot {
+  background: currentColor;
+  box-shadow: none;
+}
+
+/* The browser's own invalid styling is overridden site-wide by the token
+   borders, so a field the server rejected is marked explicitly. Border only:
+   the message beside it is what says *what* is wrong, and colour is never the
+   sole carrier of that. */
+.hor .contact-in[aria-invalid="true"] {
+  border-color: var(--hor-sun);
 }
 
 .hor .contact-dot {
@@ -375,5 +434,11 @@
   .hor .contact-in,
   .hor .contact-tile-icon {
     transition: none !important;
+  }
+
+  /* The in-flight pip stops moving; the word "Sending…" is already carrying
+     the state, and `role="status"` announces it either way. */
+  .hor .contact-status[data-state="sending"] .contact-dot {
+    animation: none !important;
   }
 }

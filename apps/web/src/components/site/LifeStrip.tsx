@@ -1,7 +1,6 @@
 import type { CSSProperties } from "react";
 
 import type { FunEntry } from "@/lib/snapshot";
-import { snapshot } from "@/lib/snapshot";
 
 import { num, relativeDays } from "./format";
 
@@ -24,16 +23,28 @@ function detail(entry: FunEntry): string {
 }
 
 /**
- * The homepage teaser: the three most recent entries only.
+ * The homepage teaser: the three most recent entries only. Small and human,
+ * deliberately the lightest section on the page.
  *
- * `snapshot.funEntries` now carries a rolling ~60 days. The strip is a
- * three-across row and reads as a glance, not a feed — the full log lives on
- * /fun, which also shows pub visits (`snapshot.funLog`).
+ * `entries` is `snapshot.funEntries` — a rolling ~60 days, newest first, pubs
+ * already excluded by the contract. The slice stays here rather than in the
+ * page because "three across" is this component's layout, not the page's data:
+ * the full log lives on /fun, which shows pub visits too (`snapshot.funLog`).
+ *
+ * `location` comes from `identity` rather than from the entries themselves —
+ * Convex fun entries carry their own `location`, but `FunEntry` has no field
+ * for it, so the strip still says where Corey *is*, not where the walk was.
  */
-const RECENT = snapshot.funEntries.slice(0, 3);
+export function LifeStrip({
+  entries,
+  location,
+}: {
+  entries: FunEntry[];
+  /** `identity.location` — the "…, this week" tag on the right. */
+  location: string;
+}) {
+  const recent = entries.slice(0, 3);
 
-/** Small and human. Deliberately the lightest section on the page. */
-export function LifeStrip() {
   return (
     <section className="pt-16 pb-16 sm:pt-20 sm:pb-20">
       <div className="mb-5 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
@@ -42,11 +53,11 @@ export function LifeStrip() {
           <span className="hor-tick" aria-hidden="true" />
           Off the clock
         </span>
-        <span className="hor-micro">{snapshot.identity.location}, this week</span>
+        <span className="hor-micro">{location}, this week</span>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-3 sm:gap-4">
-        {RECENT.map((entry, i) => (
+        {recent.map((entry, i) => (
           <article
             key={`${entry.type}-${entry.title}`}
             className="hor-card hor-lift hor-rise flex items-center gap-3.5 p-2.5"

@@ -4,17 +4,36 @@ import Link from "next/link";
 import { stamp } from "@/components/site/format";
 import { FunBands } from "@/components/site/fun/FunBands";
 import { FunHeader } from "@/components/site/fun/FunHeader";
-import { logRange, tally } from "@/components/site/fun/data";
-import { snapshot } from "@/lib/snapshot";
+import { getSiteData } from "@/lib/data";
+import { deriveFun } from "@/lib/derive";
 
 import "./fun.css";
 
-const { identity } = snapshot;
+/**
+ * ISR, five minutes. Written as a literal because Next requires this value to be
+ * statically analysable — see the ISR section of `@/lib/data`'s header for why
+ * 300 and not something else.
+ */
+export const revalidate = 300;
 
-export const metadata: Metadata = {
-  title: `Off the clock — ${identity.name}`,
-  description: `${tally.entries} logged moments from the last ${tally.spanDays} days in ${identity.location}: ${tally.counts.coffee} coffees, ${tally.counts.beer} beers, ${tally.counts.pub} pub nights and ${tally.counts.walk} walks covering ${tally.km.toFixed(1)} km.`,
-};
+/**
+ * `generateMetadata`, not a `metadata` object.
+ *
+ * The description quotes the tally, and the tally is now fetched rather than
+ * frozen — a module-scope `metadata` const would have been computed once per
+ * process and could never see a Convex row. `getSiteData()` is wrapped in
+ * React's `cache()`, so this call and the page's below are one round of queries
+ * per render, not two.
+ */
+export async function generateMetadata(): Promise<Metadata> {
+  const { identity, funLog, computedAt } = await getSiteData();
+  const { tally } = deriveFun(funLog, computedAt);
+
+  return {
+    title: `Off the clock — ${identity.name}`,
+    description: `${tally.entries} logged moments from the last ${tally.spanDays} days in ${identity.location}: ${tally.counts.coffee} coffees, ${tally.counts.beer} beers, ${tally.counts.pub} pub nights and ${tally.counts.walk} walks covering ${tally.km.toFixed(1)} km.`,
+  };
+}
 
 /**
  * /fun — the proof there is a person behind the dashboard.
@@ -29,18 +48,35 @@ export const metadata: Metadata = {
  * page's own, and below the rule the log runs on the plain page ground so the
  * cards carry the colour instead.
  *
- * Server component, no client JS, no images, no requests. Every number comes
- * from `snapshot.funLog` by way of `components/site/fun/data.ts`; the prose is
- * draft copy.
+ * Server component, no client JS, no images. **One read**: `getSiteData()` is
+ * called once here and the result is passed down as props — no component under
+ * this page fetches, and none of them import the snapshot. Every figure comes
+ * from `deriveFun(funLog, computedAt)`; the prose is draft copy.
+ *
+ * Fun entries are the domain most likely to still be the mock: the seeder skips
+ * photo-less entries and `FunEntry` in the `Snapshot` contract has nowhere to
+ * put a photo, so `funEntries` is often empty and `getSiteData()` falls back for
+ * that domain alone. Nothing below can tell — the mock and a Convex row arrive
+ * through the same `FunLogEntry[]`.
  */
-export default function FunPage() {
+export default async function FunPage() {
+  const { identity, labs, funLog, computedAt } = await getSiteData();
+  const { bands, hueFor, isoDaysAgo, logRange, tally } = deriveFun(
+    funLog,
+    computedAt,
+  );
+
+  /* The header's cross-link. Looked up here rather than in the header so this
+     page stays the only thing that knows what the whole snapshot looks like. */
+  const pintlog = labs.find((lab) => lab.slug === "pintlog");
+
   return (
     <main>
       {/* ── the warm end of the sky ───────────────────────────────── */}
       <section className="hor-sky">
         <div className="hor-wash" aria-hidden="true" />
         <div className="hor-shell">
-          <FunHeader />
+          <FunHeader identity={identity} tally={tally} pintlog={pintlog} />
         </div>
       </section>
 
@@ -58,7 +94,12 @@ export default function FunPage() {
 
       {/* ── the log ───────────────────────────────────────────────── */}
       <section className="hor-shell pb-16 sm:pb-20">
-        <FunBands />
+        <FunBands
+          bands={bands}
+          hueFor={hueFor}
+          isoDaysAgo={isoDaysAgo}
+          longestKm={tally.longestKm}
+        />
 
         <div className="mt-14 sm:mt-16">
           <div className="hor-rule" />

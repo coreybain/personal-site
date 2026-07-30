@@ -2,11 +2,10 @@ import type { CSSProperties } from "react";
 import Link from "next/link";
 
 import { SkyHead } from "@/components/site/Panel";
+import { countWord, pad2 } from "@/lib/derive";
 import type { Project } from "@/lib/snapshot";
-import { snapshot } from "@/lib/snapshot";
 
 import { ArrowRight, Attribution, WorkArt } from "./WorkArt";
-import { countWord, pad2 } from "./data";
 
 /**
  * Sky zone again — the page has surfaced, so the tiles go back to rounded
@@ -15,6 +14,10 @@ import { countWord, pad2 } from "./data";
  * The first platform gets the full width and a letterbox band; the rest run
  * three across with taller art. Every tile is one link, and every tile carries
  * the client attribution — that line is contractual and never optional.
+ *
+ * Prop-fed: the list arrives from the page rather than from the mock module, in
+ * the same display order `deriveWork().projectIndex` counts against, so the
+ * `01` on a tile is the `01 / 04` on the case study it opens.
  */
 
 /** Stack chips shown on a compact tile before the overflow chip takes over. */
@@ -113,8 +116,14 @@ function WorkTile({ project, index }: { project: Project; index: number }) {
   );
 }
 
-export function WorkGrid() {
-  const [lead, ...rest] = snapshot.projects;
+export function WorkGrid({ projects }: { projects: Project[] }) {
+  const [lead, ...rest] = projects;
+
+  // `getSiteData()` falls back to the mock per domain, so this list is never
+  // empty in practice. The guard is here because the lead tile is destructured
+  // rather than mapped, and a half-seeded deployment should not render a blank
+  // card — it should render nothing at all.
+  if (!lead) return null;
 
   return (
     <section className="pt-16 pb-16 sm:pt-20 sm:pb-20 lg:pt-24">
@@ -130,7 +139,7 @@ export function WorkGrid() {
               style={{ background: "var(--hor-accent)" }}
               aria-hidden="true"
             />
-            {countWord(snapshot.projects.length)} case studies
+            {countWord(projects.length)} case studies
           </span>
         }
       />

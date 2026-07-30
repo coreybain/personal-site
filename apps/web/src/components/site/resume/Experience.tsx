@@ -1,34 +1,49 @@
 import type { CSSProperties } from "react";
 
 import { SkyHead } from "@/components/site/Panel";
-
-import { companyCount, resumeDocument, tenureYears, yearsShipping } from "./data";
+import type { ResumeDerived } from "@/lib/derive";
+import type { ResumeDocument } from "@/lib/snapshot";
 
 /**
  * Experience — sky zone, so the page has surfaced and the cards go back to
  * rounded glass. The rail on the left is the résumé's spine: one node per role,
  * the current one lit with the same live sun dot the header uses.
+ *
+ * `experience` is rendered in the order it arrives. That order is the admin's
+ * chosen print order (`by_sortOrder` from `resume.get`, newest role first), not
+ * a sort applied here — which is also why `experience[0]` is the current role.
  */
-export function Experience() {
+export function Experience({
+  experience,
+  companyCount,
+  yearsShipping,
+  tenureYears,
+}: {
+  experience: ResumeDocument["experience"];
+  companyCount: number;
+  yearsShipping: number;
+  /** `deriveResume().tenureYears` — an open-ended role runs to the snapshot year. */
+  tenureYears: ResumeDerived["tenureYears"];
+}) {
   return (
     <section id="experience" className="res-section scroll-mt-20 pt-16 sm:pt-20 lg:pt-24">
       <SkyHead
         index="03"
         eyebrow="Experience"
-        title={`${yearsShipping} years of shipping, ${resumeDocument.experience.length} roles deep.`}
+        title={`${yearsShipping} years of shipping, ${experience.length} roles deep.`}
         lede={`Across ${companyCount} ${
           companyCount === 1 ? "employer" : "employers"
         } the shape of the work has stayed the same: own the architecture, own the delivery, and leave the practice better than it was found.`}
         aside={
           <span className="hor-pill">
             <span className="hor-live" aria-hidden="true" />
-            {resumeDocument.experience[0].title} · now
+            {experience[0].title} · now
           </span>
         }
       />
 
       <ol className="res-tl" role="list">
-        {resumeDocument.experience.map((role, i) => {
+        {experience.map((role, i) => {
           const current = role.end.toLowerCase() === "present";
 
           return (

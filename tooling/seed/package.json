@@ -1,0 +1,10 @@
+{
+  "name": "@home/seed",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "One-shot, insert-only backfill of the live Convex deployment from the mock Snapshot in apps/web/src/lib/snapshot.ts. Idempotent: a table that already holds rows is skipped, never overwritten.",
+  "scripts": {
+    "seed": "bun run seed.ts"
+  }
+}

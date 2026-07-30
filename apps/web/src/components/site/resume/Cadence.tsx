@@ -1,8 +1,7 @@
 import type { CSSProperties } from "react";
 
 import { longDate, monthLabel, num, parseIso } from "@/components/site/format";
-
-import { gitStats, peakWeekTotal, weeklyTotals } from "./data";
+import type { GitStats } from "@/lib/snapshot";
 
 /*
  * Weekly contribution cadence — one inline SVG, no chart library.
@@ -11,6 +10,10 @@ import { gitStats, peakWeekTotal, weeklyTotals } from "./data";
  * line of evidence, not a grid, so the same calendar is summed per column and
  * drawn as 52 bars. Fixed viewBox with `width: 100%; height: auto`: the box is
  * known before paint and the widget never shifts.
+ *
+ * The calendar and its two derived figures arrive as props — they used to be
+ * imported from `./data`, which reduced the mock once per process. `monthTicks`
+ * moved inside the component with them.
  */
 
 const BAR = 7;
@@ -30,16 +33,16 @@ function levelClass(ratio: number): string {
 
 type Tick = { x: number; label: string };
 
-function monthTicks(): Tick[] {
+function monthTicks(calendar: GitStats["calendar"]): Tick[] {
   const ticks: Tick[] = [];
   let lastMonth = -1;
   let lastCol = -5;
 
-  gitStats.calendar.forEach((week, col) => {
+  calendar.forEach((week, col) => {
     const month = parseIso(week[0].date).getUTCMonth();
     if (month === lastMonth) return;
     lastMonth = month;
-    if (col - lastCol < 5 || col > gitStats.calendar.length - 3) return;
+    if (col - lastCol < 5 || col > calendar.length - 3) return;
     lastCol = col;
     ticks.push({ x: col * PITCH, label: monthLabel(week[0].date) });
   });
@@ -47,9 +50,18 @@ function monthTicks(): Tick[] {
   return ticks;
 }
 
-export function Cadence() {
+export function Cadence({
+  calendar,
+  weeklyTotals,
+  peakWeekTotal,
+}: {
+  calendar: GitStats["calendar"];
+  /** `deriveResume().weeklyTotals` — one total per column. */
+  weeklyTotals: number[];
+  peakWeekTotal: number;
+}) {
   const width = weeklyTotals.length * PITCH - GAP;
-  const ticks = monthTicks();
+  const ticks = monthTicks(calendar);
 
   return (
     <svg
@@ -73,7 +85,7 @@ export function Cadence() {
         const ratio = peakWeekTotal === 0 ? 0 : total / peakWeekTotal;
         const height = Math.max(MIN_BAR, Math.round(ratio * (PLOT - 4)));
         const x = col * PITCH;
-        const week = gitStats.calendar[col];
+        const week = calendar[col];
 
         return (
           <g key={week[0].date}>

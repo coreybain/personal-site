@@ -2,10 +2,9 @@ import type { CSSProperties } from "react";
 
 import { DeckHead, Panel } from "@/components/site/Panel";
 import { num, pct } from "@/components/site/format";
-import type { Project } from "@/lib/snapshot";
-import { snapshot } from "@/lib/snapshot";
-
-import { buildProjects, buildRank, pad2, peakBuildSessions } from "./data";
+import type { WorkDerived } from "@/lib/derive";
+import { pad2 } from "@/lib/derive";
+import type { AiUsage, Project } from "@/lib/snapshot";
 
 /**
  * Deck zone. Everything below the horizon is a readout: the outcomes list, the
@@ -14,7 +13,19 @@ import { buildProjects, buildRank, pad2, peakBuildSessions } from "./data";
  * The outcomes are the snapshot's own strings, one per row, numbered and
  * ticked — a list, never a paragraph, because each line is meant to be checked
  * against reality one at a time.
+ *
+ * Prop-fed, and the three build figures are threaded through rather than
+ * re-derived here: `buildRank`, `peakBuildSessions` and `buildProjects` are all
+ * measured across the *whole* project list, so this panel says "3 of 4" and
+ * "against the busiest platform on record" about the same set of platforms the
+ * /work ledger does.
  */
+
+/** The instrument panel's slice of `deriveWork()` — every platform, not this one. */
+type BuildContext = Pick<
+  WorkDerived,
+  "buildProjects" | "buildRank" | "peakBuildSessions"
+>;
 
 function Outcomes({ outcomes }: { outcomes: string[] }) {
   return (
@@ -39,7 +50,13 @@ function Outcomes({ outcomes }: { outcomes: string[] }) {
   );
 }
 
-function BuildStats({ project }: { project: Project }) {
+function BuildStats({
+  project,
+  aiUsage,
+  buildProjects,
+  buildRank,
+  peakBuildSessions,
+}: { project: Project; aiUsage: AiUsage } & BuildContext) {
   const stats = project.aiBuildStats;
   if (!stats) return null;
 
@@ -55,7 +72,7 @@ function BuildStats({ project }: { project: Project }) {
     { label: "Average session", value: `${minutes} min` },
     {
       label: "Share of all sessions",
-      value: `${pct(stats.sessions, snapshot.aiUsage.totalSessions)}%`,
+      value: `${pct(stats.sessions, aiUsage.totalSessions)}%`,
     },
     {
       label: "Rank by effort",
@@ -130,7 +147,13 @@ function Stack({ project }: { project: Project }) {
   );
 }
 
-export function CaseDeck({ project }: { project: Project }) {
+export function CaseDeck({
+  project,
+  aiUsage,
+  buildProjects,
+  buildRank,
+  peakBuildSessions,
+}: { project: Project; aiUsage: AiUsage } & BuildContext) {
   const outcomes = project.outcomes ?? [];
   const hasOutcomes = outcomes.length > 0;
 
@@ -163,7 +186,13 @@ export function CaseDeck({ project }: { project: Project }) {
 
         {project.aiBuildStats ? (
           <div className="lg:col-span-5">
-            <BuildStats project={project} />
+            <BuildStats
+              project={project}
+              aiUsage={aiUsage}
+              buildProjects={buildProjects}
+              buildRank={buildRank}
+              peakBuildSessions={peakBuildSessions}
+            />
           </div>
         ) : null}
       </div>

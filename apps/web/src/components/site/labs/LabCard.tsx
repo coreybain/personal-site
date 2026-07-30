@@ -2,9 +2,9 @@ import type { CSSProperties } from "react";
 
 import { Panel } from "@/components/site/Panel";
 import { num, pct } from "@/components/site/format";
+import type { LabsDerived } from "@/lib/derive";
+import { activePhrase, band, cadence, repoUrl } from "@/lib/derive";
 import type { Lab } from "@/lib/snapshot";
-
-import { activePhrase, band, cadence, maxCommits, repoUrl } from "./data";
 
 /**
  * One lab, as an instrument panel.
@@ -14,6 +14,9 @@ import { activePhrase, band, cadence, maxCommits, repoUrl } from "./data";
  * personal repo is alive. Commits sit under a comparative track (scaled against
  * the busiest lab, not against some imagined absolute), and stars and forks are
  * demoted to one micro line at the foot, where they belong at this scale.
+ *
+ * `maxCommits` is a prop rather than an import because that "busiest lab" is a
+ * property of the wall this card sits on, and the wall now comes from Convex.
  */
 
 function ArrowOut() {
@@ -30,7 +33,11 @@ function ArrowOut() {
   );
 }
 
-export function LabCard({ lab, index }: { lab: Lab; index: number }) {
+export function LabCard({
+  lab,
+  index,
+  maxCommits,
+}: { lab: Lab; index: number } & Pick<LabsDerived, "maxCommits">) {
   const { stars, forks, commitsYear, lastPushDaysAgo } = lab.liveStats;
   const share = pct(commitsYear, maxCommits);
   const isBusiest = commitsYear === maxCommits;

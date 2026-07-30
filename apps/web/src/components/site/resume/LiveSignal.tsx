@@ -1,78 +1,97 @@
 import { DeckHead, Panel } from "@/components/site/Panel";
 import { longDate, num, stamp, stampTime } from "@/components/site/format";
+import type { ResumeDerived } from "@/lib/derive";
+import type { AiUsage, GitStats } from "@/lib/snapshot";
 
 import { Cadence } from "./Cadence";
-import {
-  activeDays,
-  aiUsage,
-  avgSessionMinutes,
-  computedAt,
-  coveragePct,
-  days,
-  firstDay,
-  gitStats,
-  lastDay,
-  peakWeekStart,
-  peakWeekTotal,
-  perWeek,
-  privatePct,
-  resumeDocument,
-  sessionsPerWeek,
-  weekCount,
-} from "./data";
 
 /**
  * The live strip — deck zone, and the reason this résumé is a web page.
  *
  * A PDF quotes numbers from whenever it was exported. This section reads the
  * same snapshot document the homepage reads, stamps it, and says where each
- * figure came from. `resumeDocument.embedGitStats` is the switch that puts it
- * here rather than in prose; the page checks it before rendering this section.
+ * figure came from. `embedGitStats` is the switch that puts it here rather than
+ * in prose; the page checks it before rendering this section.
+ *
+ * ── Props, not module state ────────────────────────────────────────────────
+ *
+ * Everything here came out of `./data` — the mock, reduced once per process.
+ * `derived` is the page's single `deriveResume(site)` result, passed whole
+ * because this one component reads a dozen of its fields; the raw snapshot
+ * blocks it prints alongside them arrive beside it.
  */
+export function LiveSignal({
+  gitStats,
+  aiUsage,
+  embedGitStats,
+  computedAt,
+  derived,
+}: {
+  gitStats: GitStats;
+  aiUsage: AiUsage;
+  /** `resumeDocument.embedGitStats`, echoed in the provenance table. */
+  embedGitStats: boolean;
+  computedAt: string;
+  derived: ResumeDerived;
+}) {
+  const {
+    activeDays,
+    avgSessionMinutes,
+    coveragePct,
+    days,
+    firstDay,
+    lastDay,
+    peakWeekStart,
+    peakWeekTotal,
+    perWeek,
+    privatePct,
+    sessionsPerWeek,
+    weekCount,
+    weeklyTotals,
+  } = derived;
 
-const snapshotDate = computedAt.slice(0, 10);
+  const snapshotDate = computedAt.slice(0, 10);
 
-const STATS = [
-  {
-    label: "Contributions · 12 mo",
-    value: num(gitStats.totalContributionsYear),
-    unit: null,
-    sub: `≈ ${num(perWeek)} a week · ${privatePct}% private`,
-  },
-  {
-    label: "Agent sessions",
-    value: num(aiUsage.totalSessions),
-    unit: null,
-    sub: `${num(aiUsage.totalHours)} h at the desk · ${avgSessionMinutes} min average`,
-  },
-  {
-    label: "Current streak",
-    value: String(gitStats.currentStreakDays),
-    unit: "days",
-    sub: `unbroken through ${stamp(snapshotDate)}`,
-  },
-  {
-    label: "Active days",
-    value: num(activeDays),
-    unit: `of ${num(days.length)}`,
-    sub: `${coveragePct}% coverage · ${num(sessionsPerWeek)} sessions a week`,
-  },
-];
+  const stats = [
+    {
+      label: "Contributions · 12 mo",
+      value: num(gitStats.totalContributionsYear),
+      unit: null,
+      sub: `≈ ${num(perWeek)} a week · ${privatePct}% private`,
+    },
+    {
+      label: "Agent sessions",
+      value: num(aiUsage.totalSessions),
+      unit: null,
+      sub: `${num(aiUsage.totalHours)} h at the desk · ${avgSessionMinutes} min average`,
+    },
+    {
+      label: "Current streak",
+      value: String(gitStats.currentStreakDays),
+      unit: "days",
+      sub: `unbroken through ${stamp(snapshotDate)}`,
+    },
+    {
+      label: "Active days",
+      value: num(activeDays),
+      unit: `of ${num(days.length)}`,
+      sub: `${coveragePct}% coverage · ${num(sessionsPerWeek)} sessions a week`,
+    },
+  ];
 
-const PROVENANCE = [
-  { label: "Git activity", value: `${gitStats.publicRepoCount} public repos` },
-  {
-    label: "Agents",
-    value: aiUsage.agents.map((agent) => agent.name).join(" · "),
-  },
-  { label: "Weeks tracked", value: String(weekCount) },
-  {
-    label: "Embedded",
-    value: resumeDocument.embedGitStats ? "live" : "static",
-  },
-];
+  const provenance = [
+    { label: "Git activity", value: `${gitStats.publicRepoCount} public repos` },
+    {
+      label: "Agents",
+      value: aiUsage.agents.map((agent) => agent.name).join(" · "),
+    },
+    { label: "Weeks tracked", value: String(weekCount) },
+    {
+      label: "Embedded",
+      value: embedGitStats ? "live" : "static",
+    },
+  ];
 
-export function LiveSignal() {
   return (
     <section id="signal" className="res-section scroll-mt-20">
       <DeckHead
@@ -97,7 +116,11 @@ export function LiveSignal() {
           <div className="hor-panel-body">
             <div className="res-cadence-scroll">
               <div className="res-cadence-floor">
-                <Cadence />
+                <Cadence
+                  calendar={gitStats.calendar}
+                  weeklyTotals={weeklyTotals}
+                  peakWeekTotal={peakWeekTotal}
+                />
               </div>
             </div>
 
@@ -112,7 +135,7 @@ export function LiveSignal() {
           </div>
 
           <div className="hor-substats">
-            {STATS.map((item) => (
+            {stats.map((item) => (
               <div key={item.label} className="hor-substat res-stat">
                 <span className="hor-label">{item.label}</span>
                 <div className="hor-readout-sm mt-2.5">
@@ -142,7 +165,7 @@ export function LiveSignal() {
           <p className="hor-micro mt-2">{stampTime(computedAt)}</p>
 
           <div className="mt-5 border-t border-[var(--hor-line-soft)] pt-1">
-            {PROVENANCE.map((row) => (
+            {provenance.map((row) => (
               <div key={row.label} className="hor-row">
                 <span className="hor-label">{row.label}</span>
                 <span

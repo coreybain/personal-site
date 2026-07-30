@@ -1,9 +1,8 @@
 import type { CSSProperties } from "react";
 
 import { num, relativeDays, stamp } from "@/components/site/format";
+import { KIND_LABEL, isWalk } from "@/lib/derive";
 import type { FunLogEntry } from "@/lib/snapshot";
-
-import { KIND_LABEL, hueFor, isWalk, isoDaysAgo } from "./data";
 
 /**
  * One logged moment.
@@ -16,14 +15,30 @@ import { KIND_LABEL, hueFor, isWalk, isoDaysAgo } from "./data";
  *
  * Type is carried by the art and a badge, never by a filter — the page is a
  * server component end to end and there is no client JS on it at all.
+ *
+ * ── Props, not module state ────────────────────────────────────────────────
+ *
+ * `hue` and `date` used to be read here by calling `hueFor(entry)` and
+ * `isoDaysAgo(entry.daysAgo)` out of `./data`, which computed both against the
+ * *mock* at module load. Both are now resolved by `FunBands` from the
+ * `deriveFun()` closures the page built, so this card renders whatever the page
+ * fetched and holds no opinion about where it came from. Plain values cross the
+ * boundary rather than the closures themselves — see the rules at the top of
+ * `@/lib/derive`.
  */
 export function FunCard({
   entry,
+  hue,
+  date,
   lead = false,
   peak = false,
   delay,
 }: {
   entry: FunLogEntry;
+  /** Base hue for the generated artwork, from `deriveFun().hueFor`. */
+  hue: number;
+  /** ISO date the entry happened on, from `deriveFun().isoDaysAgo`. */
+  date: string;
   /** The newest entry in its band: a wide banner rather than a tile. */
   lead?: boolean;
   /** The longest walk in the log. Gets the ramp's sun, as peaks do site-wide. */
@@ -45,7 +60,7 @@ export function FunCard({
       <div
         className="fun-art"
         data-kind={entry.type}
-        style={{ "--fun-h": String(hueFor(entry)) } as CSSProperties}
+        style={{ "--fun-h": String(hue) } as CSSProperties}
         aria-hidden="true"
       >
         <span className="fun-paint" />
@@ -76,7 +91,7 @@ export function FunCard({
         )}
 
         <div className="mt-3 flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
-          <span className="hor-label">{stamp(isoDaysAgo(entry.daysAgo))}</span>
+          <span className="hor-label">{stamp(date)}</span>
           {peak ? (
             <>
               <span className="fun-peak-dot" aria-hidden="true" />

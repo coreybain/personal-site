@@ -2,12 +2,35 @@ import Image from "next/image";
 import type { CSSProperties } from "react";
 
 import { DeckHead } from "@/components/site/Panel";
+import type { LabsDerived } from "@/lib/derive";
+import { activePhrase, band, cadence, repoUrl } from "@/lib/derive";
 import type { Lab } from "@/lib/snapshot";
 
-import { activePhrase, band, cadence, labs, repoUrl } from "./data";
+/**
+ * Featured builds — the two labs that have a real product capture behind them.
+ *
+ * ── Why this is a hand-written spec keyed by slug ──────────────────────────
+ *
+ * Everything here that is *not* telemetry — the screenshot, its alt text, the
+ * live URL, the write-up, the stack chips — has no home in the `Lab` contract.
+ * The Convex row carries a `coverImage`, but `Lab` does not model it and this
+ * page needs five more fields besides, so the editorial half of a plate stays
+ * in this file and is joined to the fetched lab by slug.
+ *
+ * ── The join is a filter, not an assertion ─────────────────────────────────
+ *
+ * It used to throw when a slug was missing, which was correct against a frozen
+ * mock that always contained `boca` and `home`. Against Convex it is a hard
+ * crash on /labs the moment a repo is unpublished or renamed — a page that is
+ * 95% telemetry taken down by two screenshots. So a plate whose lab is absent
+ * is dropped, and the section disappears entirely when none survive. The list
+ * order is this spec's order, not the wall's recency order, because these are
+ * curated write-ups rather than a ranking.
+ */
 
-type FeaturedBuild = {
-  lab: Lab;
+/** The editorial half of a plate: everything the `Lab` contract has no field for. */
+type FeaturedSpec = {
+  slug: string;
   image: string;
   imageAlt: string;
   capture: string;
@@ -18,15 +41,12 @@ type FeaturedBuild = {
   stack: string[];
 };
 
-function labBySlug(slug: string): Lab {
-  const lab = labs.find((candidate) => candidate.slug === slug);
-  if (!lab) throw new Error(`Featured lab "${slug}" is missing from the snapshot.`);
-  return lab;
-}
+/** A spec joined to the lab it describes. */
+type FeaturedBuild = FeaturedSpec & { lab: Lab };
 
-const FEATURED_BUILDS: FeaturedBuild[] = [
+const FEATURED_SPECS: FeaturedSpec[] = [
   {
-    lab: labBySlug("boca"),
+    slug: "boca",
     image: "/images/labs/boca-home.png",
     imageAlt:
       "Boca dos Parafusos homepage with product search, retail navigation and a hardware-focused hero.",
@@ -39,7 +59,7 @@ const FEATURED_BUILDS: FeaturedBuild[] = [
     stack: ["Next.js", "Convex", "TypeScript", "Better Auth"],
   },
   {
-    lab: labBySlug("home"),
+    slug: "home",
     image: "/images/labs/coreybaines-home.png",
     imageAlt:
       "Corey Baines homepage showing the profile hero, identity card and floating navigation.",
@@ -170,17 +190,24 @@ function FeaturedBuildPlate({
   );
 }
 
-export function FeaturedLabs() {
+export function FeaturedLabs({ labs }: Pick<LabsDerived, "labs">) {
+  const builds: FeaturedBuild[] = FEATURED_SPECS.flatMap((spec) => {
+    const lab = labs.find((candidate) => candidate.slug === spec.slug);
+    return lab ? [{ ...spec, lab }] : [];
+  });
+
+  if (builds.length === 0) return null;
+
   return (
     <section id="featured-builds" className="mt-14 scroll-mt-20 sm:mt-16">
       <DeckHead
         index="02"
         title="Featured builds"
-        meta={`${FEATURED_BUILDS.length} projects · real product captures`}
+        meta={`${builds.length} projects · real product captures`}
       />
 
       <div className="labs-feature-list">
-        {FEATURED_BUILDS.map((build, index) => (
+        {builds.map((build, index) => (
           <FeaturedBuildPlate key={build.lab.slug} build={build} index={index} />
         ))}
       </div>

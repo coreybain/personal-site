@@ -1,53 +1,10 @@
 import type { CSSProperties } from "react";
 
-import { snapshot } from "@/lib/snapshot";
+import type { GitStats } from "@/lib/snapshot";
 
 import { Heatmap, HeatmapLegend, RAMP_VARS } from "./Heatmap";
 import { DeckHead, Meter, Panel } from "./Panel";
 import { longDate, num, pct, stamp } from "./format";
-
-const { gitStats } = snapshot;
-const { calendar, languages } = gitStats;
-
-const days = calendar.flat();
-const firstDay = calendar[0][0].date;
-const lastDay = calendar[calendar.length - 1][6].date;
-
-const busiest = days.reduce((a, b) => (b.count > a.count ? b : a));
-const activeDays = days.filter((d) => d.count > 0).length;
-const privatePct = pct(gitStats.privateContributions, gitStats.totalContributionsYear);
-const publicContributions =
-  gitStats.totalContributionsYear - gitStats.privateContributions;
-const perActiveDay = (gitStats.totalContributionsYear / activeDays).toFixed(1);
-const perWeek = Math.round(gitStats.totalContributionsYear / calendar.length);
-
-/** How many of every 100 contributions land in a private repository. */
-const privateSquares = Math.round(
-  (gitStats.privateContributions / gitStats.totalContributionsYear) * 100,
-);
-
-const SUBSTATS = [
-  {
-    label: "Active days",
-    value: num(activeDays),
-    sub: `of ${num(days.length)} · ${pct(activeDays, days.length)}% coverage`,
-  },
-  {
-    label: "Per active day",
-    value: perActiveDay,
-    sub: `≈ ${num(perWeek)} a week, sustained`,
-  },
-  {
-    label: "Current streak",
-    value: `${gitStats.currentStreakDays} d`,
-    sub: "unbroken, through today",
-  },
-  {
-    label: "Busiest day",
-    value: num(busiest.count),
-    sub: longDate(busiest.date),
-  },
-];
 
 /** Ramp positions reused for the language legend, darkest share first. */
 const LANG_FILL = [
@@ -58,7 +15,66 @@ const LANG_FILL = [
   RAMP_VARS[0],
 ] as const;
 
-export function GitSignal() {
+/**
+ * Deck zone, panel 01 — the contribution year.
+ *
+ * Everything below the `gitStats` prop is derived here, in the component body,
+ * rather than at module scope as it was against the frozen mock. A module-scope
+ * `const busiest = …` is folded once per *process*: it would have pinned the
+ * first render's numbers for the life of the server and never seen a Convex
+ * row. The reductions are one pass over ~364 days; the render is the cheap part.
+ *
+ * These are deliberately *not* in `@/lib/derive` — that module exists for the
+ * figures /work, /labs, /fun and /resume each needed twice. Nothing but this
+ * panel reads them, so they stay where they are read.
+ *
+ * `calendar` is guaranteed non-empty by `getSiteData()`, which substitutes the
+ * mock's grid when a pre-cron snapshot row carries totals but no days — the
+ * same guarantee `calendar[0][0].date` has always quietly relied on.
+ */
+export function GitSignal({ gitStats }: { gitStats: GitStats }) {
+  const { calendar, languages } = gitStats;
+
+  const days = calendar.flat();
+  const firstDay = calendar[0][0].date;
+  const lastDay = calendar[calendar.length - 1][6].date;
+
+  const busiest = days.reduce((a, b) => (b.count > a.count ? b : a));
+  const activeDays = days.filter((d) => d.count > 0).length;
+  const privatePct = pct(gitStats.privateContributions, gitStats.totalContributionsYear);
+  const publicContributions =
+    gitStats.totalContributionsYear - gitStats.privateContributions;
+  const perActiveDay = (gitStats.totalContributionsYear / activeDays).toFixed(1);
+  const perWeek = Math.round(gitStats.totalContributionsYear / calendar.length);
+
+  /** How many of every 100 contributions land in a private repository. */
+  const privateSquares = Math.round(
+    (gitStats.privateContributions / gitStats.totalContributionsYear) * 100,
+  );
+
+  const SUBSTATS = [
+    {
+      label: "Active days",
+      value: num(activeDays),
+      sub: `of ${num(days.length)} · ${pct(activeDays, days.length)}% coverage`,
+    },
+    {
+      label: "Per active day",
+      value: perActiveDay,
+      sub: `≈ ${num(perWeek)} a week, sustained`,
+    },
+    {
+      label: "Current streak",
+      value: `${gitStats.currentStreakDays} d`,
+      sub: "unbroken, through today",
+    },
+    {
+      label: "Busiest day",
+      value: num(busiest.count),
+      sub: longDate(busiest.date),
+    },
+  ];
+
   return (
     <section id="signal" className="scroll-mt-20">
       <DeckHead

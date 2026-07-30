@@ -1,16 +1,7 @@
 import { DeckHead, Meter, Panel } from "@/components/site/Panel";
 import { num, pct } from "@/components/site/format";
-import { snapshot } from "@/lib/snapshot";
-
-import {
-  avgBuildMinutes,
-  buildHours,
-  buildProjects,
-  buildSessions,
-  peakBuildSessions,
-} from "./data";
-
-const { aiUsage, projects } = snapshot;
+import type { WorkDerived } from "@/lib/derive";
+import type { AiUsage, Project } from "@/lib/snapshot";
 
 /**
  * Deck zone. Below the horizon the page stops talking and starts reading out.
@@ -20,31 +11,58 @@ const { aiUsage, projects } = snapshot;
  * sessions. Bars are scaled to the busiest platform, percentages are of the
  * complete session total, and both facts are stated in the footnote rather
  * than left for the reader to guess.
+ *
+ * Prop-fed. `SUBSTATS` was a module constant computed from the mock at import
+ * time; it is now built per render, so the same four readouts describe whatever
+ * the page fetched. The semantics are untouched: sessions are still a share of
+ * `aiUsage.totalSessions`, hours are still divided by the number of platforms
+ * that *have* build stats, and every bar is still scaled to `peakBuildSessions`.
  */
-const SUBSTATS = [
-  {
-    label: "Sessions logged",
-    value: num(buildSessions),
-    sub: `${pct(buildSessions, aiUsage.totalSessions)}% of every session on record`,
-  },
-  {
-    label: "Hours in build",
-    value: num(buildHours),
-    sub: `≈ ${num(Math.round(buildHours / Math.max(buildProjects.length, 1)))} per platform`,
-  },
-  {
-    label: "Average session",
-    value: `${avgBuildMinutes} min`,
-    sub: "specify, review, ship, repeat",
-  },
-  {
-    label: "Agents in rotation",
-    value: String(aiUsage.agents.length),
-    sub: aiUsage.agents.map((a) => a.name).join(" · "),
-  },
-];
 
-export function BuildLedger() {
+type BuildLedgerProps = {
+  aiUsage: AiUsage;
+  projects: Project[];
+} & Pick<
+  WorkDerived,
+  | "avgBuildMinutes"
+  | "buildHours"
+  | "buildProjects"
+  | "buildSessions"
+  | "peakBuildSessions"
+>;
+
+export function BuildLedger({
+  aiUsage,
+  projects,
+  avgBuildMinutes,
+  buildHours,
+  buildProjects,
+  buildSessions,
+  peakBuildSessions,
+}: BuildLedgerProps) {
+  const substats = [
+    {
+      label: "Sessions logged",
+      value: num(buildSessions),
+      sub: `${pct(buildSessions, aiUsage.totalSessions)}% of every session on record`,
+    },
+    {
+      label: "Hours in build",
+      value: num(buildHours),
+      sub: `≈ ${num(Math.round(buildHours / Math.max(buildProjects.length, 1)))} per platform`,
+    },
+    {
+      label: "Average session",
+      value: `${avgBuildMinutes} min`,
+      sub: "specify, review, ship, repeat",
+    },
+    {
+      label: "Agents in rotation",
+      value: String(aiUsage.agents.length),
+      sub: aiUsage.agents.map((a) => a.name).join(" · "),
+    },
+  ];
+
   return (
     <section className="pt-2">
       <DeckHead
@@ -95,7 +113,7 @@ export function BuildLedger() {
         </div>
 
         <div className="hor-substats">
-          {SUBSTATS.map((s) => (
+          {substats.map((s) => (
             <div key={s.label} className="hor-substat">
               <span className="hor-label">{s.label}</span>
               <div className="hor-readout-sm mt-2.5">{s.value}</div>

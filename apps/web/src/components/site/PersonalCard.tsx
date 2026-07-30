@@ -1,18 +1,19 @@
 import Image from "next/image";
 
 import portrait from "@/assets/portrait.jpg";
-import { snapshot } from "@/lib/snapshot";
+import type { Identity } from "@/lib/snapshot";
 
 import { CommandCopyPicker } from "./CommandCopyPicker";
-
-const { identity } = snapshot;
 
 /**
  * The hero's right column: an ID card in the sky-card material. The dashed
  * orbits behind it are decorative and break the card's box on purpose,
  * echoing the wash's arc.
+ *
+ * Every string on the card is `identity`, handed down from the page's one
+ * `getSiteData()` read — the portrait is the only asset the card owns.
  */
-export function PersonalCard() {
+export function PersonalCard({ identity }: { identity: Identity }) {
   return (
     <div className="hor-id-wrap">
       <span className="hor-id-orbit" aria-hidden="true">
