@@ -312,6 +312,151 @@ export const list = query({
  * ------------------------------------------------------------------ */
 
 /**
+ * Mint a token from the command line. **Returns the plaintext once**, exactly
+ * like `issue` above — same format, same digest, same row.
+ *
+ * ── Why this exists, given `issue` already does ───────────────────────────
+ *
+ * `issue` is a public `mutation` gated by `requireAdmin`, which means it needs a
+ * Clerk session, which means a browser, which means the admin UI. That is the
+ * right door for a human replacing a token on a Tuesday, and the wrong one for
+ * the two moments this function is for:
+ *
+ *   • **Bootstrap.** The producers (`tooling/collector`, the iOS app) need a
+ *     token before either of them can push, and the collector is being written
+ *     against a dev deployment by a developer at a terminal. Requiring a
+ *     round trip through a browser session to configure a launchd job is
+ *     ceremony that produces no security — see the access model below.
+ *   • **Verification.** The phase 4 plan asserts, by curl, that a good token
+ *     writes, a wrong-scope token gets a 403 and a revoked token gets a 401.
+ *     That test needs to *create* a token non-interactively or it is not a test
+ *     that can run.
+ *
+ * ── Why it is not a hole ──────────────────────────────────────────────────
+ *
+ * `internalMutation` is not registered in the public API. It cannot be called
+ * from a browser, from the iOS client, or from any `ConvexHttpClient` — the only
+ * callers are other Convex functions (none call this) and the CLI, which
+ * authenticates with the deployment's own credentials:
+ *
+ * ```sh
+ * bunx convex run ingestTokens:issueForMachine \
+ *   '{"name":"MacBook collector","scopes":["ai-usage:write"]}'
+ * ```
+ *
+ * So the gate is "can you deploy to this backend", which strictly dominates "are
+ * you signed in as the admin": anyone who can run this could push a function
+ * that mints tokens anyway. It therefore does not call `requireAdmin` — there is
+ * no user identity on a CLI invocation to require, and pretending otherwise
+ * would only make the function un-runnable for its actual purpose.
+ *
+ * Deliberately shares `randomTokenHex` and `sha256Hex` with `issue` rather than
+ * living in ingest.ts or a helper of its own. The module-private note above
+ * those functions is the reason: one definition of the token format and one of
+ * the digest, or issue and verify eventually disagree and the symptom is a 401
+ * nobody can explain.
+ *
+ * @param name - human label, shown in the admin list. Prefer something that
+ *   identifies the *machine*: `'MacBook collector'`, `'iPhone 16 HealthKit'`.
+ * @param scopes - least privilege, always. Two producers means two tokens; one
+ *   all-scope token defeats ADR 006a's entire point, which is that revoking the
+ *   phone must not stop the collector.
+ *
+ * @returns `{ tokenId, name, scopes, token }` — `token` is the plaintext, in
+ *   this one response, stored nowhere. Copy it into the producer's config now;
+ *   there is no recovery path (see the file header).
+ */
+export const issueForMachine = internalMutation({
+  args: {
+    name: v.string(),
+    scopes: v.array(ingestScope),
+  },
+  handler: async (ctx, args) => {
+    assertText(args.name, 'name', MAX_NAME_LENGTH);
+
+    if (args.scopes.length === 0) {
+      invalid({
+        code: 'invalid-format',
+        field: 'scopes',
+        message: 'A token needs at least one scope.',
+      });
+    }
+
+    const scopes = [...new Set(args.scopes)];
+
+    const token = `${TOKEN_PREFIX}${randomTokenHex()}`;
+    const hashedToken = await sha256Hex(token);
+
+    const tokenId = await ctx.db.insert('ingestTokens', {
+      name: args.name.trim(),
+      hashedToken,
+      scopes,
+      lastUsedAt: null,
+      revokedAt: null,
+    });
+
+    return { tokenId, name: args.name.trim(), scopes, token };
+  },
+});
+
+/**
+ * Revoke a token from the command line, by name.
+ *
+ * The CLI counterpart to `revoke` above, and it exists for the same verification
+ * reason: "a revoked ingest token is rejected" is an assertion in the plan, and
+ * asserting it requires revoking one without a browser. It takes the `name`
+ * rather than the `Id` because an id is not something a person has to hand at a
+ * terminal, whereas the label they chose when issuing it is.
+ *
+ * ```sh
+ * bunx convex run ingestTokens:revokeByName '{"name":"phase-4 verification"}'
+ * ```
+ *
+ * Revokes **every** live token with that exact name, and reports the count. That
+ * is the safe direction for a revoke: if two machines were labelled the same, an
+ * operator reaching for this wants both off, not a "which one did you mean?".
+ *
+ * @returns `{ revoked, alreadyRevoked, revokedAt }` — counts, plus the instant
+ *   stamped on the rows this call changed (`null` if it changed none).
+ */
+export const revokeByName = internalMutation({
+  args: { name: v.string() },
+  handler: async (ctx, args) => {
+    const name = args.name.trim();
+    assertText(name, 'name', MAX_NAME_LENGTH);
+
+    // No index on `name`, and none added: this table holds one row per machine
+    // for the life of the site, so a scan is the correct read and an index would
+    // be write cost on every issue for a function run by hand.
+    const rows = await ctx.db.query('ingestTokens').collect();
+    const matches = rows.filter((row) => row.name === name);
+
+    if (matches.length === 0) {
+      invalid({
+        code: 'not-found',
+        field: 'name',
+        message: `No token is named ${JSON.stringify(name)}.`,
+      });
+    }
+
+    const revokedAt = nowIso();
+    let revoked = 0;
+    let alreadyRevoked = 0;
+
+    for (const row of matches) {
+      if (row.revokedAt !== null) {
+        alreadyRevoked += 1;
+        continue;
+      }
+      await ctx.db.patch(row._id, { revokedAt });
+      revoked += 1;
+    }
+
+    return { revoked, alreadyRevoked, revokedAt: revoked > 0 ? revokedAt : null };
+  },
+});
+
+/**
  * Resolve a plaintext bearer token to its row, or say why not.
  *
  * This is the function phase 4's HTTP ingest routes call, once per request:

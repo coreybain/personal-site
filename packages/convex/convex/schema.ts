@@ -173,6 +173,42 @@ export const contactStatus = v.union(
 /** `{ name, sessions }` — mirrors `AgentUsageSchema` and `ProjectUsageSchema`. */
 const namedSessions = v.object({ name: v.string(), sessions: v.number() });
 
+/**
+ * Which agent produced a session. Mirrors `AiAgentSchema` (ADR 016).
+ *
+ * The machine id, never the display name: `aiUsageDays.agent` stores this and
+ * `by_agent_day` indexes it, while `snapshot.aiUsage.agents[].name` carries the
+ * product name the dashboard prints. `AI_AGENT_LABELS` in `@home/types` is the
+ * one place the two are associated.
+ *
+ * Exported for the phase 4 ingest route's argument validator — the same reason
+ * `ingestScope` is exported: an agent the endpoint accepts but the column cannot
+ * store is a push that 200s and vanishes.
+ */
+export const aiAgent = v.union(v.literal('claude'), v.literal('codex'));
+
+/**
+ * One project's slice of one agent-day. Mirrors `AiUsageProjectSchema`.
+ *
+ * A slug, never a path. The Collector decodes Claude's path-encoded directory
+ * names and Codex's `session_meta.cwd` on the machine, maps the repo to a
+ * project slug, and discards the path before it builds this object — so a
+ * private repo's directory name has no field to arrive in (ADR 008).
+ */
+const aiUsageProject = v.object({
+  /** Joins to `projects.slug`. Unmapped repos are dropped by the Collector. */
+  projectSlug: slug,
+  sessions: v.number(),
+  /** Wall-clock hours across those sessions. Fractional. */
+  hours: v.number(),
+});
+
+/** Who measured a day of movement. Mirrors `HealthSourceSchema`. */
+export const healthSource = v.union(
+  v.literal('healthkit'),
+  v.literal('manual'),
+);
+
 /** Agent effort spent building one thing (ADR 016). `AiBuildStatsSchema`. */
 export const aiBuildStats = v.object({ sessions: v.number(), hours: v.number() });
 
@@ -245,7 +281,18 @@ const funEntryFields = {
   occurredAt: isoDateTime,
 } as const;
 
-/** A single day of movement, as HealthKit reports it. `HealthDaySchema`. */
+/**
+ * A single day of movement, as HealthKit reports it. `HealthDaySchema`.
+ *
+ * This is the *projection* embedded in `snapshot.healthStats`. The stored row is
+ * the `healthDays` table further down, which adds `source` and `ingestedAt` and
+ * spells the key `day` rather than `date`. The difference is intentional: on the
+ * Snapshot this is one field of a dated sample, named the way every other dated
+ * sample there is named (`contributionDay.date`, which apps/web reads by that
+ * name); on a raw table it is the row's identity, and `day` makes "one row per
+ * day", `by_day` and "upsert by day" the same word throughout. The rename
+ * happens once, in the fold, which is already reshaping.
+ */
 const healthDay = v.object({
   date: isoDate,
   steps: v.number(),
@@ -395,7 +442,21 @@ export default defineSchema({
       languages: v.array(v.object({ name: v.string(), pct: v.number() })),
     }),
 
-    /** Agent usage, pushed by the local Collector. Aggregates only — never prompts. */
+    /**
+     * Agent usage, pushed by the local Collector. Aggregates only — never
+     * prompts. Folded by the hourly cron from `aiUsageDays`; this block is a
+     * derived copy and is never written by the ingest route directly.
+     *
+     * `agents[]` and `topProjects[]` are `{ name, sessions }` — no `hours` —
+     * because that is what apps/web/src/lib/snapshot.ts renders, and the
+     * Snapshot holds what the site draws and nothing more (ADR 004: one document
+     * read, so every unread byte is paid on every homepage render). Per-agent
+     * hours stay in `aiUsageDays`; per-project hours reach the site by the other
+     * route, `projects.aiBuildStats` (ADR 016).
+     *
+     * `name` is the display label (`'Claude Code'`), not the `aiAgent` id — the
+     * fold maps one to the other through `AI_AGENT_LABELS` in `@home/types`.
+     */
     aiUsage: v.object({
       totalSessions: v.number(),
       totalHours: v.number(),
@@ -405,7 +466,8 @@ export default defineSchema({
     }),
 
     /**
-     * HealthKit aggregates, pushed from the phone over the ingest endpoint.
+     * HealthKit aggregates, pushed from the phone over the ingest endpoint and
+     * folded by the hourly cron from `healthDays`.
      *
      * `null` until the iOS app has posted at least once — the health pipeline
      * depends on a phone that does not exist until phase 7. Nullable rather than
@@ -705,6 +767,145 @@ export default defineSchema({
   })
     // Hit on every single ingest request. The one index that must exist.
     .index('by_hashedToken', ['hashedToken']),
+
+  /* ================================================================== *
+   * Raw ingest landing zones (build phase 4 — Pipelines)
+   *
+   * Two tables with rules the rest of the schema does not have:
+   *
+   *   • Written ONLY by an HTTP ingest route, authenticated with a scoped
+   *     bearer token (ADR 006a). No admin mutation, no user session.
+   *   • Read ONLY by the hourly cron that folds them onto the Snapshot. No
+   *     page query, no iOS query, no public function returns a row from here.
+   *   • Keyed by the day they describe, and UPSERTED. Never appended to.
+   *
+   * The last one is the whole design. A push is a claim about a day, and days
+   * get revised: HealthKit restates a step count once the watch syncs, the
+   * Collector re-reads a session directory that has since grown, a laptop shut
+   * for a week posts seven days at once. An endpoint that added to a running
+   * total would double-count all three and could never correct a single day.
+   * Replacing the day makes a re-send idempotent by construction, so the fold
+   * always sees exactly one truth per day and "run it again" is always safe.
+   *
+   * Both mirror schemas in `@home/types`/ingest.ts, which carries the longer
+   * version of this reasoning.
+   * ================================================================== */
+
+  /**
+   * AI usage, one row per (day, agent). Mirrors `AiUsageDaySchema`.
+   *
+   * ── Written by ──  Pipeline 2, `POST /ingest/ai-usage`, scope
+   *                   `ai-usage:write`. Producer is `tooling/collector`: a Bun
+   *                   script under launchd, daily, that enumerates
+   *                   `~/.claude/projects/*` and streams `~/.codex/sessions`.
+   * ── Folded by ──   The hourly snapshot cron, into BOTH
+   *                   `snapshot.aiUsage` (sum the table; group by `agent` for
+   *                   `agents[]`; group by `projects[].projectSlug` for
+   *                   `topProjects[]`, resolving each slug to its title) and
+   *                   `projects.aiBuildStats` (ADR 016 — sum each project's
+   *                   slices across every row).
+   *
+   * PRIVACY. Only counts, durations and project slugs are ever stored. There is
+   * no field for a prompt, a diff, a file, a hostname or a path, and the payload
+   * validator is a Zod `strictObject`, so an accidental one is a rejected
+   * request rather than a silently-stripped key. Read the header of
+   * `@home/types`/ingest.ts before adding anything to this table.
+   *
+   * `sessions`/`hours` are the agent's totals for the day and are deliberately
+   * NOT constrained to equal the sum over `projects`: a session in a directory
+   * with no project mapping is real activity with nowhere to land in the
+   * breakdown. Totals ≥ breakdown sum, always. The fold must take the Signal
+   * from the totals and the case-study numbers from the breakdown, never derive
+   * one from the other.
+   *
+   * Size, because it decides the query strategy: two agents × 365 days is ~730
+   * rows a year. Every fold below is a full-table read summed in memory, which
+   * at that scale is correct and cheap. That is also why there is no separate
+   * per-project table — it would trade a trivial in-memory group-by for a second
+   * table to keep consistent.
+   */
+  aiUsageDays: defineTable({
+    /** The calendar day reported, UTC. A label, not a timestamp. */
+    day: isoDate,
+    /** `'claude'` | `'codex'`. The machine id — see `aiAgent`. */
+    agent: aiAgent,
+    /** Agent sessions started that day. */
+    sessions: v.number(),
+    /** Wall-clock hours across those sessions. Fractional. */
+    hours: v.number(),
+    /** Per-project breakdown. May be empty — see the totals note above. */
+    projects: v.array(aiUsageProject),
+    /**
+     * The `postedAt` of the push that last wrote this row. Moves on a revision;
+     * `_creationTime` keeps the first sighting, so "this day changed after the
+     * fact" stays answerable without a second timestamp.
+     */
+    ingestedAt: isoDateTime,
+  })
+    // THE upsert key. The ingest mutation looks up (day, agent) here and
+    // patches, so re-posting a day replaces it instead of duplicating it.
+    //
+    // Also serves the fold's range read: a Convex index is usable from any
+    // prefix of its fields, so `q.gte('day', …)` on this index covers "every
+    // agent's rows in the trailing year" and a separate `by_day` would be write
+    // cost for nothing.
+    .index('by_day_agent', ['day', 'agent'])
+    // The other access path: one agent's rows in day order. The Collector asks
+    // "what is the newest day you already have for codex?" to decide how far
+    // back to re-scan, and admin renders a per-agent time series. Neither can
+    // use the index above — its leading field is `day`, so filtering by agent
+    // alone would be a scan.
+    .index('by_agent_day', ['agent', 'day']),
+
+  /**
+   * Daily movement summaries, one row per day. Mirrors `HealthDaySummarySchema`.
+   *
+   * ── Written by ──  Pipeline 3, `POST /ingest/health`, scope `health:write`.
+   *                   Producer is the iOS app: `HKObserverQuery` with background
+   *                   delivery on step count and walking/running distance, plus
+   *                   a foreground sync on app open as the fallback.
+   * ── Folded by ──   The hourly snapshot cron, into `snapshot.healthStats`:
+   *                   newest row → `latestDay`, trailing seven → `recentDays`,
+   *                   their mean → `sevenDayAverageSteps`, newest `ingestedAt`
+   *                   → `syncedAt`.
+   *
+   * The table lands in phase 4 with the ingest route; the phone that fills it is
+   * phase 7. It will sit empty in between, which is fine and is exercised on
+   * purpose — `snapshot.healthStats` is nullable precisely so the life signal
+   * strip degrades to the Fun Entry alone rather than rendering zeroes.
+   *
+   * Steps and distance only. The iOS app requests HealthKit read scopes for
+   * nothing else, and a table that cannot express heart rate is a stronger
+   * guarantee than a policy promising not to ask for it.
+   */
+  healthDays: defineTable({
+    /** The calendar day reported, UTC. The upsert key. */
+    day: isoDate,
+    steps: v.number(),
+    /** Walking + running distance, kilometres. Fractional. */
+    distanceKm: v.number(),
+    /**
+     * Who measured it. A `manual` backfill must stay distinguishable from a day
+     * the watch actually recorded, or the numbers stop being evidence.
+     */
+    source: healthSource,
+    /**
+     * The `postedAt` of the push that last wrote this row. The newest value in
+     * the table becomes `healthStats.syncedAt` — the last time the phone
+     * *spoke*, which is what lets the UI say "nothing since Tuesday" instead of
+     * implying Tuesday had no steps.
+     */
+    ingestedAt: isoDateTime,
+  })
+    // The upsert key, the trailing-seven range read and the newest-first
+    // `latestDay` read, all from one index.
+    //
+    // Keyed on `day` alone, not (day, source): a day has one step count, and a
+    // `manual` correction is meant to overwrite the HealthKit figure rather than
+    // sit beside it and make every reader decide which one wins. There is no
+    // `by_source` index for the same reason — nothing queries by source, it is
+    // provenance stamped on the row.
+    .index('by_day', ['day']),
 
   /**
    * Knowledge base for "Ask Corey" (ADR 015) — one chunk of retrievable text per

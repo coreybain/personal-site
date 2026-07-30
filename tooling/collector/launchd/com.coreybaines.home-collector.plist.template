@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Template for the daily collector job. `install.sh` substitutes the {{…}}
+  placeholders and writes the result to ~/Library/LaunchAgents/. Do not install
+  this file directly — the placeholders are not valid plist values.
+
+  A LaunchAgent, not a LaunchDaemon: this job reads files in the user's home
+  directory and must run as the user, in their GUI session. A daemon would run
+  as root at boot and could not see ~/.claude or ~/.codex meaningfully.
+
+  Placeholders:
+    {{BUN}}            absolute path to the bun binary (launchd has no PATH worth speaking of)
+    {{COLLECTOR_DIR}}  absolute path to tooling/collector
+    {{LOG_FILE}}       absolute path for combined stdout/stderr
+    {{HOUR}} {{MINUTE}}  local time to run, daily
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>com.coreybaines.home-collector</string>
+
+	<!--
+	  `--push` is required for anything to leave the machine; without it the
+	  script is a dry run. `--quiet` keeps the log to the summary and any errors
+	  rather than a full payload dump every morning.
+	-->
+	<key>ProgramArguments</key>
+	<array>
+		<string>{{BUN}}</string>
+		<string>run</string>
+		<string>{{COLLECTOR_DIR}}/collector.ts</string>
+		<string>--push</string>
+		<string>--quiet</string>
+	</array>
+
+	<key>WorkingDirectory</key>
+	<string>{{COLLECTOR_DIR}}</string>
+
+	<!--
+	  Daily, at a local hour when the laptop is plausibly awake. If it is asleep
+	  or off at that moment, launchd runs the job at the next opportunity — which
+	  is precisely why `lookbackDays` is 7 and why every row upserts: a missed day
+	  is caught up by the next successful run, not lost.
+	-->
+	<key>StartCalendarInterval</key>
+	<dict>
+		<key>Hour</key>
+		<integer>{{HOUR}}</integer>
+		<key>Minute</key>
+		<integer>{{MINUTE}}</integer>
+	</dict>
+
+	<!--
+	  False on purpose. Loading the agent (at install, at login) should not fire a
+	  push; the schedule should. `launchctl kickstart` is the way to run it now.
+	-->
+	<key>RunAtLoad</key>
+	<false/>
+
+	<key>StandardOutPath</key>
+	<string>{{LOG_FILE}}</string>
+	<key>StandardErrorPath</key>
+	<string>{{LOG_FILE}}</string>
+
+	<!--
+	  The token is NOT here. launchd plists are world-readable by default and get
+	  copied around; the collector reads $COLLECTOR_INGEST_TOKEN or, failing that,
+	  the `tokenFile` from collector.config.json (~/.config/home-collector/token,
+	  mode 600). launchd inherits no shell profile, so the file is the path that
+	  actually works — see README.md § Issuing a token.
+
+	  PATH is set anyway: bun is invoked by absolute path above, but a subprocess
+	  (git, node) would otherwise find an almost-empty environment.
+	-->
+	<key>EnvironmentVariables</key>
+	<dict>
+		<key>PATH</key>
+		<string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+	</dict>
+
+	<!-- Background priority: this is a nightly aggregate, not something anyone waits on. -->
+	<key>ProcessType</key>
+	<string>Background</string>
+	<key>LowPriorityIO</key>
+	<true/>
+	<key>Nice</key>
+	<integer>5</integer>
+</dict>
+</plist>

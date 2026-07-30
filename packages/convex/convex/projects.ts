@@ -32,14 +32,17 @@
  * is one way for it to become `true` — the `publish` mutation — and that is what
  * makes the gate a gate rather than a convention.
  *
+ * ── Knowledge indexing (ADR 015, pipeline 4) ──────────────────────────────
+ *
+ * `update`, `publish`, `unpublish` and `remove` each schedule a knowledge.ts
+ * function so `knowledgeDocs` tracks this table. The calls are `runAfter(0, …)`
+ * rather than inline because embedding needs `fetch` and a mutation cannot — see
+ * knowledge.ts's header for the whole contract. `knowledgeDocs` rows are derived
+ * and always safe to rebuild: `bunx convex run knowledge:backfill` repairs any
+ * drift, including for rows published before that file existed.
+ *
  * ── What is NOT here ──────────────────────────────────────────────────────
  *
- *   • Knowledge re-indexing. Publishing a case study should re-index it for Ask
- *     Corey (ADR 015); that is phase 6, and the hook is a
- *     `ctx.scheduler.runAfter(0, internal.knowledge.reindexProject, …)` in
- *     `publish`/`unpublish`/`remove`. Deliberately absent rather than stubbed —
- *     `knowledgeDocs` rows are derived and always safe to rebuild, so a project
- *     published before that code exists needs no migration.
  *   • UploadThing deletion. `remove` drops the row and orphans the CDN copies
  *     its `media[].storageKey`s point at (ADR 010). A mutation cannot `fetch`,
  *     so reaching UploadThing has to be a scheduled action; until it exists,
@@ -47,6 +50,7 @@
  */
 
 import { v } from 'convex/values';
+import { internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
 import { mutation, query } from './_generated/server';
 import { requireAdmin } from './lib/auth';
@@ -688,6 +692,44 @@ export const update = mutation({
       await ctx.db.patch(row._id, patch);
     }
 
+    // PHASE 4 — knowledge indexing (ADR 015). Editing a published case study
+    // changes text `knowledgeDocs` is already holding. The rename half is NOT
+    // gated on `published`: the old slug's document is orphaned either way (the
+    // ⚠️ above), and an orphan is the one stale index entry re-indexing the
+    // source cannot repair, because there is no source left under that key.
+    if (patch.slug !== undefined) {
+      await ctx.scheduler.runAfter(0, internal.knowledge.removeSource, {
+        sourceType: 'project',
+        sourceSlug: row.slug,
+      });
+    }
+
+    // Only the fields `knowledge.sourceForIndex` reads. `media`, `links`,
+    // `accent`, `accentHue`, `aiBuildStats`, `featured` and `sortOrder` are
+    // excluded there — a reorder or a star must not cost an embedding call to
+    // write an identical string back.
+    const INDEXED_FIELDS = [
+      'slug',
+      'title',
+      'client',
+      'attribution',
+      'role',
+      'period',
+      'summary',
+      'problem',
+      'approach',
+      'outcomes',
+      'body',
+      'stack',
+    ] as const;
+
+    if (row.published && INDEXED_FIELDS.some((field) => field in patch)) {
+      await ctx.scheduler.runAfter(0, internal.knowledge.indexSource, {
+        sourceType: 'project',
+        sourceSlug: patch.slug ?? row.slug,
+      });
+    }
+
     return { projectId: row._id, slug: patch.slug ?? row.slug };
   },
 });
@@ -703,7 +745,7 @@ export const update = mutation({
  * and it means a stale tab cannot report success for a row that would now fail)
  * and reports `alreadyPublished`.
  *
- * Phase 6 adds a knowledge re-index here — see the file header.
+ * Schedules the knowledge re-index — see the file header.
  *
  * @returns `{ projectId, slug, published: true, alreadyPublished }`
  */
@@ -733,6 +775,15 @@ export const publish = mutation({
     }
 
     await ctx.db.patch(row._id, { published: true });
+
+    // PHASE 4 — knowledge indexing (ADR 015). Scheduled rather than inline
+    // because embedding needs `fetch`; `runAfter(0, …)` is part of this
+    // transaction, so a publish rolled back by the gate above — or by anything
+    // else — never schedules the job. See the file header.
+    await ctx.scheduler.runAfter(0, internal.knowledge.indexSource, {
+      sourceType: 'project',
+      sourceSlug: row.slug,
+    });
 
     return {
       projectId: row._id,
@@ -777,6 +828,17 @@ export const unpublish = mutation({
     }
 
     await ctx.db.patch(row._id, { published: false });
+
+    // PHASE 4 — knowledge indexing (ADR 015). A flag patch, not a delete: the
+    // text and its vector stay put for the moment this is published again, and
+    // `knowledgeDocs.published` is the retrieval filter that makes the row
+    // unreachable meanwhile. No embedding call, so this is the internal
+    // mutation rather than the action.
+    await ctx.scheduler.runAfter(0, internal.knowledge.setSourcePublished, {
+      sourceType: 'project',
+      sourceSlug: row.slug,
+      published: false,
+    });
 
     return {
       projectId: row._id,
@@ -901,12 +963,11 @@ export const setSortOrder = mutation({
  * wanted. Irreversible, so the admin UI must confirm; `unpublish` is the
  * reversible way to take something off the site.
  *
- * Two loose ends this deliberately leaves, both noted in the file header: the
- * UploadThing files behind `media[].storageKey` are orphaned, and any
- * `knowledgeDocs` rows citing this slug survive until phase 6's re-index prunes
- * them (they are derived and filtered on `published`, so they are safe).
+ * One loose end this deliberately leaves, noted in the file header: the
+ * UploadThing files behind `media[].storageKey` are orphaned.
  * `siteSettings.featured.projectSlugs` may also still name the deleted slug,
  * which readers already treat as "not featured yet" — see `siteSettings.upsert`.
+ * The `knowledgeDocs` rows are pruned by the hook below.
  *
  * @returns `{ projectId, deleted }`
  */
@@ -921,6 +982,15 @@ export const remove = mutation({
     }
 
     await ctx.db.delete(row._id);
+
+    // PHASE 4 — knowledge indexing (ADR 015). An orphaned `knowledgeDocs` row is
+    // the one stale index entry re-indexing cannot repair — there is no source
+    // left to read — so it is deleted outright via `by_source`.
+    await ctx.scheduler.runAfter(0, internal.knowledge.removeSource, {
+      sourceType: 'project',
+      sourceSlug: row.slug,
+    });
+
     return { projectId: args.projectId, deleted: true };
   },
 });

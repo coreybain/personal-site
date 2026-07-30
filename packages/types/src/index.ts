@@ -18,9 +18,15 @@
  * │ posts              table      PostSchema               content.ts          │
  * │ funEntries         table      FunEntrySchema           content.ts          │
  * │ ingestTokens       table      IngestTokenSchema        ingest.ts           │
+ * │ aiUsageDays        raw        AiUsageDaySchema         ingest.ts           │
+ * │ healthDays         raw        HealthDaySummarySchema   ingest.ts           │
  * │ knowledgeDocs      table      KnowledgeDocSchema       knowledge.ts        │
  * │ contactMessages    table      ContactMessageSchema     contact.ts          │
  * └────────────────────────────────────────────────────────────────────────────┘
+ *
+ * `raw` marks a landing zone for a machine push (phase 4 Pipelines): written only
+ * by an ingest endpoint, read only by the cron that folds it onto the Snapshot,
+ * never by a page. See ingest.ts for why they are day-keyed and upserted.
  *
  * Conventions that hold across every schema in this package:
  *
@@ -57,7 +63,11 @@ import {
   PostSchema,
   ProjectSchema,
 } from './content';
-import { IngestTokenSchema } from './ingest';
+import {
+  AiUsageDaySchema,
+  HealthDaySummarySchema,
+  IngestTokenSchema,
+} from './ingest';
 import { KnowledgeDocSchema } from './knowledge';
 import { ExperienceEntrySchema, ResumeDocumentSchema } from './resume';
 import { SiteSettingsSchema } from './settings';
@@ -80,12 +90,29 @@ export const tableSchemas = {
   posts: PostSchema,
   funEntries: FunEntrySchema,
   ingestTokens: IngestTokenSchema,
+  aiUsageDays: AiUsageDaySchema,
+  healthDays: HealthDaySummarySchema,
   knowledgeDocs: KnowledgeDocSchema,
   contactMessages: ContactMessageSchema,
 } as const;
 
 /** Convex table name. */
 export type TableName = keyof typeof tableSchemas;
+
+/**
+ * The raw ingest landing zones (phase 4 Pipelines).
+ *
+ * Enumerated because they are the tables with rules the others do not have: only
+ * an ingest endpoint writes them, only a cron reads them, and neither the public
+ * site nor the Swift client should ever see a row. A test that asserts "no page
+ * query touches a raw table" needs this list to be a list rather than a habit.
+ */
+export const rawIngestTables = [
+  'aiUsageDays',
+  'healthDays',
+] as const satisfies readonly TableName[];
+
+export type RawIngestTableName = (typeof rawIngestTables)[number];
 
 /**
  * The three tables holding exactly one row. Convex has no singleton primitive, so

@@ -42,7 +42,7 @@ export type IsoDateTime = z.infer<typeof IsoDateTimeSchema>;
  * URL-safe identifier: lowercase kebab-case, no leading/trailing/double dashes.
  *
  * Slugs are the join key across the whole system — `projects.slug` is what the
- * AI-usage collector maps a repo path onto (see `AiUsageIngestSchema`), and
+ * AI-usage collector maps a repo path onto (see `AiUsageProjectSchema`), and
  * what `knowledgeDocs.sourceSlug` points at. They are stable and never reused.
  */
 export const SlugSchema = z

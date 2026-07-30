@@ -58,12 +58,14 @@
  * down** — never call a getter from inside a leaf component, which is how a
  * "one read" page quietly becomes twelve.
  *
- * PHASE 4 — ADR 004 wants the dashboard at *one* document read. It is six today
- * because the denormalising cron does not exist yet: `snapshot` already embeds
- * `identity` and `latestFunEntry`, and the same cron is what will let the
- * homepage stop reaching for `projects`, `labs`, `funEntries` and `resume`
- * separately. When it lands, the extra reads collapse into the singleton and
- * this file loses five `client.query` calls without any page changing.
+ * PHASE 4 — ADR 004 wants the dashboard at *one* document read. It is still six.
+ * The denormalising cron now exists (`packages/convex/convex/crons.ts`, hourly,
+ * calling `gitStats.rebuild` → `snapshotBuild.apply`) and the singleton it
+ * writes already embeds `identity` and `latestFunEntry` — so the *precondition*
+ * for collapsing these reads is met, and the remaining work is on this side:
+ * the homepage still reaches for `projects`, `labs`, `funEntries` and `resume`
+ * separately because the Snapshot does not carry them. Whoever closes that gap
+ * changes the schema and this file together; nothing about the pages changes.
  *
  * ── ISR: `export const revalidate = 300` on every wired page ────────────────
  *
@@ -296,8 +298,32 @@ function mapGitStats(source: SnapshotRow["gitStats"]): GitStats {
   };
 }
 
-/** `aiUsage` — field-for-field. Aggregates only; there is nothing to drop. */
+/**
+ * `aiUsage` — field-for-field, with an empty fold treated as "no data".
+ *
+ * Aggregates only; there is nothing to drop. The one substitution mirrors the
+ * `calendar` guard above, for the same reason and with a sharper edge.
+ *
+ * Phase 4 landed the git half of the hourly cron before the AI Collector that
+ * fills `aiUsageDays`, so the Snapshot row now legitimately carries
+ * `{ totalSessions: 0, agents: [], topProjects: [] }` — the fold reporting,
+ * correctly, that nothing has been ingested yet. That is not a number the site
+ * can render: `AiSignal` computes `(totalHours * 60) / totalSessions` (NaN) and
+ * `Math.max(...topProjects.map(…))` (`-Infinity`) on an empty fold, and
+ * `deriveResume` divides by `totalSessions` too. So an all-zero fold falls back
+ * to the mock for this domain, exactly as an empty `projects` table does.
+ *
+ * The test is `totalSessions === 0 && agents.length === 0`, not `totalHours`:
+ * "zero sessions and no agent has ever been seen" is only producible by an empty
+ * raw table. A real day with sessions but no measurable hours still renders.
+ * The moment the Collector posts once, this substitution stops happening on its
+ * own and never happens again.
+ */
 function mapAiUsage(source: SnapshotRow["aiUsage"]): AiUsage {
+  if (source.totalSessions === 0 && source.agents.length === 0) {
+    return mock.aiUsage;
+  }
+
   return {
     totalSessions: source.totalSessions,
     totalHours: source.totalHours,

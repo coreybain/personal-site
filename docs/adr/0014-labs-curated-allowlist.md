@@ -9,9 +9,13 @@
 tempting implementation is to auto-sync from the GitHub account: zero maintenance, always current.
 
 The account's actual contents make that a bad idea. Auto-sync would surface `dddddd`, `test`,
-`quotecloud-test`, and 2016 Udacity coursework directly to hiring managers — noise that actively
-undercuts the signal the page exists to send. A page assessing engineering judgement should
-demonstrate some.
+throwaway client scratch repos, and 2016 Udacity coursework directly to hiring managers — noise
+that actively undercuts the signal the page exists to send. A page assessing engineering judgement
+should demonstrate some.
+
+(That list used to name one of those scratch repos. It was a private client repo, this repository
+is public, and ADR 008 says private repo names are never written down here — `tooling/privacy-check`
+now catches that class mechanically with `--tree`.)
 
 ## Decision
 

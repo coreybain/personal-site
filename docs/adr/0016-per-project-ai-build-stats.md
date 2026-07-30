@@ -8,7 +8,7 @@
 "AI-native delivery" is the kind of claim every candidate now makes and almost none can evidence.
 Corey can: the local agent history is substantial (`~/.codex/sessions` at 5.9 GB,
 `~/.claude/projects` at 436 MB), and it is attributable per project. Claude's directory names are
-path-encoded (`-Users-coreybaines-GitHub-quotecloud-v2`), and Codex writes `cwd` into the
+path-encoded (shaped `-Users-coreybaines-GitHub-<repo>`), and Codex writes `cwd` into the
 `session_meta` record on line 1 of each session JSONL. Both decode to a repo path, and a repo path
 maps to a project slug.
 

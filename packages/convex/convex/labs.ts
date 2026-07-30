@@ -41,6 +41,7 @@
 
 import type { GenericDatabaseReader } from 'convex/server';
 import { v } from 'convex/values';
+import { internal } from './_generated/api';
 import type { DataModel, Doc, Id } from './_generated/dataModel';
 import { mutation, query } from './_generated/server';
 import { requireAdmin } from './lib/auth';
@@ -607,6 +608,31 @@ export const update = mutation({
       await ctx.db.patch(row._id, patch);
     }
 
+    // PHASE 4 — knowledge indexing (ADR 015). Editing a published Lab changes
+    // text `knowledgeDocs` is already holding, so the indexer hooks in here as
+    // well as in `publish`. The rename half is NOT gated on `published`: the old
+    // slug's document is orphaned either way (the ⚠️ above), and an orphan is
+    // the one stale index entry re-indexing the source cannot repair.
+    if (patch.slug !== undefined) {
+      await ctx.scheduler.runAfter(0, internal.knowledge.removeSource, {
+        sourceType: 'lab',
+        sourceSlug: row.slug,
+      });
+    }
+
+    // Only the fields `knowledge.sourceForIndex` actually reads. `coverImage`
+    // and `links` are excluded there as URLs, and `liveStats` is excluded
+    // because the hourly cron rewrites it — re-indexing on every tick would burn
+    // an embedding call an hour to store the same string back.
+    const INDEXED_FIELDS = ['slug', 'title', 'summary', 'repoFullName', 'language'] as const;
+
+    if (row.published && INDEXED_FIELDS.some((field) => field in patch)) {
+      await ctx.scheduler.runAfter(0, internal.knowledge.indexSource, {
+        sourceType: 'lab',
+        sourceSlug: patch.slug ?? row.slug,
+      });
+    }
+
     return { labId: row._id, slug: patch.slug ?? row.slug };
   },
 });
@@ -617,8 +643,8 @@ export const update = mutation({
  * **No media gate** — see the file header for why ADR 009 does not apply to Labs
  * and why `projects.publish` is the only place it is enforced.
  *
- * Idempotent, reporting `alreadyPublished`. Phase 6 adds a knowledge re-index
- * here, the same hook `projects.publish` describes.
+ * Idempotent, reporting `alreadyPublished`. Schedules the knowledge re-index,
+ * the same hook `projects.publish` describes.
  *
  * @returns `{ labId, slug, published: true, alreadyPublished }`
  */
@@ -646,6 +672,15 @@ export const publish = mutation({
     }
 
     await ctx.db.patch(row._id, { published: true });
+
+    // PHASE 4 — knowledge indexing (ADR 015). Scheduled, not inline: embedding
+    // needs `fetch` and a mutation cannot, so a provider outage delays the index
+    // instead of failing the publish. `runAfter(0, …)` is part of this
+    // transaction, so a rolled-back publish never schedules the job.
+    await ctx.scheduler.runAfter(0, internal.knowledge.indexSource, {
+      sourceType: 'lab',
+      sourceSlug: row.slug,
+    });
 
     return {
       labId: row._id,
@@ -689,6 +724,16 @@ export const unpublish = mutation({
     }
 
     await ctx.db.patch(row._id, { published: false });
+
+    // PHASE 4 — knowledge indexing (ADR 015). A flag patch, not a delete: the
+    // text and its vector stay put for the moment this is published again, and
+    // `knowledgeDocs.published` is what makes the row unreachable meanwhile. No
+    // embedding call, so this is the internal mutation rather than the action.
+    await ctx.scheduler.runAfter(0, internal.knowledge.setSourcePublished, {
+      sourceType: 'lab',
+      sourceSlug: row.slug,
+      published: false,
+    });
 
     return {
       labId: row._id,
@@ -810,12 +855,11 @@ export const setSortOrder = mutation({
  * irreversible, so the admin UI must confirm — `unpublish` is the reversible way
  * to take something off the site.
  *
- * Leaves the same loose ends `projects.remove` documents: the UploadThing file
+ * Leaves the same loose end `projects.remove` documents: the UploadThing file
  * behind `coverImage.storageKey` is orphaned (a mutation cannot `fetch`; ADR 010
- * cleanup has to be a scheduled action), any `knowledgeDocs` rows citing the slug
- * survive until phase 6's re-index prunes them, and
- * `siteSettings.featured.labSlugs` may still name it — which readers already
- * treat as "not featured yet".
+ * cleanup has to be a scheduled action). `siteSettings.featured.labSlugs` may
+ * still name it — which readers already treat as "not featured yet". The
+ * `knowledgeDocs` rows are no longer a loose end; see the hook below.
  *
  * @returns `{ labId, deleted }`
  */
@@ -830,6 +874,15 @@ export const remove = mutation({
     }
 
     await ctx.db.delete(row._id);
+
+    // PHASE 4 — knowledge indexing (ADR 015). An orphaned `knowledgeDocs` row is
+    // the one stale index entry re-indexing cannot repair, because there is no
+    // source left to read. Deleted outright via `by_source`.
+    await ctx.scheduler.runAfter(0, internal.knowledge.removeSource, {
+      sourceType: 'lab',
+      sourceSlug: row.slug,
+    });
+
     return { labId: args.labId, deleted: true };
   },
 });

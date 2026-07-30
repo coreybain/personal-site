@@ -40,6 +40,7 @@
 
 import type { WithoutSystemFields } from 'convex/server';
 import { type Infer, v } from 'convex/values';
+import { internal } from './_generated/api';
 import type { Doc } from './_generated/dataModel';
 import { mutation, query } from './_generated/server';
 import { isAdmin, requireAdmin } from './lib/auth';
@@ -414,12 +415,29 @@ export const update = mutation({
     // text that is already embedded in `knowledgeDocs`, so this is the second
     // place the indexer hooks in (the first is `publish` below). Same call, and
     // it belongs here rather than in the indexer's cron because an answer citing
-    // a paragraph the post no longer contains is the failure worth avoiding:
-    //   if (row.published && changed) {
-    //     await ctx.scheduler.runAfter(0, internal.knowledge.indexPost, {
-    //       slug: patch.slug ?? row.slug,
-    //     });
-    //   }
+    // a paragraph the post no longer contains is the failure worth avoiding.
+    //
+    // A rename is handled first and is NOT gated on `published`: the old slug's
+    // document is orphaned either way (see the ⚠️ above), and an orphan is the
+    // one kind of stale index entry re-indexing the source cannot repair.
+    if (patch.slug !== undefined) {
+      await ctx.scheduler.runAfter(0, internal.knowledge.removeSource, {
+        sourceType: 'post',
+        sourceSlug: row.slug,
+      });
+    }
+
+    // Every field this mutation writes except `coverImage` is indexed text, and
+    // a cover image is neither embedded nor quotable — see `knowledge.
+    // sourceForIndex`, which excludes it deliberately.
+    const INDEXED_FIELDS = ['slug', 'title', 'excerpt', 'body', 'tags'] as const;
+
+    if (row.published && INDEXED_FIELDS.some((field) => field in patch)) {
+      await ctx.scheduler.runAfter(0, internal.knowledge.indexSource, {
+        sourceType: 'post',
+        sourceSlug: patch.slug ?? row.slug,
+      });
+    }
 
     return { postId: row._id, slug: patch.slug ?? row.slug, changed };
   },
@@ -471,19 +489,24 @@ export const publish = mutation({
 
     if (!row.published || firstPublish) {
       await ctx.db.patch(row._id, { published: true, publishedAt });
-    }
 
-    // PHASE 4 — knowledge indexing (ADR 015). This is the hook: publishing a
-    // project, lab or post re-indexes it into `knowledgeDocs` with embeddings for
-    // Ask Corey. It cannot be done inline — embedding needs `fetch`, and a
-    // mutation cannot — so it is scheduled, which also means a provider outage
-    // delays the index rather than failing the publish:
-    //   await ctx.scheduler.runAfter(0, internal.knowledge.indexPost, {
-    //     slug: row.slug,
-    //   });
-    // The action chunks `body`, embeds each chunk, and upserts on
-    // (`sourceType: 'post'`, `sourceSlug: slug`) — the `by_source` index exists
-    // for that upsert. `knowledgeDocs.published` mirrors this row's flag.
+      // PHASE 4 — knowledge indexing (ADR 015). This is the hook: publishing a
+      // project, lab or post re-indexes it into `knowledgeDocs` with embeddings
+      // for Ask Corey. It cannot be done inline — embedding needs `fetch`, and a
+      // mutation cannot — so it is scheduled, which also means a provider outage
+      // delays the index rather than failing the publish. `runAfter(0, …)` is
+      // part of this transaction: a rolled-back publish never schedules the job.
+      //
+      // The action upserts on (`sourceType: 'post'`, `sourceSlug: slug`) — the
+      // `by_source` index exists for that — and `knowledgeDocs.published`
+      // mirrors this row's flag. Inside the `if` on purpose: re-publishing an
+      // already-published post stays the documented no-op. The re-index tool is
+      // `bunx convex run knowledge:backfill`.
+      await ctx.scheduler.runAfter(0, internal.knowledge.indexSource, {
+        sourceType: 'post',
+        sourceSlug: row.slug,
+      });
+    }
 
     return {
       postId: row._id,
@@ -525,16 +548,18 @@ export const unpublish = mutation({
 
     if (row.published) {
       await ctx.db.patch(row._id, { published: false });
-    }
 
-    // PHASE 4 — knowledge indexing (ADR 015). Unpublishing must reach the index
-    // too, or Ask Corey will keep quoting a page that now 404s. The cheap form is
-    // a patch, not a delete — `knowledgeDocs.published` exists as the retrieval
-    // filter's second line of defence — so this needs no embedding call and could
-    // be a plain internal mutation:
-    //   await ctx.scheduler.runAfter(0, internal.knowledge.setSourcePublished, {
-    //     sourceType: 'post', sourceSlug: row.slug, published: false,
-    //   });
+      // PHASE 4 — knowledge indexing (ADR 015). Unpublishing must reach the
+      // index too, or Ask Corey will keep quoting a page that now 404s. The
+      // cheap form is a patch, not a delete — `knowledgeDocs.published` exists
+      // as the retrieval filter's second line of defence — so this needs no
+      // embedding call and is a plain internal mutation, not the action.
+      await ctx.scheduler.runAfter(0, internal.knowledge.setSourcePublished, {
+        sourceType: 'post',
+        sourceSlug: row.slug,
+        published: false,
+      });
+    }
 
     return {
       postId: row._id,
@@ -572,10 +597,12 @@ export const remove = mutation({
     // PHASE 4 — knowledge indexing (ADR 015). A deleted post leaves orphaned
     // `knowledgeDocs` rows behind, which are the one kind of stale index entry
     // that cannot be repaired by re-indexing the source (there is no source
-    // left). They must be deleted outright, via the `by_source` index:
-    //   await ctx.scheduler.runAfter(0, internal.knowledge.removeSource, {
-    //     sourceType: 'post', sourceSlug: row.slug,
-    //   });
+    // left). They are deleted outright, via the `by_source` index.
+    await ctx.scheduler.runAfter(0, internal.knowledge.removeSource, {
+      sourceType: 'post',
+      sourceSlug: row.slug,
+    });
+
     // The UploadThing copy of `coverImage` is a separate concern (ADR 010): the
     // CDN object outlives the row, and reaping it needs `storageKey` and an
     // action that can call UploadThing's delete API. Phase 2's UploadThing work

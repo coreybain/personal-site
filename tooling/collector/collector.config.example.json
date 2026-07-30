@@ -1,0 +1,54 @@
+{
+  "$comment": [
+    "TEMPLATE. Copy to `collector.config.json` (which is gitignored) and edit:",
+    "",
+    "    cp collector.config.example.json collector.config.json",
+    "",
+    "Neither file holds secrets — the bearer token comes from",
+    "$COLLECTOR_INGEST_TOKEN or `tokenFile`, never from here.",
+    "",
+    "`repos` maps a local checkout directory name to a public project/lab slug.",
+    "It is the collector's privacy funnel: a directory with no entry here is",
+    "counted in the day's totals and attributed to nothing, because its name is a",
+    "private repo name and ADR 008 says those never leave the machine.",
+    "",
+    "That is also why the real file is NOT committed. The left-hand side of every",
+    "entry is a private repository's directory name, and `coreybain/personal-site`",
+    "is a public repository — committing the mapping would publish exactly the",
+    "inventory the funnel exists to withhold. The `dir` values below are invented",
+    "placeholders; replace them with the real ones on this machine, which",
+    "`bun run inventory` will print to your terminal and nowhere else.",
+    "",
+    "Matching is segment-wise containment, longest match first, so one entry covers",
+    "the repo root, packages inside it and agent worktrees cut from it."
+  ],
+
+  "convexSiteUrl": "https://hip-dragon-50.convex.site",
+  "tokenEnvVar": "COLLECTOR_INGEST_TOKEN",
+  "tokenFile": "~/.config/home-collector/token",
+
+  "claudeProjectsDir": "~/.claude/projects",
+  "codexSessionsDir": "~/.codex/sessions",
+
+  "lookbackDays": 7,
+  "idleGapMinutes": 30,
+  "maxSessionHours": 6,
+
+  "repos": [
+    {
+      "dir": "personal-site",
+      "slug": "home",
+      "note": "This monorepo — a public repo, so its directory name is safe to commit. Lab `home` is coreybaines.com."
+    },
+    {
+      "dir": "client-app-v2",
+      "slug": "quotecloud",
+      "note": "PLACEHOLDER `dir`. Point it at the real checkout directory for the `quotecloud` case study; the slug side is already public."
+    },
+    {
+      "dir": "internal-tool",
+      "slug": "zerorisk",
+      "note": "PLACEHOLDER `dir`. Same shape: private directory on the left, published slug on the right."
+    }
+  ]
+}

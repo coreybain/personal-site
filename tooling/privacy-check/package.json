@@ -1,0 +1,10 @@
+{
+  "name": "@home/privacy-check",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "ADR 008 gate: asserts that no private repo identifier, repo name or working-copy directory name appears in any unauthenticated response from the live deployment (and optionally the rendered site). Exits non-zero on a finding.",
+  "scripts": {
+    "check": "bun run check.ts"
+  }
+}

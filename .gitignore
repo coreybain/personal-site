@@ -26,6 +26,15 @@ dist/
 # `bun run codegen` in packages/convex.
 .convex/
 
+# collector
+# The repo→slug mapping is machine-local AND private: the left-hand side of
+# every entry is a private repository's checkout directory name, and ADR 008
+# says those never leave this Mac. `personal-site` is a public repo, so
+# committing the mapping would publish the inventory the collector's own privacy
+# funnel exists to withhold. `collector.config.example.json` is committed in its
+# place; copy it and edit.
+tooling/collector/collector.config.json
+
 # logs
 *.log
 npm-debug.log*

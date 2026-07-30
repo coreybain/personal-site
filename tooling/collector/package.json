@@ -1,0 +1,13 @@
+{
+  "name": "@home/collector",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Local AI-usage collector (Pipeline 2). Reads ~/.claude/projects and ~/.codex/sessions on this Mac, aggregates sessions and durations per project per day, and pushes only those aggregates to POST /ingest/ai-usage. No prompts, no code, no file contents, no paths.",
+  "scripts": {
+    "collect": "bun run collector.ts",
+    "collect:push": "bun run collector.ts --push",
+    "inventory": "bun run collector.ts --inventory",
+    "test": "bun test"
+  }
+}

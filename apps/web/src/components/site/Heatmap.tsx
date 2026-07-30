@@ -74,10 +74,26 @@ function monthTicks(weeks: ContributionWeek[]): MonthTick[] {
   return ticks;
 }
 
+/**
+ * Shown when a day's commits could not be attributed to a public project.
+ *
+ * `project` is `null` for most days by design, not by omission: the git pipeline
+ * only names a repo when a curated, *public* Lab accounts for a strict majority
+ * of that day's contributions, because the count includes private work that
+ * ADR 008 forbids naming. Roughly 290 of 364 cells are `null` on a normal week.
+ *
+ * Exported as a constant because it is needed in two places — the visible
+ * tooltip and the accessible name — and having them written out separately is
+ * exactly how they drifted: the tooltip handled `null` and the `aria-label` did
+ * not, so screen-reader users heard "null · 18 commits · Mon 4 Aug 2025" on
+ * every unattributed cell while sighted users saw the correct text.
+ */
+const NO_PROJECT_LABEL = "No project activity";
+
 function cellTitle(day: ContributionDay): string {
   return day.count === 0
     ? `No commits · ${longDate(day.date)}`
-    : `${day.project} · ${num(day.count)} commit${day.count === 1 ? "" : "s"} · ${longDate(day.date)}`;
+    : `${day.project ?? NO_PROJECT_LABEL} · ${num(day.count)} commit${day.count === 1 ? "" : "s"} · ${longDate(day.date)}`;
 }
 
 type ActiveCell = {
@@ -293,7 +309,7 @@ export function Heatmap({
               <span className="hor-heat-tooltip-row">
                 <span className="hor-heat-tooltip-project">
                   <i aria-hidden="true" />
-                  {active.day.project ?? "No project activity"}
+                  {active.day.project ?? NO_PROJECT_LABEL}
                 </span>
                 <strong>
                   {num(active.day.count)}
