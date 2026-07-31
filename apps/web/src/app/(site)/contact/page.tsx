@@ -48,8 +48,10 @@ export async function generateMetadata(): Promise<Metadata> {
   const { identity } = await getSiteData();
 
   return {
-    title: `Contact — ${identity.name}`,
+    // Bare — the `(site)` layout's `title.template` supplies "— Corey Baines".
+    title: "Contact",
     description: `${identity.availability}. Write to ${identity.name}, ${identity.role} at ${identity.company} in ${identity.location} — principal roles and hard platform problems both welcome. Email ${identity.email}.`,
+    alternates: { canonical: "/contact" },
   };
 }
 

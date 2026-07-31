@@ -8,7 +8,15 @@
   "globalEnv": [
     "NODE_ENV",
     "NEXT_PUBLIC_CONVEX_URL",
-    "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY"
+    "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY",
+    // SEO, phase 3. Both are inlined at build time and both change generated
+    // output — the first is the origin every canonical, sitemap entry and
+    // JSON-LD @id is built from, the second is the ADR 018 index gate that
+    // decides whether robots.txt says `Disallow: /`. Undeclared, strict mode
+    // would hide them from `next build` and a cutover build would quietly
+    // ship the pre-cutover robots.txt from cache.
+    "NEXT_PUBLIC_SITE_URL",
+    "NEXT_PUBLIC_SITE_INDEXABLE"
   ],
   // Server and CLI credentials still need to reach the app processes, but they
   // are runtime inputs rather than public values baked into client bundles.

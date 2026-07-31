@@ -24,14 +24,18 @@ export const revalidate = 300;
  * process and could never see a Convex row. `getSiteData()` is wrapped in
  * React's `cache()`, so this call and the page's below are one round of queries
  * per render, not two.
+ *
+ * The title is bare — the `(site)` layout's `title.template` adds the
+ * "— Corey Baines" suffix once, from live identity.
  */
 export async function generateMetadata(): Promise<Metadata> {
   const { identity, funLog, computedAt } = await getSiteData();
   const { tally } = deriveFun(funLog, computedAt);
 
   return {
-    title: `Off the clock — ${identity.name}`,
+    title: "Off the clock",
     description: `${tally.entries} logged moments from the last ${tally.spanDays} days in ${identity.location}: ${tally.counts.coffee} coffees, ${tally.counts.beer} beers, ${tally.counts.pub} pub nights and ${tally.counts.walk} walks covering ${tally.km.toFixed(1)} km.`,
+    alternates: { canonical: "/fun" },
   };
 }
 

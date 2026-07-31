@@ -50,6 +50,7 @@ import type {
   FunLogEntry,
   GitStats,
   Lab,
+  Post,
   Project,
   ResumeDocument,
 } from "@/lib/snapshot";
@@ -311,25 +312,17 @@ export function isWalk(entry: FunLogEntry): entry is WalkEntry {
   return entry.type === "walk";
 }
 
-/**
- * Stable key — `daysAgo` is unique across the mock log.
- *
- * ⚠️ It is *not* guaranteed unique against Convex data: two coffees on the same
- * day collide. The collision is a duplicate React key, not wrong output, and
- * fixing it properly means giving the Snapshot's fun entries an id — a contract
- * change, so it is deliberately not made here.
- *
- * ⚠️ **Blocker for authoring real fun entries.** This is latent only because the
- * `funEntries` table is deliberately unseeded, so /fun renders the mock log,
- * whose keys are unique by construction. The moment a second entry of the same
- * kind is written on the same calendar day, `FunBands` gets duplicate keys and
- * React may mis-reconcile the rows. Add the id to `FunEntry` / `FunLogEntry` in
- * `@/lib/snapshot`, carry it through the read layer, and key on it *before*
- * seeding or authoring anything into `funEntries`.
+/*
+ * `entryKey(entry)` — `${entry.type}-${entry.daysAgo}` — used to live here, and
+ * was the documented blocker on authoring real fun entries: it collided for two
+ * entries of one kind on one calendar day, which `FunBands` would have turned
+ * into duplicate React keys the first time a second flat white was logged on a
+ * Tuesday. It is **retired**, exactly as its own docblock said it should be:
+ * `FunEntry` / `PubEntry` in `@/lib/snapshot` now carry an `id`, the read layer
+ * carries it through from the Convex row's `_id`, and every consumer keys on
+ * `entry.id`. Nothing derives a key from content any more — if you are adding
+ * one, use the id.
  */
-export function entryKey(entry: FunLogEntry): string {
-  return `${entry.type}-${entry.daysAgo}`;
-}
 
 export const KIND_LABEL: Record<FunKind, string> = {
   beer: "Beer",
@@ -441,15 +434,19 @@ export function deriveFun(
   const isoDaysAgo = (daysAgo: number): string =>
     new Date(computedMs - daysAgo * DAY_MS).toISOString().slice(0, 10);
 
-  const hueByKey: ReadonlyMap<string, number> = (() => {
+  /**
+   * Hue per entry, keyed by `id`. Precomputed rather than derived on demand
+   * because the drift depends on the entry's ordinal *within its kind*, which
+   * only one pass over the whole log knows — and keyed by id rather than by
+   * content so that two identical-looking entries (same kind, same day) still
+   * get their own hue instead of sharing one bucket.
+   */
+  const hueById: ReadonlyMap<string, number> = (() => {
     const seen: Record<FunKind, number> = { beer: 0, coffee: 0, walk: 0, pub: 0 };
     const map = new Map<string, number>();
     for (const entry of log) {
       const nth = seen[entry.type]++;
-      map.set(
-        entryKey(entry),
-        BASE_HUE[entry.type] + HUE_DRIFT[nth % HUE_DRIFT.length],
-      );
+      map.set(entry.id, BASE_HUE[entry.type] + HUE_DRIFT[nth % HUE_DRIFT.length]);
     }
     return map;
   })();
@@ -481,7 +478,7 @@ export function deriveFun(
     isoDaysAgo,
 
     hueFor(entry: FunLogEntry): number {
-      return hueByKey.get(entryKey(entry)) ?? BASE_HUE[entry.type];
+      return hueById.get(entry.id) ?? BASE_HUE[entry.type];
     },
 
     tally,
@@ -636,5 +633,113 @@ export function deriveResume(input: ResumeInput): ResumeDerived {
     companyCount: new Set(resumeDocument.experience.map((role) => role.company))
       .size,
     currentRole: resumeDocument.experience[0],
+  };
+}
+
+/* ================================================================== *
+ * /blog
+ *
+ * New in phase 3. There was no `components/site/blog/data.ts` to be
+ * "was:" — the blog is the one section that was never built against the
+ * mock, because per ADR 018 it has no mock to be built against.
+ *
+ * ⚠️ The module rule "callers pass non-empty collections" does NOT hold
+ * here and every function below is written for the empty case first.
+ * `getPosts()` returns `[]` on a deployment with nothing published — that
+ * is the launch state, not a degraded one.
+ * ================================================================== */
+
+/**
+ * Words per minute, for the reading estimate.
+ *
+ * 220 is the middle of the range usually quoted for adults reading prose on a
+ * screen (200–250). It is rounded *up* to the nearest minute at the call site
+ * rather than reported as "4.3 min", because the number is a courtesy — "have I
+ * got time for this before my meeting" — and false precision on an estimate
+ * built from a word count is the kind of thing this site should not do.
+ */
+const WORDS_PER_MINUTE = 220;
+
+/**
+ * Reading time in whole minutes, never less than one.
+ *
+ * Counted on the **markdown source**, which slightly over-counts: fence markers,
+ * link targets and table pipes are not read. The alternative is to render the
+ * post to HTML and strip tags, which means running the whole unified pipeline
+ * (twice, on the index) to refine an estimate that is rounded to the minute
+ * anyway. Markdown syntax is a rounding error against a 220-word minute.
+ */
+export function readingMinutes(post: Post): number {
+  const words = post.body.split(/\s+/u).filter(Boolean).length;
+  return Math.max(1, Math.ceil(words / WORDS_PER_MINUTE));
+}
+
+export type BlogDerived = {
+  /** The posts as given: published, newest first. Possibly empty. */
+  posts: readonly Post[];
+  count: number;
+  /** Every tag used, most-used first, ties broken by most recent use. */
+  tags: string[];
+  /** The newest post, or `null` on an empty blog. */
+  latest: Post | null;
+  /** Summed reading estimate across every post. Zero on an empty blog. */
+  totalMinutes: number;
+  /** Position of a slug in `posts`, or -1. Drives the `01 / 04` stamps. */
+  postIndex: (slug: string) => number;
+  /**
+   * The posts either side of `index`, **without wrapping**.
+   *
+   * Unlike `deriveWork().neighbours`, which wraps so a case study always has two
+   * cards, this returns `null` at the ends. A case-study grid of four is a set
+   * you can circle; a blog is a timeline, and "next" past the newest post would
+   * be a lie about chronology.
+   */
+  neighbours: (index: number) => { prev: Post | null; next: Post | null };
+};
+
+/**
+ * Reduce the published posts to everything /blog and /blog/[slug] print.
+ *
+ * No sorting: `getPosts()` hands over `by_published_publishedAt` descending,
+ * which is genuine reverse-chronological order from the index. Re-sorting here
+ * would be a second opinion about the same fact.
+ *
+ * "prev" and "next" are in **reading** terms, not array terms: `posts` is newest
+ * first, so `prev` (the older post) is the *later* array entry. The naming
+ * follows the reader's mental model rather than the data structure's, which is
+ * why the two are spelled out here rather than left to the call site.
+ */
+export function deriveBlog(posts: readonly Post[]): BlogDerived {
+  const frequency = new Map<string, number>();
+  for (const post of posts) {
+    for (const tag of post.tags) {
+      frequency.set(tag, (frequency.get(tag) ?? 0) + 1);
+    }
+  }
+
+  return {
+    posts,
+    count: posts.length,
+
+    // `Map` preserves insertion order, and insertion order here is newest post
+    // first — so a stable sort on the count alone leaves ties in recency order,
+    // which is the tie-break worth having on a blog.
+    tags: [...frequency.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([tag]) => tag),
+
+    latest: posts[0] ?? null,
+    totalMinutes: posts.reduce((sum, post) => sum + readingMinutes(post), 0),
+
+    postIndex(slug: string): number {
+      return posts.findIndex((post) => post.slug === slug);
+    },
+
+    neighbours(index: number) {
+      return {
+        prev: posts[index + 1] ?? null,
+        next: index > 0 ? (posts[index - 1] ?? null) : null,
+      };
+    },
   };
 }

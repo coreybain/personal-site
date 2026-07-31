@@ -59,7 +59,9 @@ export function LifeStrip({
       <div className="grid gap-3 sm:grid-cols-3 sm:gap-4">
         {recent.map((entry, i) => (
           <article
-            key={`${entry.type}-${entry.title}`}
+            /* `entry.id`, not `type`+`title`: two visits to the same place are
+               two entries, and the old key made them one. See `FunEntry`. */
+            key={entry.id}
             className="hor-card hor-lift hor-rise flex items-center gap-3.5 p-2.5"
             style={
               {

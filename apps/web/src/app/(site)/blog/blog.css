@@ -1,0 +1,685 @@
+/*
+ * blog.css — styles owned by /blog and /blog/[slug] ONLY.
+ *
+ * Same contract as work.css: every selector nests under `.hor` (the ThemeScope
+ * element), every class is prefixed `blog-`, and no colour is written
+ * literally — every value resolves from a `--hor-*` token declared in
+ * @home/ui/tokens.css, which is what makes both themes free.
+ *
+ * ── What is different about this sheet ─────────────────────────────────────
+ *
+ * Every other page on this site renders components whose markup this repo
+ * controls. A post body does not: it is markdown, turned into HTML by
+ * `@/lib/markdown`, and the tag soup that comes out is whatever the author
+ * typed. So the second half of this file styles **element selectors** — `h2`,
+ * `pre`, `table`, `blockquote` — which is a thing the rest of the codebase never
+ * does. They are all confined under `.blog-prose`, and that containment is the
+ * only reason it is acceptable.
+ *
+ * ── The type rhythm, and where it comes from ───────────────────────────────
+ *
+ * The rest of the site sets prose at `.hor-body` (13px) or `.hor-lede` (17px) —
+ * sizes for cards and standfirsts, read in glances. A post is read in minutes,
+ * so the body here is 1.0625rem at 1.75 line-height on a 68ch measure, which is
+ * the one place on the site that is tuned for continuous reading rather than
+ * scanning. Everything above it keeps the Horizon scale exactly: headings use
+ * the same clamps and the same negative tracking as `.hor-h2` / `.hor-h3`, so a
+ * post's outline reads as the same voice as /work and /resume.
+ *
+ * ── Code blocks ────────────────────────────────────────────────────────────
+ *
+ * A code block is **deck material**: panel background, hairline border, the
+ * deck's 6px radius, IBM Plex Mono (already loaded by the layout), and the
+ * fence's language printed in the corner as a mono instrument label. There is no
+ * syntax highlighting, on purpose and with a documented reversal path — see the
+ * header of `@/lib/markdown`. The consequence for this file is that a code block
+ * is monochrome by design, and the only colour in it is the accent on the
+ * language label.
+ */
+
+/* ================================================================== *
+ * The index — /blog
+ * ================================================================== */
+
+/*
+ * The empty state.
+ *
+ * ADR 018 permits launching with nothing published, so this is a first-class
+ * state rather than a fallback: an instrument panel reading zero. The site's
+ * whole argument is that its numbers are real, and a real zero is the most
+ * on-brand thing this page could show. It is deliberately NOT a dashed-border
+ * "nothing here yet" box — that is the visual language of a broken feature.
+ */
+.hor .blog-empty {
+  display: grid;
+  gap: 1.5rem;
+  align-items: start;
+  padding: 1.75rem 1.5rem;
+}
+
+@media (min-width: 720px) {
+  .hor .blog-empty {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 2.5rem;
+    padding: 2.25rem 2rem;
+  }
+}
+
+/* The zero itself. Deck numerals, so it reads as an instrument, not a headline. */
+.hor .blog-empty-readout {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+}
+
+.hor .blog-empty-zero {
+  font-family: var(--font-hor-mono), ui-monospace, SFMono-Regular, monospace;
+  font-size: clamp(3.25rem, 9vw, 4.75rem);
+  line-height: 0.85;
+  letter-spacing: -0.05em;
+  font-weight: 500;
+  color: var(--hor-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.hor .blog-empty-copy > p + p {
+  margin-top: 0.85rem;
+}
+
+
+/*
+ * The index rows — deck zone, one line per post.
+ *
+ * A table would be the honest element for `NN · date · title · minutes`, but the
+ * whole row is a link and an `<a>` cannot wrap a `<tr>`. So it is a list of
+ * anchors laid out on a grid, and the grid template is what keeps the columns
+ * aligned across rows.
+ */
+.hor .blog-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 0.5rem 1rem;
+  padding: 0.9rem 1.05rem;
+  color: inherit;
+  text-decoration: none;
+  transition:
+    background-color 200ms var(--hor-ease),
+    color 200ms var(--hor-ease);
+}
+
+.hor .blog-row + .blog-row {
+  border-top: 1px solid var(--hor-line-soft);
+}
+
+.hor .blog-row:hover {
+  background: var(--hor-chip);
+}
+
+.hor .blog-row-title {
+  min-width: 0;
+  color: var(--hor-ink);
+  transition: color 200ms var(--hor-ease);
+}
+
+.hor .blog-row:hover .blog-row-title {
+  color: var(--hor-accent);
+}
+
+/* The date column drops below the title before it can squeeze it. */
+@media (max-width: 560px) {
+  .hor .blog-row {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .hor .blog-row-meta {
+    grid-column: 2;
+  }
+}
+
+/* ================================================================== *
+ * The post — /blog/[slug]
+ * ================================================================== */
+
+/*
+ * A horizon of its own, between the post's head and its body.
+ *
+ * A post has no telemetry: there is nothing to put below a real horizon,
+ * because the deck is where measurements live and a post is an argument. But the
+ * page still needs the beat between the standfirst and the first paragraph that
+ * the rule provides everywhere else on the site. /fun solved exactly this with
+ * `.fun-seam` — sky on both sides, so no deck material bleeds up through it —
+ * and this is that device, at the same fixed height, so it can never reflow.
+ */
+.hor .blog-seam {
+  position: relative;
+  z-index: 2;
+  height: var(--hor-boundary-h);
+  background: linear-gradient(180deg, var(--hor-sky-bottom), var(--hor-bg) 66%);
+}
+
+.hor .blog-seam::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--hor-line-strong) 16%,
+    var(--hor-line-strong) 84%,
+    transparent
+  );
+  box-shadow: var(--hor-rule-glow);
+}
+
+/* ================================================================== *
+ * Cards — sky zone
+ * ================================================================== */
+
+.hor .blog-card {
+  display: flex;
+  flex-direction: column;
+  color: inherit;
+  text-decoration: none;
+}
+
+/*
+ * Cover images.
+ *
+ * Fixed aspect ratio rather than the asset's own dimensions: `coverImage.width`
+ * and `height` are optional on the row (see `PostCover`), and a grid whose tiles
+ * change height with whatever was uploaded would break both the CLS budget and
+ * the row rhythm. The image is cropped to fit and the ratio is declared in CSS,
+ * so the space is reserved before a single byte of the image arrives.
+ */
+.hor .blog-cover {
+  position: relative;
+  overflow: hidden;
+  border-radius: 15px;
+  background: var(--hor-art-base);
+  border: 1px solid var(--hor-line-soft);
+}
+
+.hor .blog-cover-tile {
+  aspect-ratio: 16 / 10;
+}
+
+.hor .blog-cover-hero {
+  aspect-ratio: 21 / 9;
+}
+
+@media (max-width: 640px) {
+  .hor .blog-cover-hero {
+    aspect-ratio: 16 / 10;
+  }
+}
+
+.hor .blog-cover img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* The same veil the procedural art uses, so a photograph sits in the same
+   material as a generated tile instead of punching a hole in the page. */
+.hor .blog-cover::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: var(--hor-art-veil);
+}
+
+.hor .blog-clamp {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
+}
+
+/* Reserve the tag row whether or not it wraps — no reflow between cards. */
+.hor .blog-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  min-height: 22px;
+}
+
+.hor .blog-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: var(--hor-accent);
+}
+
+.hor .blog-cta svg {
+  transition: transform 0.4s var(--hor-ease);
+}
+
+.hor .blog-card:hover .blog-cta svg {
+  transform: translateX(3px);
+}
+
+/* ================================================================== *
+ * Prev / next
+ *
+ * The same proportions work.css gives its case-study pair. Duplicated
+ * rather than shared because work.css is imported by /work only: a blog
+ * post borrowing `.work-nav` would be styled correctly right up until
+ * someone opened /blog/[slug] as the first page of a session, at which
+ * point the sheet that defines it was never loaded.
+ * ================================================================== */
+
+.hor .blog-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 10px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.hor .blog-nav-art {
+  width: 104px;
+  flex: none;
+}
+
+.hor .blog-nav-newer {
+  flex-direction: row-reverse;
+  text-align: right;
+}
+
+/* The thumbnail is small enough that the veil reads as mud rather than as
+   material, so it is dropped at this size only. */
+.hor .blog-nav-art .blog-cover::after {
+  display: none;
+}
+
+.hor .blog-nav-art .blog-cover {
+  border-radius: 9px;
+}
+
+@media (max-width: 400px) {
+  .hor .blog-nav-art {
+    width: 84px;
+  }
+}
+
+/* ================================================================== *
+ * The post body — element selectors, contained
+ *
+ * Everything below styles HTML produced by @/lib/markdown. Nothing
+ * outside `.blog-prose` may use element selectors.
+ * ================================================================== */
+
+.hor .blog-prose {
+  max-width: 68ch;
+  font-size: 1.0625rem;
+  line-height: 1.75;
+  letter-spacing: -0.011em;
+  color: var(--hor-ink-2);
+  overflow-wrap: break-word;
+}
+
+.hor .blog-prose > * + * {
+  margin-top: 1.35em;
+}
+
+/* ---- headings ---------------------------------------------------- */
+
+.hor .blog-prose h2,
+.hor .blog-prose h3,
+.hor .blog-prose h4 {
+  position: relative;
+  color: var(--hor-ink);
+  text-wrap: balance;
+}
+
+.hor .blog-prose h2 {
+  font-size: clamp(1.4rem, 3vw, 1.75rem);
+  line-height: 1.14;
+  letter-spacing: -0.032em;
+  font-weight: 500;
+  margin-top: 2.6em;
+}
+
+.hor .blog-prose h3 {
+  font-size: clamp(1.1rem, 2vw, 1.28rem);
+  line-height: 1.2;
+  letter-spacing: -0.028em;
+  font-weight: 500;
+  margin-top: 2.2em;
+}
+
+.hor .blog-prose h4 {
+  font-size: 1rem;
+  line-height: 1.3;
+  letter-spacing: -0.02em;
+  font-weight: 600;
+  margin-top: 2em;
+}
+
+/* A hairline over every h2 — the same device the deck uses to separate
+   instrument groups, at prose scale. */
+.hor .blog-prose h2::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -1.15em;
+  height: 1px;
+  background: var(--hor-line-soft);
+}
+
+.hor .blog-prose > h2:first-child,
+.hor .blog-prose > h3:first-child {
+  margin-top: 0;
+}
+
+.hor .blog-prose > h2:first-child::before {
+  display: none;
+}
+
+/*
+ * Heading anchors. Present in the markup for every h2–h4 (rehype-autolink-
+ * headings), invisible until the heading is hovered or the link is focused —
+ * so a keyboard user can still reach it and a reader is never shown a `#` they
+ * did not ask about.
+ */
+.hor .blog-prose .blog-anchor {
+  position: absolute;
+  left: -0.85em;
+  color: var(--hor-accent);
+  opacity: 0;
+  font-weight: 400;
+  transition: opacity 200ms var(--hor-ease);
+}
+
+.hor .blog-prose :is(h2, h3, h4):hover .blog-anchor,
+.hor .blog-prose a:focus-visible .blog-anchor {
+  opacity: 1;
+}
+
+/* The anchor hangs in the gutter on wide viewports and would clip on narrow
+   ones, so below the measure it simply never appears. */
+@media (max-width: 900px) {
+  .hor .blog-prose .blog-anchor {
+    display: none;
+  }
+}
+
+/* ---- inline ------------------------------------------------------ */
+
+.hor .blog-prose strong {
+  color: var(--hor-ink);
+  font-weight: 600;
+}
+
+.hor .blog-prose a {
+  color: var(--hor-ink);
+  text-decoration: none;
+  background-image: linear-gradient(var(--hor-accent), var(--hor-accent));
+  background-repeat: no-repeat;
+  background-size: 100% 1px;
+  background-position: 0 100%;
+  transition:
+    color 250ms var(--hor-ease),
+    background-size 400ms var(--hor-ease);
+}
+
+.hor .blog-prose a:hover {
+  color: var(--hor-accent);
+}
+
+.hor .blog-prose code {
+  font-family: var(--font-hor-mono), ui-monospace, SFMono-Regular, monospace;
+  font-size: 0.875em;
+  letter-spacing: -0.01em;
+  padding: 0.15em 0.4em;
+  border-radius: 5px;
+  border: 1px solid var(--hor-line-soft);
+  background: var(--hor-chip);
+  color: var(--hor-ink);
+}
+
+/* ---- code blocks — deck material --------------------------------- */
+
+.hor .blog-prose pre {
+  position: relative;
+  overflow-x: auto;
+  padding: 1.15rem 1.15rem 1.15rem;
+  border: 1px solid var(--hor-line);
+  border-radius: var(--hor-radius-deck);
+  background: var(--hor-panel);
+  box-shadow: var(--hor-shadow-panel);
+  font-size: 0.8125rem;
+  line-height: 1.65;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* The fence's language, lifted onto the <pre> by `rehypeHorizonProse`. Absent
+   on an unlabelled fence, which is why this is a `[data-lang]` rule and the
+   padding above does not reserve room for it. */
+.hor .blog-prose pre[data-lang] {
+  padding-top: 2.35rem;
+}
+
+.hor .blog-prose pre[data-lang]::before {
+  content: attr(data-lang);
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: 0.55rem 1.15rem 0.5rem;
+  border-bottom: 1px solid var(--hor-line-soft);
+  font-family: var(--font-hor-mono), ui-monospace, SFMono-Regular, monospace;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--hor-ink-3);
+}
+
+/* Inside a block the chip treatment would fight the frame it already sits in. */
+.hor .blog-prose pre code {
+  display: block;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  font-size: inherit;
+  color: var(--hor-ink);
+}
+
+/* ---- quotes, rules, lists ---------------------------------------- */
+
+.hor .blog-prose blockquote {
+  position: relative;
+  padding-left: 1.35rem;
+  color: var(--hor-ink-2);
+  font-style: normal;
+}
+
+/* The same accent hairline /work uses to mark where a narrative starts. */
+.hor .blog-prose blockquote::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.35rem;
+  bottom: 0.35rem;
+  width: 1px;
+  background: linear-gradient(180deg, var(--hor-accent), var(--hor-line-soft));
+}
+
+.hor .blog-prose hr {
+  height: 1px;
+  border: 0;
+  margin-block: 2.5em;
+  background: linear-gradient(
+    90deg,
+    var(--hor-line-strong),
+    var(--hor-line-soft) 70%,
+    transparent
+  );
+}
+
+.hor .blog-prose ul,
+.hor .blog-prose ol {
+  padding-left: 1.35rem;
+}
+
+.hor .blog-prose ul {
+  list-style: disc;
+}
+
+.hor .blog-prose ol {
+  list-style: decimal;
+}
+
+.hor .blog-prose li::marker {
+  color: var(--hor-ink-4);
+}
+
+.hor .blog-prose li + li {
+  margin-top: 0.5em;
+}
+
+.hor .blog-prose li > ul,
+.hor .blog-prose li > ol {
+  margin-top: 0.5em;
+}
+
+/* GFM task lists: the checkbox is the marker, so the list loses its own. */
+.hor .blog-prose ul.contains-task-list {
+  list-style: none;
+  padding-left: 0;
+}
+
+.hor .blog-prose li.task-list-item {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+}
+
+.hor .blog-prose li.task-list-item input {
+  accent-color: var(--hor-accent);
+  margin: 0;
+  translate: 0 2px;
+}
+
+/* ---- tables — instrument, not spreadsheet ------------------------ */
+
+/*
+ * The table scrolls inside its own box rather than widening the page. `display:
+ * block` on the element is the only way to get a scroll container without a
+ * wrapper `<div>`, and markdown gives no wrapper.
+ */
+.hor .blog-prose table {
+  display: block;
+  overflow-x: auto;
+  width: max-content;
+  max-width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.hor .blog-prose th,
+.hor .blog-prose td {
+  padding: 0.6rem 0.9rem;
+  text-align: left;
+  border-bottom: 1px solid var(--hor-line-soft);
+  vertical-align: top;
+}
+
+.hor .blog-prose th {
+  font-family: var(--font-hor-mono), ui-monospace, SFMono-Regular, monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--hor-ink-3);
+  border-bottom-color: var(--hor-line-strong);
+  white-space: nowrap;
+}
+
+.hor .blog-prose td {
+  font-variant-numeric: tabular-nums;
+}
+
+.hor .blog-prose tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+/* ---- images ------------------------------------------------------ */
+
+.hor .blog-prose img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: 12px;
+  border: 1px solid var(--hor-line-soft);
+}
+
+/* ---- footnotes --------------------------------------------------- */
+
+/*
+ * `remark-gfm` emits a visually-hidden "Footnotes" heading and a `<section
+ * data-footnotes>`. The heading needs `.sr-only`, which `.hor` does not define —
+ * the rest of the site has no hidden text — so it is declared here, scoped to
+ * the prose block, rather than added to the shared sheet for one consumer.
+ */
+.hor .blog-prose .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.hor .blog-prose section[data-footnotes] {
+  margin-top: 3em;
+  padding-top: 1.5em;
+  border-top: 1px solid var(--hor-line-soft);
+  font-size: 0.9375rem;
+}
+
+.hor .blog-prose section[data-footnotes] li {
+  color: var(--hor-ink-3);
+}
+
+.hor .blog-prose sup a {
+  background-image: none;
+  color: var(--hor-accent);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ================================================================== *
+ * Reduced motion — extend the story horizon.css already tells.
+ * ================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .hor .blog-cta svg {
+    transition: none !important;
+  }
+
+  .hor .blog-card:hover .blog-cta svg {
+    transform: none;
+  }
+
+  .hor .blog-prose .blog-anchor {
+    transition: none !important;
+  }
+}

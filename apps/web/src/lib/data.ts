@@ -46,6 +46,21 @@
  *     funLog        funEntries.list → mock
  *     resumeDocument  resume.get → mock
  *
+ * ── The two readers outside the Snapshot ───────────────────────────────────
+ *
+ * `getPosts()` and `getNav()` sit below the assembler and are **not** part of
+ * `Snapshot`. Both are deliberate exceptions and both are documented at the
+ * function:
+ *
+ *   posts   ADR 018 — a blog may launch empty, so posts have **no mock
+ *           fallback**. An empty table means an empty blog, and `/blog` renders
+ *           an empty state rather than fabricated writing. `Post` is declared in
+ *           snapshot.ts (the types are the contract) with no data behind it.
+ *   nav     `siteSettings.nav` decides which routes appear in the nav pill, so
+ *           it is chrome rather than content and never belonged in a snapshot of
+ *           the site's *data*. It shares the one `siteSettings.get` read with
+ *           the assembler — see `readSettings()`.
+ *
  * With no `NEXT_PUBLIC_CONVEX_URL` at all, nothing is queried and the result is
  * the mock object itself — byte-identical to what the site rendered before this
  * module existed. That is the zero-env rule, and it is a `return` on line one of
@@ -123,6 +138,7 @@ import type {
   GitStats,
   Identity,
   Lab,
+  Post,
   Project,
   ResumeDocument,
   Snapshot,
@@ -171,6 +187,16 @@ type ProjectRow = Doc<"projects">;
 type LabRow = Doc<"labs">;
 type FunRow = Doc<"funEntries">;
 type ResumeRow = Doc<"resumeDocument">;
+type PostRow = Doc<"posts">;
+
+/**
+ * Which top-level routes the nav pill may show.
+ *
+ * Taken from the row rather than re-declared, so adding a route to
+ * `navVisibility` in schema.ts surfaces here — and in `<NavPill>` — as a
+ * typecheck failure rather than as a link nobody wired up.
+ */
+export type NavVisibility = SettingsRow["nav"];
 
 /**
  * The `identity` block, taken from `siteSettings` rather than `snapshot`.
@@ -241,6 +267,41 @@ async function read<T>(label: string, run: () => Promise<T>): Promise<T | null> 
     return null;
   }
 }
+
+/**
+ * One `ConvexHttpClient` per request, shared by every reader in this file.
+ *
+ * Convex's own docs warn that `ConvexHttpClient` is stateful — it holds
+ * credentials and a mutation queue — and to "take care to avoid sharing it
+ * between requests in a server". `cache()` is exactly that care: it is
+ * per-request memoisation, so this returns the same client to the assembler,
+ * `getPosts()` and `getNav()` within one render and a brand new one for the next
+ * request. Nothing here authenticates or mutates, so there is no state worth
+ * carrying anyway; the point is that there is no module-scope mutable object.
+ *
+ * Callers guard `CONVEX_URL` themselves and return their zero-env value before
+ * reaching this, which is why the non-null assertion is safe and why this does
+ * not try to have an opinion about what "no deployment" means — that answer
+ * differs per reader (the mock, or an empty list).
+ */
+const httpClient = cache(() => new ConvexHttpClient(CONVEX_URL!, { logger: false }));
+
+/**
+ * The `siteSettings` singleton, or `null`.
+ *
+ * Extracted from the assembler's `Promise.all` so the nav reader can have it
+ * without paying for a second query. `cache()` makes that literal: a page that
+ * renders the layout (identity, from the assembler) and the nav pill (nav, from
+ * `getNav()`) issues **one** `siteSettings.get`, not two, because both await the
+ * same memoised promise. The assembler still starts it in parallel with the
+ * other five reads, so extracting it costs no latency either.
+ */
+const readSettings = cache(async (): Promise<SettingsRow | null> => {
+  if (!CONVEX_URL) return null;
+  return await read("siteSettings.get", () =>
+    httpClient().query(api.siteSettings.get, {}),
+  );
+});
 
 /* ------------------------------------------------------------------ *
  * Mappers — Convex row ⇢ Snapshot field
@@ -425,12 +486,20 @@ function mapLab(row: LabRow, computedAt: string): Lab {
  * union (`note` for beer/coffee/pub, `steps`/`km` for walks), so they take empty
  * defaults. A walk never gets a `note` key at all: the mock's walk member does
  * not declare one, and adding it would fail the union's excess-property check.
+ *
+ * `id` is the row's `_id`, widened to a plain `string` by `FunLogEntry`. This is
+ * the *only* Convex document id that crosses into the `Snapshot` contract, and
+ * it does so as an opaque token: /fun renders it into React keys and nothing
+ * else — no link, no round-trip query, no parsing. Widening is what keeps
+ * `@/lib/snapshot` Convex-free while still letting the mock satisfy the same
+ * field with a literal. See `FunEntry` there for the full argument.
  */
 function mapFunEntry(row: FunRow, computedAt: string): FunLogEntry {
   const when = daysAgo(row.occurredAt, computedAt);
 
   if (row.type === "walk") {
     return {
+      id: row._id,
       type: "walk",
       title: row.title,
       steps: row.steps ?? 0,
@@ -440,11 +509,59 @@ function mapFunEntry(row: FunRow, computedAt: string): FunLogEntry {
   }
 
   return {
+    id: row._id,
     type: row.type,
     title: row.title,
     note: row.note ?? "",
     daysAgo: when,
   };
+}
+
+/**
+ * `posts[n]` — one published post, ready to render.
+ *
+ * Nothing is dropped except the publish-control flag itself: unlike every other
+ * mapper in this file, `Post` was written *for* this row rather than inherited
+ * from the mock, because there is no mock (see the type's docblock and ADR 018).
+ * `coverImage` therefore survives — the blog is the one place in the build where
+ * an UploadThing asset reaches the public site — and `body` survives as the
+ * markdown it is stored as.
+ *
+ * `publishedAt` is the one repair. It is `string | null` on the row and `string`
+ * on the type, and this mapper is only ever handed rows from `posts.list`, which
+ * returns published rows to an anonymous caller and stamps `publishedAt` in the
+ * same patch that sets `published: true`. So `null` here is structurally
+ * unreachable; `filterPublished` below rejects it anyway rather than coercing
+ * it, because a post rendering a date of `Invalid Date` would be worse than a
+ * post that is briefly missing.
+ */
+function mapPost(row: PostRow & { publishedAt: string }): Post {
+  const post: Post = {
+    slug: row.slug,
+    title: row.title,
+    excerpt: row.excerpt,
+    body: row.body,
+    coverImage: {
+      url: row.coverImage.url,
+      alt: row.coverImage.alt,
+    },
+    tags: [...row.tags],
+    publishedAt: row.publishedAt,
+  };
+
+  // Assigned rather than spread, so an absent Convex field stays an absent key
+  // — the same reasoning `mapProject` applies to its optional trio.
+  if (row.coverImage.caption !== undefined) {
+    post.coverImage.caption = row.coverImage.caption;
+  }
+  if (row.coverImage.width !== undefined) {
+    post.coverImage.width = row.coverImage.width;
+  }
+  if (row.coverImage.height !== undefined) {
+    post.coverImage.height = row.coverImage.height;
+  }
+
+  return post;
 }
 
 /** Pubs are the one kind outside the `FunEntry` union. See `PubEntry` in snapshot.ts. */
@@ -518,21 +635,23 @@ function mapResume(row: ResumeRow): ResumeDocument {
 export const getSiteData = cache(async (): Promise<Snapshot> => {
   if (!CONVEX_URL) return mock;
 
-  // A fresh client per request. Convex's own docs warn that `ConvexHttpClient`
-  // is stateful (it holds credentials and a mutation queue) and "take care to
-  // avoid sharing it between requests in a server". Nothing here authenticates
-  // or mutates, so a module-scope client would in fact be safe — but a cheap
-  // constructor is a poor reason to keep a shared mutable object around a
-  // server, and `cache()` already limits this to one per request.
-  const client = new ConvexHttpClient(CONVEX_URL, { logger: false });
+  // One client per request, shared with the readers below the assembler. See
+  // `httpClient` for why that is `cache()` and not a module-scope constant.
+  const client = httpClient();
 
   // One round trip's worth of latency, not six. Each read fails independently —
   // `read()` maps a rejection to `null`, so `Promise.all` cannot reject and one
   // sick table cannot take the page down.
+  //
+  // `readSettings()` is the odd one out: it is its own `cache()`d function
+  // rather than an inline `read()`, because `getNav()` needs the same row and a
+  // second query for a document this render already has would be a read the page
+  // is not getting anything for. It is still started here, in parallel with the
+  // rest, so the shape of this call is unchanged.
   const [snapshotRow, settingsRow, projectRows, labRows, funRows, resumeRow] =
     await Promise.all([
       read("snapshot.get", () => client.query(api.snapshot.get, {})),
-      read("siteSettings.get", () => client.query(api.siteSettings.get, {})),
+      readSettings(),
       read("projects.list", () => client.query(api.projects.list, {})),
       read("labs.list", () => client.query(api.labs.list, {})),
       read("funEntries.list", () => client.query(api.funEntries.list, {})),
@@ -621,6 +740,41 @@ export async function getIdentity(): Promise<Identity> {
   return (await getSiteData()).identity;
 }
 
+/**
+ * Identity from `siteSettings` alone — **one query, not six.**
+ *
+ * ── Why this exists, and when not to use it ────────────────────────────────
+ *
+ * `getIdentity()` above is the one to reach for inside `(site)`: it is a field
+ * of the assembly the page is already paying for, so it is free there. This one
+ * is for the **root layout's `generateMetadata`**, which is a different problem
+ * — it runs on *every* route in the app, including `/admin`, which is
+ * `force-dynamic` and re-rendered on every navigation. Hanging the assembler off
+ * it would put six Convex reads behind every admin page load in exchange for a
+ * `<title>` the admin layout overrides anyway.
+ *
+ * So this reads the one document that actually holds the answer. On a `(site)`
+ * route it is **zero** extra queries — `readSettings()` is `cache()`d and the
+ * assembler has already started it in the same request, so both awaits resolve
+ * the same promise. On `/admin` and `/v/*` it is one.
+ *
+ * ── The tier it drops, named ───────────────────────────────────────────────
+ *
+ * The assembler resolves identity `siteSettings → snapshot.identity → mock`.
+ * This drops the middle tier. `snapshot.identity` is a denormalised *copy* that
+ * the hourly cron writes from `siteSettings` (schema.ts says so at the field),
+ * so the only state where the two disagree is "settings row missing, snapshot
+ * row present" — a deployment seeded backwards. In that state the root layout's
+ * `<head>` would carry the mock's name while the page body carried the copy's.
+ * Both say "Corey Baines"; neither is wrong enough to justify five more reads on
+ * every authenticated request. If that ever stops being true, the fix is to give
+ * the cron's snapshot a settings row, not to widen this.
+ */
+export const getSettingsIdentity = cache(async (): Promise<Identity> => {
+  const settings = await readSettings();
+  return settings !== null ? mapIdentity(settings.identity) : mock.identity;
+});
+
 /** Published case studies, in display order (`by_published_sortOrder`). */
 export async function getProjects(): Promise<Project[]> {
   return (await getSiteData()).projects;
@@ -665,4 +819,127 @@ export async function getFunEntries(): Promise<FunEntry[]> {
 /** The Resume Document: summary, the experience projection, capabilities, education. */
 export async function getResume(): Promise<ResumeDocument> {
   return (await getSiteData()).resumeDocument;
+}
+
+/* ------------------------------------------------------------------ *
+ * The blog — outside the Snapshot, and outside the mock
+ *
+ * Everything above this line falls back to `@/lib/snapshot`'s mock when
+ * Convex has nothing to say. Nothing below it does. See ADR 018, the
+ * `Post` docblock in snapshot.ts, and the file header.
+ * ------------------------------------------------------------------ */
+
+/**
+ * Published posts, newest first — or `[]`.
+ *
+ * ── The empty array is the whole design ────────────────────────────────────
+ *
+ * Zero env, an empty `posts` table, a query that throws: all three return `[]`,
+ * and `/blog` renders its empty state for all three. That is the opposite of
+ * every other getter in this file and it is ADR 018 in code — "the blog may
+ * launch empty, with its nav entry hidden until it has content". Mock posts
+ * would put fabricated writing on a site whose argument is that its numbers are
+ * real, and would do it on the one page where the reader is being asked to
+ * judge the author's thinking rather than their throughput.
+ *
+ * ── Draft safety ───────────────────────────────────────────────────────────
+ *
+ * `posts.list` returns published rows only to an *anonymous* caller and drafts
+ * as well to an authenticated one (its file header explains why one function
+ * serves both). `ConvexHttpClient` here never calls `setAuth`, so this call site
+ * is structurally anonymous — "published only" is not a filter this module opts
+ * into, it is the only answer it can receive. `filterPublished` below is
+ * therefore belt-and-braces against a future where that stops being true, and
+ * costs one predicate per row.
+ *
+ * ── Ordering ───────────────────────────────────────────────────────────────
+ *
+ * Not re-sorted. `posts.list` reads `by_published_publishedAt` descending, and
+ * `publishedAt` is a fixed-width UTC ISO string, so the index order *is*
+ * reverse-chronological order — sorting again here would be a second opinion
+ * about the same fact.
+ *
+ * Wrapped in `cache()` on its own: it is one extra query on any page that asks,
+ * de-duplicated across the nav pill, the page body and `generateMetadata`.
+ */
+export const getPosts = cache(async (): Promise<Post[]> => {
+  if (!CONVEX_URL) return [];
+
+  const rows = await read("posts.list", () =>
+    httpClient().query(api.posts.list, {}),
+  );
+
+  if (rows === null) return [];
+
+  return rows.filter(filterPublished).map(mapPost);
+});
+
+/**
+ * Published, and dated. The type guard that makes `mapPost`'s signature honest.
+ *
+ * A row can only be `published: true` with `publishedAt: null` if something
+ * bypassed the `publish` mutation — the one place both fields are written, in a
+ * single patch. If that ever happens the post is dropped rather than rendered
+ * with a broken date, because a missing post is a bug someone notices and an
+ * `Invalid Date` on a live page is one nobody does.
+ */
+function filterPublished(row: PostRow): row is PostRow & { publishedAt: string } {
+  return row.published && row.publishedAt !== null;
+}
+
+/**
+ * One published post, or `undefined` — which `/blog/[slug]` renders as
+ * `notFound()`.
+ *
+ * Finds within the published list rather than issuing `posts.getBySlug`, for
+ * the same two reasons `getProjectBySlug` does: one consistent read serves the
+ * post and its neighbours, and a draft slug is `undefined` here exactly as it is
+ * `null` there — a draft URL must 404 for the public precisely as a nonexistent
+ * one does.
+ */
+export async function getPostBySlug(slug: string): Promise<Post | undefined> {
+  return (await getPosts()).find((post) => post.slug === slug);
+}
+
+/**
+ * Which top-level routes the nav may show, or `null` when there is no settings
+ * row to ask.
+ *
+ * `null` rather than a default object on purpose: "no deployment / no settings"
+ * and "settings that say `blog: false`" are the same *outcome* but not the same
+ * *fact*, and a caller that wants a default can write one in the one line it
+ * takes. `<NavPill>` treats both as hidden, which is the right default under ADR
+ * 018 — a nav entry is opt-in.
+ *
+ * Costs nothing: `readSettings()` is the same memoised read the assembler made.
+ */
+export async function getNav(): Promise<NavVisibility | null> {
+  return (await readSettings())?.nav ?? null;
+}
+
+/**
+ * Whether "Writing" appears in the nav pill. **Two conditions, both server-side.**
+ *
+ *   1. `siteSettings.nav.blog` is true — the admin has decided the blog is part
+ *      of the site. Ships `false` (ADR 018, schema.ts says so at the field).
+ *   2. At least one published post exists — because the flag being on is a
+ *      statement of intent and an empty list is still an empty list. v2's most
+ *      visible flaw was a nav item leading to "No blog posts published yet"; the
+ *      ADR names it, and this is the line that prevents it recurring.
+ *
+ * **The `&&` is load-bearing for the read budget.** JavaScript short-circuits,
+ * so while the flag is `false` — which is the state the site launches in —
+ * `getPosts()` is never called and no `(site)` page pays for a `posts.list`
+ * query it would learn nothing from. The cost of this feature today is zero
+ * queries; the day the flag is flipped it becomes one memoised query per
+ * request, shared with `/blog` itself.
+ *
+ * Direct navigation to `/blog` is unaffected by any of this. The route always
+ * renders — hiding a link is not the same as removing a page, an inbound link
+ * from elsewhere must still resolve, and the empty state exists precisely so
+ * that arriving early reads as intentional.
+ */
+export async function showBlogInNav(): Promise<boolean> {
+  const nav = await getNav();
+  return nav?.blog === true && (await getPosts()).length > 0;
 }

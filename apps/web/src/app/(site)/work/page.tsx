@@ -6,6 +6,7 @@ import { BuildLedger } from "@/components/site/work/BuildLedger";
 import { WorkGrid } from "@/components/site/work/WorkGrid";
 import { WorkIntro } from "@/components/site/work/WorkIntro";
 import { WorkScrollRestoration } from "@/components/site/work/WorkScrollRestoration";
+import { WorkJsonLd } from "@/components/site/seo";
 import { getSiteData } from "@/lib/data";
 import { deriveWork } from "@/lib/derive";
 
@@ -26,13 +27,18 @@ export const revalidate = 300;
  * It calls `getSiteData()` a second time on purpose. The assembler is wrapped in
  * React's `cache()`, and metadata generation shares a request scope with the
  * render below, so this is the same six queries — not twelve.
+ *
+ * The title is **bare**. `(site)/layout.tsx` declares
+ * `title.template: "%s — Corey Baines"` and the suffix is applied there, from
+ * live identity; spelling it out here would produce "Work — Corey Baines —
+ * Corey Baines".
  */
 export async function generateMetadata(): Promise<Metadata> {
   const { identity, projects, gitStats } = await getSiteData();
   const { buildSessions, buildHours } = deriveWork(projects);
 
   return {
-    title: `Work — ${identity.name}`,
+    title: "Work",
     description: `${projects.length} production platforms built as ${identity.role} at ${
       identity.company
     }: document automation, travel operations, compliance and real-time auctions. ${num(
@@ -40,6 +46,7 @@ export async function generateMetadata(): Promise<Metadata> {
     )} contributions in twelve months, ${num(buildSessions)} agent sessions and ${num(
       buildHours,
     )} hours logged against them.`,
+    alternates: { canonical: "/work" },
   };
 }
 
@@ -66,6 +73,12 @@ export default async function WorkPage() {
   return (
     <main>
       <WorkScrollRestoration />
+
+      {/* CollectionPage + ItemList, in the grid's own order. The items are
+          ListItems and nothing more — ADR 008 makes CI work the client's, so
+          the graph names the case studies without claiming authorship of them.
+          See components/site/seo/WorkJsonLd.tsx. */}
+      <WorkJsonLd identity={identity} projects={projects} />
 
       {/* ── above the horizon: the shape of the work ──────────────── */}
       <section className="hor-sky">

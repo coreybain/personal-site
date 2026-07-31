@@ -1,9 +1,12 @@
+import type { Metadata } from "next";
+
 import { AiSignal } from "@/components/site/AiSignal";
 import { Boundary } from "@/components/site/Boundary";
 import { FeaturedWork } from "@/components/site/FeaturedWork";
 import { GitSignal } from "@/components/site/GitSignal";
 import { Hero } from "@/components/site/Hero";
 import { LifeStrip } from "@/components/site/LifeStrip";
+import { HomeJsonLd } from "@/components/site/seo";
 import { stampTime } from "@/components/site/format";
 import { getSiteData } from "@/lib/data";
 
@@ -13,6 +16,30 @@ import { getSiteData } from "@/lib/data";
  * header of `@/lib/data` for why 300 and not 60 or 3600.
  */
 export const revalidate = 300;
+
+/**
+ * The homepage's metadata is **only** a canonical link.
+ *
+ * Title and description are inherited from `(site)/layout.tsx`, where
+ * `title.default` is deliberately the full "Corey Baines — Principal Engineer"
+ * statement rather than a section name. Declaring a `title` here would be worse
+ * than redundant: a page-level title is run through the layout's
+ * `%s — Corey Baines` template, so it would come out doubled. Saying nothing is
+ * how a page opts into the default.
+ *
+ * The canonical is absolute against `metadataBase` (ADR 017), which is what
+ * makes a preview deployment point at the production homepage rather than
+ * compete with it for the same query.
+ *
+ * A `metadata` constant rather than a `generateMetadata` function, uniquely on
+ * this page: there is nothing here that depends on a read, and the rule the rest
+ * of the site follows ("use the function, a module-scope object freezes the
+ * mock's figures into every head") does not apply to a value that is one
+ * literal path.
+ */
+export const metadata: Metadata = {
+  alternates: { canonical: "/" },
+};
 
 /**
  * Horizon — the homepage.
@@ -59,6 +86,17 @@ export default async function HomePage() {
 
   return (
     <main>
+      {/* Person + WebSite, rendered server-side from the snapshot this page
+          already holds. The homepage is where the graph declares who the site
+          is about; every other page refers back to the same `@id`. Zero extra
+          reads, zero client JS — see components/site/seo. */}
+      <HomeJsonLd
+        identity={identity}
+        gitStats={gitStats}
+        aiUsage={aiUsage}
+        projects={projects}
+      />
+
       {/* ── above the horizon: calm ───────────────────────────────── */}
       <section className="hor-sky">
         <div className="hor-wash" aria-hidden="true" />

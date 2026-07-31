@@ -44,13 +44,16 @@ export default function AdminPostsPage() {
         }
         actions={
           <>
-            {/* `/blog` does not exist: ADR 018 ships the blog hidden and
-                `siteSettings.nav.blog` starts `false`. `routeLive={false}` renders
-                the honest "not on the site yet" state naming the route, rather
-                than a link to a 404 or — worse — no control at all, which would
-                read as a bug. It becomes a real link the day the route lands.
-                README §4a. */}
-            <ViewOnSite href="/blog" routeLive={false} />
+            {/* `/blog` is live. It was `routeLive={false}` — the honest "not on
+                the site yet" state — for as long as the route did not exist;
+                the route landed, so this is a real link again.
+
+                Note what did *not* change with it: ADR 018 still ships
+                `siteSettings.nav.blog` as `false`, and the public nav pill still
+                hides "Writing" until the flag is on and a post is published. The
+                page and the link to it work regardless — hiding a nav key is not
+                the same as removing a route. README §4a. */}
+            <ViewOnSite href="/blog" />
 
             <Link
               href="/admin/posts/new"

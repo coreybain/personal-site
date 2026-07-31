@@ -7,6 +7,7 @@ import { Education } from "@/components/site/resume/Education";
 import { Experience } from "@/components/site/resume/Experience";
 import { LiveSignal } from "@/components/site/resume/LiveSignal";
 import { ResumeHeader } from "@/components/site/resume/ResumeHeader";
+import { ProfileJsonLd } from "@/components/site/seo";
 import { getSiteData } from "@/lib/data";
 import { deriveResume } from "@/lib/derive";
 
@@ -22,6 +23,12 @@ export const revalidate = 300;
  * The description quotes live telemetry, so it is generated per render rather
  * than frozen in a module-scope `metadata` const. Shares the page's queries:
  * `getSiteData()` is `cache()`d, so this is not a second read.
+ *
+ * The title carries the role but **not** the name: the `(site)` layout's
+ * `title.template` appends "— Corey Baines", so this resolves to
+ * "Résumé, Principal Engineer — Corey Baines". The role stays here rather than
+ * moving into the template because it is true of this page in a way it is not
+ * true of /fun.
  */
 export async function generateMetadata(): Promise<Metadata> {
   const site = await getSiteData();
@@ -29,7 +36,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const { yearsShipping } = deriveResume(site);
 
   return {
-    title: `Résumé — ${identity.name}, ${identity.role}`,
+    title: `Résumé, ${identity.role}`,
     description: `${identity.role} in ${identity.location}, ${yearsShipping} years shipping platforms. ${num(
       gitStats.totalContributionsYear,
     )} contributions and ${num(
@@ -37,6 +44,7 @@ export async function generateMetadata(): Promise<Metadata> {
     )} agent sessions in the last 12 months, read live from the snapshot of ${stampTime(
       computedAt,
     )}.`,
+    alternates: { canonical: "/resume" },
   };
 }
 
@@ -64,6 +72,19 @@ export default async function ResumePage() {
 
   return (
     <main className="res-doc">
+      {/* ProfilePage wrapping the Person, with `dateModified` taken from the
+          same `computedAt` the live-signal header prints — ADR 012's claim that
+          this document is provably current, made machine readable. Rendered
+          server-side from data this page already holds. */}
+      <ProfileJsonLd
+        identity={identity}
+        gitStats={gitStats}
+        aiUsage={aiUsage}
+        capabilities={resumeDocument.capabilities}
+        yearsShipping={derived.yearsShipping}
+        computedAt={computedAt}
+      />
+
       {/* ── above the horizon: the document ───────────────────────── */}
       <section className="hor-sky">
         <div className="hor-wash" aria-hidden="true" />

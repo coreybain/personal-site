@@ -1,0 +1,34 @@
+{
+  "compilerOptions": {
+    /* Nothing here is ever built. `budget.ts` is executed by Bun directly, and
+     * this config exists purely so that `turbo run typecheck` covers the gate
+     * itself — a budget script with a type error is a budget that silently
+     * stops running. `tooling/collector`, `seed` and `privacy-check` predate
+     * this and are not workspaces, so they are not typechecked; that is a gap,
+     * not a precedent. */
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "moduleDetection": "force",
+
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+
+    /* `import.meta.dir` and Bun's globals. */
+    "types": ["bun"],
+
+    "noEmit": true,
+    "declaration": false
+  },
+  "include": ["*.ts"],
+  "exclude": ["node_modules", ".lighthouseci"]
+}

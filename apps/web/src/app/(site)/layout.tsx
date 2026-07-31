@@ -6,7 +6,7 @@ import { MotionProvider } from "@/components/motion";
 import { Footer, NavPill } from "@/components/site/Chrome";
 import { num } from "@/components/site/format";
 import { ThemeScope } from "@/components/theme/ThemeScope";
-import { getSiteData } from "@/lib/data";
+import { getSiteData, showBlogInNav } from "@/lib/data";
 
 import "./horizon.css";
 
@@ -59,12 +59,38 @@ export const revalidate = 300;
  * `getSiteData()` is `cache()`d, so this shares one round of queries with the
  * layout body below and with whichever page is rendering: resolving metadata is
  * part of the same render pass.
+ *
+ * ── The title template lives here, not in the root layout ──────────────────
+ *
+ * `title.template` applies to every **descendant** segment, and the root
+ * layout's descendants are not only this group: `/admin` sets
+ * "Admin — coreybaines.com" and each of the seven `/v/*` explorations sets a
+ * complete title of its own. A template at the root would render those as
+ * "Admin — coreybaines.com — Corey Baines". Declared here it is scoped to the
+ * public site, which is the thing the suffix is actually a statement about.
+ *
+ * The contract this creates for every page under `(site)`: **set a bare title.**
+ * `title: "Work"`, not `title: "Work — Corey Baines"` — the suffix is added
+ * once, here, from live identity, and a page that spells it out again gets it
+ * twice.
+ *
+ * `title.default` is required whenever a template is set, and it is doing real
+ * work rather than satisfying the API: the homepage declares no title of its
+ * own, so this *is* the homepage's title. It is the one page whose title should
+ * be the person rather than a section, so the default reads as a full statement
+ * and the template is never applied to it.
+ *
+ * The root layout supplies `metadataBase`, the ADR 018 index gate, the Open
+ * Graph card identity and the author fields. Nothing here repeats them.
  */
 export async function generateMetadata(): Promise<Metadata> {
   const { identity, gitStats, aiUsage, projects } = await getSiteData();
 
   return {
-    title: `${identity.name} — ${identity.role}`,
+    title: {
+      default: `${identity.name} — ${identity.role}`,
+      template: `%s — ${identity.name}`,
+    },
     description: `${identity.role} in ${identity.location}. ${num(
       gitStats.totalContributionsYear,
     )} contributions in the last year, ${projects.length} platforms shipped for ${
@@ -103,17 +129,33 @@ export async function generateMetadata(): Promise<Metadata> {
  * That shared read is also the answer to the obvious alternative: the footer
  * does **not** fetch for itself. A leaf that reaches for its own data is how a
  * one-read page quietly becomes twelve, and per ADR 004 the target is one.
+ *
+ * ── The nav's one conditional key ──────────────────────────────────────────
+ *
+ * `showBlogInNav()` decides whether the pill carries "Writing": the admin's
+ * `siteSettings.nav.blog` flag **and** at least one published post, both
+ * server-derived (ADR 018). It is resolved here, in the shell, because the pill
+ * is mounted here and persists across navigations — a per-page answer would let
+ * the key appear and disappear as the reader moved around the site.
+ *
+ * It is cheap by construction. `getNav()` shares the layout's own
+ * `siteSettings.get`, and the `&&` inside `showBlogInNav` short-circuits, so
+ * while the flag is off — the launch state — no `(site)` page issues a
+ * `posts.list` query at all. See the function for the full argument.
  */
 export default async function SiteLayout({
   children,
 }: Readonly<{ children: ReactNode }>) {
-  const { identity, computedAt } = await getSiteData();
+  const [{ identity, computedAt }, showBlog] = await Promise.all([
+    getSiteData(),
+    showBlogInNav(),
+  ]);
 
   return (
     <div className={`hor-fonts ${horSans.variable} ${horMono.variable}`}>
       <ThemeScope className="hor" defaultTheme="dark">
         <MotionProvider>
-          <NavPill />
+          <NavPill showBlog={showBlog} />
           {children}
           <Footer identity={identity} computedAt={computedAt} />
         </MotionProvider>

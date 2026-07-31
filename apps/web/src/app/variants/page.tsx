@@ -1,5 +1,26 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { snapshot } from "@/lib/snapshot";
+
+/**
+ * Never indexed, for the reasons `/v/layout.tsx` sets out at length: everything
+ * this page links to renders the mock, and every one of those pages is a
+ * near-duplicate of the homepage with invented figures.
+ *
+ * The index gets its own directive rather than sharing `/v`'s because it sits
+ * outside that segment — it is the *table of contents* for the archive, not a
+ * member of it. `nofollow` is the operative half here: this page's whole content
+ * is eight links, seven of which lead somewhere that must not be crawled.
+ *
+ * The title stands alone. This route is outside `(site)`, so the
+ * "%s — Corey Baines" template declared in that group's layout does not reach
+ * it — which is correct, because the archive is a repository artefact rather
+ * than a page of the site.
+ */
+export const metadata: Metadata = {
+  title: "Design exploration archive",
+  robots: { index: false, follow: false },
+};
 
 type Variant = {
   href: string;

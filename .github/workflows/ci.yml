@@ -1,0 +1,242 @@
+# CI — the gates, in the order they are cheap to fail.
+#
+# Three jobs, deliberately not one:
+#
+#   verify        types, lint, unit tests. ~1 minute, no build, no browser.
+#                 Fails first for the reasons that are fastest to fix.
+#   performance   a real production build, then the JS budget and Lighthouse
+#                 against a real production server. ~6 minutes.
+#   privacy       the ADR 008 gate. Needs two secrets and is *skipped*, not
+#                 passed, when they are absent — see the job for why that is the
+#                 only honest wiring.
+#
+# `verify` and `performance` run in parallel: a lint error should not delay the
+# number that says whether the homepage got 40 KB heavier, and vice versa.
+#
+# ── The one environment rule ────────────────────────────────────────────────
+#
+# Nothing in `verify` or `performance` may see a Convex deployment. The public
+# pages are async RSC over `src/lib/data.ts`, which falls back to the mock
+# Snapshot when `NEXT_PUBLIC_CONVEX_URL` is unset, so a zero-env build renders
+# the whole site from fixtures — deterministically, on every runner, with no
+# network in the measurement. That is what makes the perf numbers comparable
+# between two pull requests. It also means these jobs prove things about the
+# *shell* and never about the live deployment; `privacy` is the only job here
+# that talks to Convex, and it does so unauthenticated on purpose.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  # Superseding a push to main would leave main's status ambiguous, so only
+  # pull-request runs are cancelled when a newer commit arrives.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  # Keep in step with `packageManager` in the root package.json. Pinned rather
+  # than `latest`: a gate whose measurements move because the toolchain moved
+  # underneath it is not a gate.
+  BUN_VERSION: "1.3.11"
+
+jobs:
+  # ────────────────────────────────────────────────────────────────────────
+  verify:
+    name: types · lint · tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      # setup-bun caches the *binary*. This caches the package tarballs, which
+      # is the part that costs time.
+      - name: Cache bun install cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+          restore-keys: bun-${{ runner.os }}-
+
+      # Turbo's local cache. Worth it here because `typecheck` fans out over
+      # five packages and most pull requests touch one.
+      - name: Cache turbo
+        uses: actions/cache@v4
+        with:
+          path: .turbo/cache
+          key: turbo-${{ runner.os }}-${{ github.sha }}
+          restore-keys: turbo-${{ runner.os }}-
+
+      - name: Install
+        run: bun install --frozen-lockfile
+
+      # Not `bun run typecheck` — the root script is
+      # `bun --env-file=.env run turbo …`, and `.env` does not exist on a
+      # runner, which is exactly the state this workflow wants to be in.
+      - name: Typecheck
+        run: bunx turbo run typecheck
+
+      - name: Lint
+        run: bunx turbo run lint
+
+      # Pipeline 2's privacy unit tests: "assert the payload contains only
+      # numeric aggregates and repo slugs; assert no prompt or file content can
+      # reach it". `--no-env-file` so a stray `.env` can never change what the
+      # collector believes it is configured with.
+      - name: Collector tests
+        run: bun test --no-env-file tooling/collector
+
+  # ────────────────────────────────────────────────────────────────────────
+  performance:
+    name: budget · lighthouse
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Cache bun install cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+          restore-keys: bun-${{ runner.os }}-
+
+      # Turbopack's incremental cache. Restore-key only — the exact key is the
+      # commit, so this never *serves* a hit, it only seeds the next build.
+      - name: Cache Next build cache
+        uses: actions/cache@v4
+        with:
+          path: apps/web/.next/cache
+          key: next-${{ runner.os }}-${{ hashFiles('bun.lock') }}-${{ github.sha }}
+          restore-keys: next-${{ runner.os }}-${{ hashFiles('bun.lock') }}-
+
+      - name: Install
+        run: bun install --frozen-lockfile
+
+      # The invariant, asserted rather than assumed. If somebody adds a
+      # repository variable or an environment to this workflow later, the build
+      # would quietly start reading live Convex and every number below would
+      # become a measurement of the network. This is the step that notices.
+      - name: Assert zero Convex environment
+        run: |
+          if [ -n "${NEXT_PUBLIC_CONVEX_URL:-}" ] || [ -n "${CONVEX_DEPLOYMENT:-}" ]; then
+            echo "::error::A Convex environment is visible to the build job."
+            echo "CI measures the mock build on purpose — see the header of this workflow."
+            exit 1
+          fi
+          echo "No Convex environment. The build will render from the mock Snapshot."
+
+      # Directly, not through turbo: `next build` is the artefact both gates
+      # below read, and running it here makes the log show it plainly.
+      - name: Build (production, mock data)
+        run: bun run --cwd=apps/web build
+
+      # Gate 1 — gzipped first-load JS per public route, read out of the
+      # prerendered HTML. Also asserts that no Convex, Clerk, Tiptap or
+      # UploadThing bytes reach a public chunk.
+      - name: JS budget
+        run: bun run tooling/perf/budget.ts
+
+      # Lighthouse needs a browser. The Ubuntu runner image ships Google Chrome;
+      # this fails with a sentence a human can act on if that ever changes,
+      # instead of with a chrome-launcher stack trace 4 minutes later.
+      - name: Verify Chrome
+        run: google-chrome --version
+
+      # Gate 2 — LCP and CLS against the plan's table, on a real production
+      # server that LHCI starts and stops itself. Every assertion is an `error`;
+      # see lighthouserc.cjs for why the LCP ceiling is the Core Web Vitals
+      # "good" boundary rather than the plan's 1.2 s, and what has to happen for
+      # it to ratchet down to it. This is the first run on a GitHub runner —
+      # if a threshold trips here, read the uploaded report before touching the
+      # number.
+      - name: Lighthouse CI
+        run: bun run --cwd=tooling/perf lhci
+
+      # The HTML reports are the thing you actually want when a threshold trips.
+      # 14 days because they embed screenshots of an unlaunched site (ADR 018).
+      - name: Upload Lighthouse reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-${{ github.sha }}
+          path: tooling/perf/.lighthouseci/
+          retention-days: 14
+          if-no-files-found: ignore
+
+  # ────────────────────────────────────────────────────────────────────────
+  privacy:
+    name: ADR 008 privacy
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Never on a fork's pull request: forks do not receive secrets, so the job
+    # would run with an empty corpus and pass without checking anything, which
+    # is worse than not running.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      # ── Why this job is secret-gated rather than "the tree sweep needs no
+      #    deployment" ──────────────────────────────────────────────────────
+      #
+      # It reads that way from the flag list, and it is not true. `--tree` needs
+      # two things that only exist with credentials:
+      #
+      #   1. **The corpus.** `repos.ts` builds it from `gh api user/repos` plus
+      #      the working copies in `~/GitHub`. A runner has neither. With no
+      #      token the corpus is empty, every file matches nothing, and the check
+      #      prints PASS — a green tick that proves precisely nothing. That is
+      #      the single worst outcome available here.
+      #
+      #   2. **The sanction list.** ADR 008 *requires* the site to name its case
+      #      studies, and QuoteCloud, TravelDocs, ZeroRisk and SoldOnline are each
+      #      also the name of a private repository. `check.ts` resolves that by
+      #      reading which names the deployment has actually *published* and
+      #      downgrading those hits to REVIEW. Without the deployment there is no
+      #      sanction list, so a correct source tree fails with five fabricated
+      #      leaks. Measured: the local run reports `REVIEW — 5 name(s)`.
+      #
+      # So the honest wiring is: run the real check when the credentials are
+      # there, and *skip loudly* when they are not. A `continue-on-error` step or
+      # a corpus-less PASS would both convert this gate into decoration, and this
+      # is the one gate in the repo that protects somebody other than Corey.
+      #
+      # Secrets to set on the repository:
+      #   PRIVACY_CHECK_GH_TOKEN   a PAT with `repo` scope — the only way
+      #                            `gh api user/repos` can see the private repos.
+      #                            The default GITHUB_TOKEN cannot.
+      #   CONVEX_URL               https://<deployment>.convex.cloud. Not a
+      #                            secret in the cryptographic sense — the URL is
+      #                            public by design and the check queries it
+      #                            unauthenticated on purpose — but keeping it
+      #                            out of a public workflow file avoids handing
+      #                            a scanner the endpoint for free.
+      - name: Run the check, or say why it did not
+        env:
+          GH_TOKEN: ${{ secrets.PRIVACY_CHECK_GH_TOKEN }}
+          CONVEX_URL: ${{ secrets.CONVEX_URL }}
+        run: |
+          if [ -z "${GH_TOKEN}" ] || [ -z "${CONVEX_URL}" ]; then
+            echo "::warning title=ADR 008 privacy check skipped::PRIVACY_CHECK_GH_TOKEN and/or CONVEX_URL are not set. The corpus of private repo names and the published-name sanction list both come from those; without them the check cannot distinguish a leak from a case study, so it is skipped rather than run empty. See .github/workflows/ci.yml."
+            exit 0
+          fi
+          bun run tooling/privacy-check/check.ts --url "${CONVEX_URL}" --tree

@@ -50,16 +50,24 @@ export default async function EditPostPage({
         back={{ href: "/admin/posts", label: "Writing" }}
         info={
           <>
-            This post will live at <code>/blog/{slug}</code>. Drafts resolve there
-            for a signed-in session and nowhere else, so a link to an unpublished
-            post is a 404 for everyone else.
+            This post lives at <code>/blog/{slug}</code> once it is published.
+            The public page reads Convex anonymously, so a draft is a 404 there
+            for everyone — including you, in this session.
           </>
         }
         actions={
-          /* The document's own route, and it does not exist yet — the blog ships
-             hidden (ADR 018). `routeLive={false}` wins over `published`: there is
-             no point saying "draft" about a route that would 404 either way. */
-          <ViewOnSite href={`/blog/${slug}`} routeLive={false} />
+          /* The document's own route, and it now exists — so this is a live
+             link rather than the "not on the site yet" state it rendered while
+             /blog was unbuilt.
+
+             It cannot also report the draft state: `published` lives on the row,
+             the row is fetched inside `ConvexGate`, and this header renders
+             outside it (the kit's composition rule, and the same reason the
+             title above is "Edit post" rather than the post's own). Following a
+             draft's link lands on a 404, which the info line above says in
+             words. Moving the control into `PostEditor` is the fix if that ever
+             stops being an acceptable trade. */
+          <ViewOnSite href={`/blog/${slug}`} />
         }
       />
 

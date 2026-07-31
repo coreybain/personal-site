@@ -62,22 +62,34 @@ export async function generateStaticParams(): Promise<CaseParams[]> {
  */
 export const dynamicParams = true;
 
+/**
+ * Per-case metadata.
+ *
+ * Titles are **bare** — `(site)/layout.tsx` owns the `%s — Corey Baines` suffix
+ * and applies it from live identity, so writing it out here would double it.
+ *
+ * A slug that resolves to nothing returns the section title rather than
+ * throwing: this function runs *before* the page's `notFound()`, and a metadata
+ * exception on a 404 turns a clean 404 into a 500. It gets no canonical, because
+ * a page that does not exist has no canonical URL.
+ */
 export async function generateMetadata({
   params,
 }: {
   params: Promise<CaseParams>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const { identity, projects } = await getSiteData();
+  const { projects } = await getSiteData();
   const project = projects.find((p) => p.slug === slug);
 
   if (!project) {
-    return { title: `Work — ${identity.name}` };
+    return { title: "Work" };
   }
 
   return {
-    title: `${project.title} — ${identity.name}`,
+    title: project.title,
     description: `${project.role} at ${project.client}. ${project.summary}`,
+    alternates: { canonical: `/work/${project.slug}` },
   };
 }
 

@@ -18,15 +18,32 @@ const STROKE = {
   strokeLinejoin: "round",
 } as const;
 
+type NavItem = {
+  href: string;
+  label: string;
+  icon: ReactNode;
+  /**
+   * Marks an item the site can decide not to show. Absent means "always
+   * present", which is every route except the blog — see `NavPill`.
+   *
+   * Spelled as a named gate rather than a boolean prop on the item so the array
+   * below stays a declaration of *order* and nothing else: where "Writing" sits
+   * in the pill is a design decision, and it should not have to move when the
+   * condition for showing it changes.
+   */
+  gate?: "blog";
+};
+
 /**
- * The pill's keys — one per top-level route. Every href is internal, so every
- * item renders through <Link> and gets viewport prefetching for free.
+ * The pill's keys — one per top-level route, in display order. Every href is
+ * internal, so every item renders through <Link> and gets viewport prefetching
+ * for free.
  *
  * Each item delegates pathname matching to a tiny client link leaf. The pill
  * itself stays server-rendered while non-home routes receive an accessible
  * `aria-current="page"` state.
  */
-const NAV: { href: string; label: string; icon: ReactNode }[] = [
+const NAV: NavItem[] = [
   {
     href: "/",
     label: "Home",
@@ -56,6 +73,18 @@ const NAV: { href: string; label: string; icon: ReactNode }[] = [
       <svg width="18" height="18" viewBox="0 0 20 20" {...STROKE}>
         <path d="M8.2 2.9v4.4L4.1 14.4a1.7 1.7 0 001.5 2.6h8.8a1.7 1.7 0 001.5-2.6l-4.1-7.1V2.9" />
         <path d="M7.1 2.9h5.8M6.1 12.2h7.8" />
+      </svg>
+    ),
+  },
+  {
+    /* Pen — the writing. Gated; see `NavPill`. */
+    gate: "blog",
+    href: "/blog",
+    label: "Writing",
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 20 20" {...STROKE}>
+        <path d="M13.1 3.4l3.5 3.5-8.6 8.6-4.3.8.8-4.3z" />
+        <path d="M11.4 5.1l3.5 3.5" />
       </svg>
     ),
   },
@@ -100,14 +129,34 @@ const RESUME_NAV_ITEM = {
  * The résumé gets the separated edge key; theme preferences live in the
  * footer, and only the individual pathname-aware links cross the client
  * boundary.
+ *
+ * ── The one gated key ──────────────────────────────────────────────────────
+ *
+ * "Writing" appears only when `showBlog` is true, which the layout computes
+ * from `showBlogInNav()`: `siteSettings.nav.blog` **and** at least one published
+ * post. Both halves are server-derived and neither is guessable from the client
+ * — the decision is made during the render, and the browser is sent a pill that
+ * either has the key in it or does not. There is no flicker, no `hidden`
+ * attribute and no CSS that could be defeated by a stylesheet failing to load.
+ *
+ * ADR 018 is the whole reason: the blog may launch empty, and a nav item leading
+ * to an empty list is the exact flaw the rebuild is fixing. **Hiding the key
+ * does not hide the route** — `/blog` renders for anyone who types it, links to
+ * it, or finds it in a search result.
+ *
+ * `showBlog` defaults to `false` so that a caller who has not been updated —
+ * an archived variant, a future layout — fails closed rather than advertising a
+ * section that may not have anything in it.
  */
-export function NavPill() {
+export function NavPill({ showBlog = false }: { showBlog?: boolean }) {
+  const items = NAV.filter((item) => item.gate !== "blog" || showBlog);
+
   return (
     <nav className="hor-navpill" aria-label="Primary">
       <Suspense fallback={null}>
         <WorkBackNavLink />
       </Suspense>
-      {NAV.map((item) => (
+      {items.map((item) => (
         <SiteNavLink
           key={item.label}
           href={item.href}

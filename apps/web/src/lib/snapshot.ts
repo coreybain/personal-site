@@ -147,10 +147,111 @@ export type ResumeDocument = {
   embedGitStats: boolean;
 };
 
+/**
+ * An image on a post, as UploadThing stores it (ADR 010).
+ *
+ * `width`/`height` are optional on the Convex row and therefore optional here,
+ * but every renderer should treat their absence as the exceptional case: the
+ * blog reserves space for the cover from these two numbers, and without them the
+ * only honest options are a CLS-inducing reflow or a fixed-ratio crop. The blog
+ * takes the crop — see `<PostCover>`.
+ */
+export type PostCover = {
+  url: string;
+  alt: string;
+  caption?: string;
+  width?: number;
+  height?: number;
+};
+
+/**
+ * One published blog post.
+ *
+ * ── Why this type is here and the data is not ──────────────────────────────
+ *
+ * The rule at the top of this file is "the types are the contract, the
+ * `snapshot` object is the fallback". `Post` takes the first half and
+ * deliberately refuses the second: there is **no `posts` key on the `snapshot`
+ * object**, and `Snapshot` therefore has no `posts` field.
+ *
+ * That is ADR 018, expressed in the type system. Every other domain falls back
+ * to mock data when Convex is empty, because a dashboard with no telemetry is
+ * broken. A blog with no posts is not broken — it is a blog nobody has written
+ * in yet, which the ADR explicitly permits at launch — and a mock fallback here
+ * would do the one thing the ADR forbids: fabricate writing that does not exist,
+ * on a site whose entire argument is that its numbers are real. `getPosts()` in
+ * `@/lib/data` returns `[]` in exactly the cases every other getter returns the
+ * mock, and `/blog` renders its empty state.
+ *
+ * `body` is **markdown**, not HTML — see `packages/convex/convex/posts.ts` —
+ * and is rendered by `@/lib/markdown` on the server. Nothing may hand it to a
+ * browser unrendered.
+ */
+export type Post = {
+  slug: string;
+  title: string;
+  /** One or two sentences. The index card's copy, and the meta description. */
+  excerpt: string;
+  /** The whole post, in markdown. Server-rendered; never sent raw to a client. */
+  body: string;
+  coverImage: PostCover;
+  tags: string[];
+  /**
+   * ISO instant of first publication. Non-null on every post this type ever
+   * describes: `posts.list` returns published rows only to an anonymous caller,
+   * and a published row always carries a date (the `publish` mutation stamps
+   * both in one patch, which is why they cannot come apart).
+   */
+  publishedAt: string;
+};
+
+/**
+ * One off-the-clock entry.
+ *
+ * ── Why `id` exists ────────────────────────────────────────────────────────
+ *
+ * It is the entry's identity, and the only thing on this type that is not
+ * rendered. `/fun` groups the log into recency bands and lists it; React needs
+ * a stable key per row, and every candidate built out of the *content* is a
+ * collision waiting to happen — two coffees on one day share `type-daysAgo`,
+ * two visits to the same pub share `type-title`. Both were in use before this
+ * field existed, and both were latent bugs kept harmless only by the mock's
+ * hand-picked uniqueness. Authoring a second flat white on a Tuesday would have
+ * been enough to trip them.
+ *
+ * ── Where the value comes from ─────────────────────────────────────────────
+ *
+ * Convex rows hand over their `_id` (see `mapFunEntry` in `@/lib/data`); the
+ * mock uses literals of the form `mock-beer-1`, numbered per kind in log order,
+ * which keeps this file's determinism doctrine — same import, byte-identical
+ * output, forever.
+ *
+ * It is typed `string`, not `Id<'funEntries'>`, and is deliberately **opaque**:
+ * nothing may parse it, link to it, or query with it (`funEntries` has no
+ * per-entry route — /fun is a grid). Typing it as an opaque string is what lets
+ * one field carry both a Convex document id and a mock literal, and it keeps
+ * `@/lib/snapshot` free of any Convex import.
+ *
+ * ── What it is *not* ───────────────────────────────────────────────────────
+ *
+ * This is the assembled contract, not a stored shape. The Convex side is
+ * untouched: `funEntryFields` in schema.ts has no `id` column (`_id` is the
+ * row's identity already), and the denormalised `snapshot.latestFunEntry` copy
+ * needs none either — it is display-only, it feeds one tile that links to
+ * `/fun`, and nothing in `@/lib/data` reads it. The id is minted at the
+ * assembly boundary and lives only above it.
+ */
 export type FunEntry =
-  | { type: 'beer'; title: string; note: string; daysAgo: number }
-  | { type: 'coffee'; title: string; note: string; daysAgo: number }
-  | { type: 'walk'; title: string; steps: number; km: number; daysAgo: number };
+  | { id: string; type: 'beer'; title: string; note: string; daysAgo: number }
+  | { id: string; type: 'coffee'; title: string; note: string; daysAgo: number }
+  | {
+      id: string;
+      type: 'walk';
+      title: string;
+      steps: number;
+      km: number;
+      daysAgo: number;
+    };
 
 /**
  * A pub visit — the fourth kind of fun, added for the /fun page.
@@ -161,7 +262,13 @@ export type FunEntry =
  * touched. New kinds go in `funLog` instead; `funEntries` keeps its original
  * three-way shape forever.
  */
-export type PubEntry = { type: 'pub'; title: string; note: string; daysAgo: number };
+export type PubEntry = {
+  id: string;
+  type: 'pub';
+  title: string;
+  note: string;
+  daysAgo: number;
+};
 
 /** The full off-the-clock feed: everything in `funEntries`, plus pub visits. */
 export type FunLogEntry = FunEntry | PubEntry;
@@ -302,22 +409,33 @@ const calendar: ContributionWeek[] = buildCalendar();
  * The first three objects are the originals and must stay first and unchanged:
  * every archived variant renders `funEntries` into a three-across grid and was
  * composed against exactly these.
+ *
+ * `id` is a literal, numbered per kind in the order the entries appear below —
+ * `mock-beer-1`, `mock-coffee-1`, … — rather than derived from the content or
+ * the position. Derived ids would move when an entry is inserted or a title is
+ * reworded, and this file's whole discipline is that the same import produces
+ * byte-identical output on every machine. Written ids never drift. The
+ * `mock-` prefix is not load-bearing but is worth having: an id in a screenshot
+ * or a React warning says out loud which source rendered the page.
  * ------------------------------------------------------------------ */
 
 const funEntries: FunEntry[] = [
   {
+    id: 'mock-beer-1',
     type: 'beer',
     title: 'Hazy Pale — Range Brewing',
     note: 'Saturday afternoon',
     daysAgo: 2,
   },
   {
+    id: 'mock-coffee-1',
     type: 'coffee',
     title: 'Flat white — Single O',
     note: 'Pre-standup ritual',
     daysAgo: 0,
   },
   {
+    id: 'mock-walk-1',
     type: 'walk',
     title: 'Bay Run',
     steps: 12480,
@@ -325,12 +443,14 @@ const funEntries: FunEntry[] = [
     daysAgo: 1,
   },
   {
+    id: 'mock-coffee-2',
     type: 'coffee',
     title: 'Batch brew — Sample Coffee',
     note: 'Reading the diff twice',
     daysAgo: 4,
   },
   {
+    id: 'mock-walk-2',
     type: 'walk',
     title: 'Bondi to Coogee',
     steps: 14210,
@@ -338,18 +458,21 @@ const funEntries: FunEntry[] = [
     daysAgo: 6,
   },
   {
+    id: 'mock-beer-2',
     type: 'beer',
     title: 'West Coast IPA — Wayward',
     note: 'Ship-it Friday',
     daysAgo: 9,
   },
   {
+    id: 'mock-coffee-3',
     type: 'coffee',
     title: 'Long black — Mecca',
     note: 'Architecture doodles on a napkin',
     daysAgo: 13,
   },
   {
+    id: 'mock-walk-3',
     type: 'walk',
     title: 'Barangaroo Reserve loop',
     steps: 9060,
@@ -357,12 +480,14 @@ const funEntries: FunEntry[] = [
     daysAgo: 18,
   },
   {
+    id: 'mock-beer-3',
     type: 'beer',
     title: 'Dark Lager — Grifter',
     note: 'Release night, nothing paged',
     daysAgo: 24,
   },
   {
+    id: 'mock-walk-4',
     type: 'walk',
     title: 'Manly to Spit',
     steps: 18740,
@@ -370,12 +495,14 @@ const funEntries: FunEntry[] = [
     daysAgo: 31,
   },
   {
+    id: 'mock-coffee-4',
     type: 'coffee',
     title: 'Piccolo — Toby’s Estate',
     note: 'Sunday planning session',
     daysAgo: 40,
   },
   {
+    id: 'mock-walk-5',
     type: 'walk',
     title: 'Centennial Park laps',
     steps: 10320,
@@ -387,18 +514,21 @@ const funEntries: FunEntry[] = [
 /** DRAFT COPY. Pub visits — the extra kind the /fun page shows. */
 const pubEntries: PubEntry[] = [
   {
+    id: 'mock-pub-1',
     type: 'pub',
     title: 'The Old Fitz',
     note: 'Two pints and a whiteboard argument',
     daysAgo: 3,
   },
   {
+    id: 'mock-pub-2',
     type: 'pub',
     title: 'Union Hotel, Newtown',
     note: 'Schnitzel night with the team',
     daysAgo: 17,
   },
   {
+    id: 'mock-pub-3',
     type: 'pub',
     title: 'The Lord Gladstone',
     note: 'Trivia, came fourth',

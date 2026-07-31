@@ -35,6 +35,13 @@ dist/
 # place; copy it and edit.
 tooling/collector/collector.config.json
 
+# lighthouse ci
+# Run output: one JSON + one HTML report per URL per run. The HTML reports embed
+# full-page screenshots of an unlaunched site (ADR 018 keeps the preview
+# noindex), so they are build artefacts, never commits. CI uploads them to the
+# workflow run instead, where they expire.
+.lighthouseci/
+
 # logs
 *.log
 npm-debug.log*

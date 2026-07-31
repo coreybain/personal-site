@@ -1,6 +1,6 @@
 import { stamp } from "@/components/site/format";
 import type { FunDerived } from "@/lib/derive";
-import { entryKey, isWalk } from "@/lib/derive";
+import { isWalk } from "@/lib/derive";
 
 import { FunCard } from "./FunCard";
 
@@ -65,7 +65,10 @@ export function FunBands({
                 const index = offsets[b] + i;
                 return (
                   <FunCard
-                    key={entryKey(entry)}
+                    /* The entry's own id — a Convex `_id` or a mock literal.
+                       Never a content-derived key: two coffees on one day are
+                       two rows, and the grid has to reconcile them as two. */
+                    key={entry.id}
                     entry={entry}
                     hue={hueFor(entry)}
                     date={isoDaysAgo(entry.daysAgo)}

@@ -42,6 +42,9 @@ export const revalidate = 300;
  * `getSiteData()` is wrapped in React's `cache()` and metadata generation shares
  * a request scope with the render below, so this is the same six queries — not
  * twelve.
+ *
+ * The title is bare: the "— Corey Baines" suffix comes from the `(site)`
+ * layout's `title.template`, once, from live identity.
  */
 export async function generateMetadata(): Promise<Metadata> {
   const snapshot = await getSiteData();
@@ -50,7 +53,7 @@ export async function generateMetadata(): Promise<Metadata> {
   );
 
   return {
-    title: `Labs — ${snapshot.identity.name}`,
+    title: "Labs",
     description: `${labs.length} personal repositories, built outside client work: ${num(
       totalCommits,
     )} commits in the last 12 months at ${combinedCadence.toFixed(
@@ -58,6 +61,7 @@ export async function generateMetadata(): Promise<Metadata> {
     )} a week, most recent push ${activePhrase(
       freshest.liveStats.lastPushDaysAgo,
     )} on ${freshest.title}.`,
+    alternates: { canonical: "/labs" },
   };
 }
 
