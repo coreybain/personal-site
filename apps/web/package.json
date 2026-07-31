@@ -12,6 +12,7 @@
   "dependencies": {
     "@clerk/nextjs": "^7.6.3",
     "@home/convex": "workspace:*",
+    "@home/pdf": "workspace:*",
     "@home/types": "workspace:*",
     "@home/ui": "workspace:*",
     "@tiptap/core": "3.29.2",

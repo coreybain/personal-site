@@ -1,0 +1,43 @@
+{
+  "compilerOptions": {
+    /* A just-in-time TypeScript package, exactly like @home/types: `exports`
+     * points straight at ./src/*.ts(x), there is no build step, and the only job
+     * of this config is to typecheck the source. Nothing is ever emitted —
+     * apps/web transpiles this package itself. */
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "moduleDetection": "force",
+
+    /* JSX, because the document is a React tree. `react-jsx` is the automatic
+     * runtime: @react-pdf/renderer is a custom React reconciler, so the JSX
+     * factory is React's own — the primitives (Document, Page, View, Text) are
+     * ordinary components that the reconciler recognises by type. */
+    "jsx": "react-jsx",
+
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+
+    /* Consumers bundle this source directly, so imports must survive
+     * transpilation unchanged and type-only imports must be explicit. */
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+
+    /* `resolveJsonModule` is off and stays off: the font files are read with
+     * `fs`/`URL` at register time, never imported. See src/fonts.ts. */
+    "noEmit": true,
+    "declaration": false,
+
+    /* Bun's globals (`Bun.write`, `import.meta.dir`) are used by the dev
+     * harness under scripts/. Node types cover `fs`, `path` and `Buffer`. */
+    "types": ["node", "bun"]
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx", "scripts/**/*.ts"],
+  "exclude": ["node_modules"]
+}

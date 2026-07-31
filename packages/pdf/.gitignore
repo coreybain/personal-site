@@ -1,0 +1,4 @@
+# Dev-harness output. `bun run render-fixture` writes fixture.pdf,
+# fixture-long.pdf and fixture-no-stats.pdf here for eyeballing; they are
+# regenerated on demand and never reviewed as diffs.
+tmp/

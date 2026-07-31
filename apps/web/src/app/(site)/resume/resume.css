@@ -56,8 +56,15 @@
   margin-top: 2.25rem;
 }
 
-/* The PDF control. Present, legible, and plainly not available yet — a link to
-   a route that 404s would be worse than a disabled key. */
+/* The PDF control — the secondary key beside `.hor-btn`.
+ *
+ * Geometry is copied from `.hor-btn` rather than inherited from it (same 43px,
+ * same 12px radius) because the two sit on one baseline and a 1px disagreement
+ * is visible; the treatment is deliberately quieter, so the accent gradient
+ * stays the single primary action in the header. Formerly a dashed, disabled
+ * key with a "Soon" badge — the route is real now, so the dashed border and the
+ * `.res-soon` chip are gone rather than restyled.
+ */
 .hor .res-doc .res-dl {
   display: inline-flex;
   align-items: center;
@@ -65,32 +72,34 @@
   height: 43px;
   padding-inline: 1.05rem;
   border-radius: 12px;
-  border: 1px dashed var(--hor-line-strong);
+  border: 1px solid var(--hor-line-strong);
   background: var(--hor-chip);
-  color: var(--hor-ink-3);
+  color: var(--hor-ink-2);
   font-size: 0.875rem;
   font-weight: 500;
+  text-decoration: none;
   white-space: nowrap;
-  cursor: not-allowed;
+  transition:
+    color 0.25s var(--hor-ease),
+    border-color 0.25s var(--hor-ease),
+    transform 0.4s var(--hor-spring);
 }
 
+.hor .res-doc .res-dl:hover {
+  color: var(--hor-ink);
+  border-color: var(--hor-ink-3);
+  transform: translateY(-2px);
+}
+
+/* The arrow leads the eye down, which is what the control does. Held back at
+   rest so the label reads first, brought level on hover. */
 .hor .res-doc .res-dl svg {
-  opacity: 0.75;
+  opacity: 0.7;
+  transition: opacity 0.25s var(--hor-ease);
 }
 
-.hor .res-doc .res-soon {
-  display: inline-flex;
-  align-items: center;
-  height: 19px;
-  padding-inline: 0.4rem;
-  border: 1px solid var(--hor-line-strong);
-  border-radius: 5px;
-  font-family: var(--font-hor-mono), ui-monospace, SFMono-Regular, monospace;
-  font-size: 9px;
-  font-weight: 500;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--hor-ink-2);
+.hor .res-doc .res-dl:hover svg {
+  opacity: 1;
 }
 
 .hor .res-doc .res-actions-note {
@@ -455,6 +464,18 @@
 
   .hor .res-doc .res-cadence:hover .res-bar {
     opacity: 1;
+  }
+
+  /* horizon.css's reduced-motion block enumerates classes by name, so a
+     page-scoped one has to opt itself in. The colour change stays — it is the
+     hover affordance; only the 2px lift goes. */
+  .hor .res-doc .res-dl,
+  .hor .res-doc .res-dl svg {
+    transition: none !important;
+  }
+
+  .hor .res-doc .res-dl:hover {
+    transform: none;
   }
 }
 

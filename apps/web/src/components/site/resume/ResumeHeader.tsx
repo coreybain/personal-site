@@ -8,9 +8,20 @@ import type { Identity } from "@/lib/snapshot";
  *
  * Left: who this is and the one-paragraph summary. Right: the contact block,
  * which is also the only part of this page a recruiter actually copies out of.
- * The PDF control sits under the primary action, visibly disabled: the export
- * pipeline is a later phase, and a link to a route that 404s would be worse
- * than a key that plainly isn't wired yet.
+ * The PDF control sits under the primary action and is now real: it is a plain
+ * `<a href="/api/resume.pdf" download>` pointing at the Route Handler that
+ * renders the same Resume Document this page renders (ADR 011).
+ *
+ * ── Why an anchor and not a button ─────────────────────────────────────────
+ *
+ * A `<button>` would need an `onClick`, which would make this a client
+ * component, which would put a `"use client"` boundary around a header whose
+ * only job is to print text — and the thing it would call, `@home/pdf`, is a
+ * megabyte of layout engine that must never leave the server. An anchor costs
+ * zero JavaScript, works with middle-click and "copy link address", and lets the
+ * browser stream the response. `download` asks for a save rather than a tab; the
+ * route answers `Content-Disposition: inline` so that everyone who reaches the
+ * URL another way still gets a readable document.
  *
  * ── Props, not module state ────────────────────────────────────────────────
  *
@@ -110,41 +121,34 @@ export function ResumeHeader({
             </svg>
           </a>
 
-          <span className="inline-flex items-center gap-3">
-            <button
-              type="button"
-              className="res-dl"
-              disabled
-              aria-describedby="res-pdf-note"
+          {/* Not `<Link>`: this is a Route Handler returning a binary, not a
+              route the client router can navigate to, and prefetching it would
+              have the browser download a PDF nobody asked for. */}
+          <a className="res-dl" href="/api/resume.pdf" download>
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 16 16"
+              fill="none"
+              aria-hidden="true"
             >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 16 16"
-                fill="none"
-                aria-hidden="true"
-              >
-                <path
-                  d="M8 2.4v7.4M4.9 7l3.1 3 3.1-3M3.2 12.6h9.6"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-              Download PDF
-              <span className="res-soon">Soon</span>
-            </button>
-          </span>
+              <path
+                d="M8 2.4v7.4M4.9 7l3.1 3 3.1-3M3.2 12.6h9.6"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+            Download PDF
+          </a>
         </div>
 
-        <p
-          className="hor-micro res-actions-note res-noprint"
-          id="res-pdf-note"
-        >
-          The PDF export is a later phase. Until it lands this page is the
-          document — and your browser&rsquo;s print dialog already renders it
-          clean, without the navigation or the telemetry chrome.
+        <p className="hor-micro res-actions-note res-noprint">
+          The PDF is generated from this page&rsquo;s data rather than
+          maintained beside it — the same document, set for A4. Your
+          browser&rsquo;s print dialog also renders this page clean, without the
+          navigation or the telemetry chrome.
         </p>
 
         <p className="hor-micro res-print-only">
