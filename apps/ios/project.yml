@@ -1,0 +1,372 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  project.yml — the ONLY hand-edited description of the Xcode project.
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# `Home.xcodeproj` is GENERATED from this file by XcodeGen (2.46.0). Nobody
+# hand-edits `project.pbxproj`, ever, and the reason is mechanical rather than
+# stylistic: four agents build four feature areas in parallel, and a pbxproj is
+# a single flat file with machine-generated UUIDs on every line. Two agents each
+# adding one Swift file produce a conflict that no merge tool can resolve
+# correctly, because the file's identity IS the UUID. A directory glob has no
+# such surface — an agent drops a `.swift` file under the directory it owns,
+# anyone reruns `xcodegen generate`, and the project is correct.
+#
+# The generated `Home.xcodeproj` IS committed (it is not gitignored). CI and the
+# user both need to open the project without a Homebrew install first, so the
+# artefact ships. That only works if regeneration is deterministic, which is why
+# every source entry below is a directory glob and not a file list: regenerating
+# after a `git pull` must be a no-op when no files changed.
+#
+# Regenerate with (see README.md — the seed step is not optional on a fresh
+# clone, because `Config/Config.local.plist` is gitignored and is a real
+# resource of the app target):
+#
+#     cd apps/ios && ./scripts/seed-config.sh && xcodegen generate
+#
+# ── Directory ownership ────────────────────────────────────────────────────
+#
+#   Home/App/              app entry point + the tab shell.        (foundation)
+#   Home/Support/          Config, design language, shared helpers.(foundation)
+#   Home/Backend/          Convex client + the Clerk AuthProvider. (auth agent)
+#   Home/Features/Content/ posts / projects / labs CRUD.           (content agent)
+#   Home/Features/Fun/     fun entries + camera capture.           (fun agent)
+#   Home/Features/Health/  HealthKit read + /ingest/health push.   (health agent)
+#   Home/Features/Settings/availability, sign-out, diagnostics.    (content agent)
+#   Home/Generated/        Swift Codable structs from packages/types. DO NOT EDIT
+#
+# Adding a directory under `Home/` needs no change to this file. Adding a new
+# *target* does.
+
+name: Home
+
+# ══════════════════════════════════════════════════════════════════════════
+#  Options
+# ══════════════════════════════════════════════════════════════════════════
+
+options:
+  bundleIdPrefix: com.coreybaines
+
+  # ── Deployment target: iOS 26.0 ──────────────────────────────────────────
+  #
+  # Verified against the three things that actually constrain it, on this
+  # machine, rather than guessed:
+  #
+  #   1. clerk-ios 1.3.6  →  Package.swift declares `.iOS(.v17)`. HARD FLOOR.
+  #   2. convex-swift 0.8.1 → `.iOS(.v13)`. Not binding.
+  #   3. iPhoneSimulator27.0.sdk → SDKSettings.plist `ValidDeploymentTargets`
+  #      lists 15.0 … 18.6, 26.0 … 27.0. Anything in that list links.
+  #
+  # So the legal window is 17.0–27.0, and 26.0 is the choice inside it:
+  #
+  #   - It is the newest *shipping* iOS. 27.0 exists only as this beta SDK, and
+  #     pinning the floor to a beta would make the project unbuildable with the
+  #     release Xcode the moment one is installed alongside.
+  #   - It is one user's admin app on one modern phone. There is no install base
+  #     to protect, and every `if #available(iOS 26, *)` a lower floor would
+  #     force is a branch that will never run its else-clause in production.
+  #   - It unlocks the current SwiftUI surface unguarded — `Tab(role:)`,
+  #     `tabBarMinimizeBehavior`, `tabViewBottomAccessory`, Liquid Glass — which
+  #     is the whole point of building the pocket admin now rather than in 2023.
+  #
+  # Raising this later is free. Lowering it is not: it retroactively requires
+  # availability guards around everything three feature agents wrote.
+  deploymentTarget:
+    iOS: "26.0"
+
+  # Mirror the on-disk folder structure as Xcode groups instead of flattening
+  # every file into one group per source entry. Without this, `Features/Fun/`
+  # and `Features/Health/` collapse together and the ownership map above stops
+  # being visible in the navigator — which is where the agents' humans read it.
+  createIntermediateGroups: true
+
+  # Keep `Backend/` and `Generated/` visible in the navigator before anyone has
+  # put a Swift file in them. They are documented ownership boundaries; an
+  # invisible boundary is not a boundary.
+  generateEmptyDirectories: true
+
+  # Recorded so Xcode does not offer to "update to recommended settings" on
+  # first open and thereby hand-edit the thing we just said is generated.
+  xcodeVersion: "27.0"
+
+  # XcodeGen writes this into the pbxproj header; keeping it explicit means a
+  # regeneration on a different XcodeGen version shows up as a diff rather than
+  # silently changing project semantics.
+  minimumXcodeGenVersion: "2.46.0"
+
+# ══════════════════════════════════════════════════════════════════════════
+#  Swift Package dependencies
+# ══════════════════════════════════════════════════════════════════════════
+#
+# Both are pinned to an EXACT tag, not a range. This project is generated and
+# committed; a floating range would mean two agents regenerating an hour apart
+# could resolve different versions into a committed `Package.resolved`, and the
+# resulting diff would look like someone's feature work. Bumping is a deliberate
+# edit to the two lines below plus one `xcodegen generate` — documented in
+# README.md under "Bumping a package".
+#
+# Versions verified on 2026-07-31 by cloning both repos and reading
+# `git tag --sort=-v:refname` + `Package.swift`, NOT from memory. The plan's
+# notes on both were five weeks stale and one of them was wrong (see Clerk).
+packages:
+  # get-convex/convex-swift — package name `ConvexMobile`, one library product,
+  # also `ConvexMobile`. Latest tag 0.8.1 (HEAD, 2026-02-20).
+  #
+  # Note for whoever waits on the first resolve: this package vendors a 147 MB
+  # `libconvexmobile-rs.xcframework` (the Rust core, as a static archive) inside
+  # the git repository. The initial checkout into DerivedData is slow and is not
+  # a hang.
+  ConvexMobile:
+    url: https://github.com/get-convex/convex-swift
+    exactVersion: 0.8.1
+
+  # clerk/clerk-ios — package name `Clerk`. Latest tag 1.3.6 (HEAD, 2026-07-31).
+  #
+  # ⚠️ The product name is NOT `Clerk`. As of 1.x the package vends two
+  # libraries, `ClerkKit` and `ClerkKitUI`; older guides (and the plan) refer to
+  # a single `Clerk` product that no longer exists. Read from its Package.swift,
+  # not from a tutorial.
+  Clerk:
+    url: https://github.com/clerk/clerk-ios
+    exactVersion: 1.3.6
+
+# ══════════════════════════════════════════════════════════════════════════
+#  Targets
+# ══════════════════════════════════════════════════════════════════════════
+
+targets:
+  Home:
+    type: application
+    platform: iOS
+
+    sources:
+      # ── The one glob that matters ──────────────────────────────────────
+      # Everything under `Home/` is compiled or bundled by extension:
+      # `.swift` → sources, `.xcassets` → resources. Agents add files; nobody
+      # touches this file to do it.
+      - path: Home
+        excludes:
+          # Generated BY XcodeGen from the `info:` and `entitlements:` blocks
+          # below. They sit inside `Home/` because that is where Xcode expects
+          # them, but they must not also be compiled or copied as resources —
+          # Info.plist in particular would end up duplicated in the bundle.
+          - "Info.plist"
+          - "Home.entitlements"
+          # Ownership notes for directories that have no code yet. Markdown in
+          # a source glob would otherwise be copied into the app bundle.
+          - "**/README.md"
+          - "**/.gitkeep"
+
+      # ── The seeded, gitignored config ──────────────────────────────────
+      # Written by `scripts/seed-config.sh` from the repo-root `.env`. See
+      # `Config/Config.local.example.plist` for the shape and the reasoning.
+      #
+      # `optional: true` so `xcodegen generate` still succeeds on a clone where
+      # nobody has run the seed script yet: the project generates, the app
+      # builds, and `Config.swift` reports `.missing` at runtime instead of the
+      # whole toolchain failing with a path error that says nothing about the
+      # real cause.
+      - path: Config/Config.local.plist
+        buildPhase: resources
+        optional: true
+
+    dependencies:
+      - package: ConvexMobile
+        product: ConvexMobile
+      # The data-layer half of Clerk: `Clerk.shared`, `Session.getToken(...)`,
+      # Keychain-backed session persistence. This is what the ConvexMobile
+      # `AuthProvider` adapter (ADR 007) is written against.
+      - package: Clerk
+        product: ClerkKit
+      # The prebuilt SwiftUI auth surface. Deliberately included: hand-rolling a
+      # sign-in form, an OTP field and a phone-number input for a ONE-USER admin
+      # app is the exact work ADR 006 chose Clerk to avoid. It costs two
+      # transitive dependencies (Nuke, PhoneNumberKit); if the auth agent ends
+      # up not needing it, dropping this one line drops both.
+      - package: Clerk
+        product: ClerkKitUI
+
+    # ══════════════════════════════════════════════════════════════════════
+    #  Info.plist
+    # ══════════════════════════════════════════════════════════════════════
+    #
+    # Written here, once, at foundation time — on purpose. Usage-description
+    # strings are the classic file three parallel agents each half-edit and then
+    # conflict over, and a missing one is not a build error: it is a hard crash
+    # the first time the feature is used, on a device, in front of the user. So
+    # the honest copy for every permission the app will EVER ask for is below
+    # now, before the features that trigger them exist.
+    #
+    # "Honest" is load-bearing. App Review rejects vague strings, and more to
+    # the point these sentences are the only explanation the user gets at the
+    # moment of the prompt. Each one says what is read, where it goes, and what
+    # is not taken.
+    info:
+      path: Home/Info.plist
+      properties:
+        CFBundleDisplayName: Home
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+
+        # Portrait only. This is a form-and-list admin app used one-handed; a
+        # landscape layout would be three agents' worth of work that nobody
+        # will ever look at.
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+
+        # Empty dictionary = "use the modern SwiftUI launch screen". Omitting
+        # the key entirely makes iOS treat the app as pre-iOS-13 and letterbox
+        # it at a smaller device's resolution.
+        UILaunchScreen: {}
+
+        # ── HealthKit ─────────────────────────────────────────────────────
+        #
+        # Only NSHealthShareUsageDescription (READ) is declared, and its absence
+        # is as deliberate as its presence: the app reads step count and walking
+        # distance and pushes a daily summary to Convex. It never writes a
+        # sample back into HealthKit, so NSHealthUpdateUsageDescription would be
+        # a permission prompt for a capability that does not exist. If a feature
+        # agent ever needs to write, that is a change to this file plus a line
+        # in the README, not a silent addition.
+        NSHealthShareUsageDescription: >-
+          Home reads your daily step count and walking distance so the site's
+          homepage can show a live activity signal. Only the daily totals leave
+          this phone — no workouts, no heart rate, no location, and nothing that
+          identifies you.
+
+        # ── Camera and photo library ──────────────────────────────────────
+        #
+        # Fun Entries (beer / coffee / walk / pub) are photo-first by design —
+        # they are the site's main source of imagery. Both routes in are
+        # declared: shoot now, or pick something already taken.
+        #
+        # NSPhotoLibraryAddUsageDescription is deliberately absent for the same
+        # reason as the HealthKit write string: the app never saves back to the
+        # library, so asking for write access would be asking for more than it
+        # uses.
+        NSCameraUsageDescription: >-
+          Home uses the camera to photograph a beer, coffee, walk or pub as you
+          log it. Photos you capture are uploaded to your own site and are used
+          nowhere else.
+        NSPhotoLibraryUsageDescription: >-
+          Home lets you attach a photo you have already taken to a fun entry or
+          a project. It reads only the images you pick.
+
+    # ══════════════════════════════════════════════════════════════════════
+    #  Entitlements
+    # ══════════════════════════════════════════════════════════════════════
+    #
+    # Generated, not hand-written, for the same conflict reason as Info.plist.
+    #
+    # Simulator builds run with CODE_SIGNING_ALLOWED=NO, so none of these are
+    # enforced today — they exist so that the first device build is a signing
+    # step and not an architecture discovery. Both keys need the matching
+    # capability enabled on the App ID in the developer portal before a device
+    # build will sign.
+    entitlements:
+      path: Home/Home.entitlements
+      properties:
+        # The base HealthKit capability. Without it `HKHealthStore
+        # .isHealthDataAvailable()` is false on device regardless of the plist.
+        com.apple.developer.healthkit: true
+
+        # Background delivery (iOS 15+). This — NOT a `UIBackgroundModes` entry
+        # — is what lets `HKObserverQuery` wake the app when new samples land,
+        # which is pipeline 3 in the plan ("HKObserverQuery + background
+        # delivery on step count and walking distance"). A common wrong turn is
+        # adding `UIBackgroundModes: [processing]` instead; that does nothing
+        # for HealthKit and invites an App Review question.
+        com.apple.developer.healthkit.background-delivery: true
+
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.coreybaines.home
+        PRODUCT_NAME: Home
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+
+        # ── Concurrency posture ────────────────────────────────────────────
+        #
+        # These three together are Xcode 27's own new-app-project defaults
+        # (verified by reading Base_ProjectSettings.xctemplate/TemplateInfo
+        # .plist and App Base.xctemplate in the installed Xcode), and the
+        # combination is what makes this app buildable at all against
+        # ConvexMobile:
+        #
+        #   SWIFT_VERSION 6.0            Swift 6 language mode — data-race
+        #                                safety is an error, not a warning.
+        #   SWIFT_DEFAULT_ACTOR_ISOLATION MainActor — everything is on the main
+        #                                actor unless it says otherwise. A
+        #                                single-user admin UI has no background
+        #                                work worth the ceremony of proving it.
+        #   SWIFT_APPROACHABLE_CONCURRENCY  turns on nonisolated-nonsending-by-
+        #                                default, so `await client.mutation(…)`
+        #                                stays on the caller's actor.
+        #
+        # That last one is the load-bearing setting. `ConvexMobile.ConvexClient`
+        # is a plain `public class` and is NOT Sendable. Under Swift 6 with the
+        # old rules, every `await` on it would try to send it across an
+        # isolation boundary and fail to compile — and the workaround people
+        # reach for is `@unchecked Sendable`, i.e. lying. With approachable
+        # concurrency the call never leaves MainActor, so nothing is sent and
+        # nothing needs to be lied about.
+        SWIFT_VERSION: "6.0"
+        SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor
+        SWIFT_APPROACHABLE_CONCURRENCY: true
+
+        # Imports stop leaking transitively, so a file that uses ClerkKit has to
+        # say so. Cheap to adopt on a codebase with no files in it yet;
+        # expensive later. Also an Xcode 27 template default.
+        SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY: true
+
+        # Generates `Color.horizonAccent` etc. from the asset catalog instead of
+        # stringly-typed `Color("HorizonAccent")` lookups that fail at runtime.
+        ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS: true
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+
+        # Designates `Assets.xcassets/AccentColor` as the app's GLOBAL accent,
+        # which is what makes `Color.accentColor` (and therefore
+        # `HorizonStyle.accent`) resolve to Horizon's dusk violet.
+        #
+        # Not optional, and its absence is silent: without this key the asset
+        # still compiles into the bundle and `Color.accentColor` still returns a
+        # colour — the system blue default. The app looks finished and is simply
+        # the wrong colour everywhere, which is exactly the failure that got
+        # caught here by screenshotting the running app rather than by trusting
+        # the build to succeed. Xcode's own template sets this; a generated
+        # project has to say it explicitly.
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+
+        # iPhone only (1). The admin is a pocket surface; the browser admin at
+        # /admin already covers the big screen.
+        TARGETED_DEVICE_FAMILY: "1"
+
+        # No signing team is recorded anywhere in this repo. Simulator builds
+        # pass `CODE_SIGNING_ALLOWED=NO` on the command line; a device build is
+        # a local, per-machine concern and setting a team here would commit one
+        # person's Apple ID into a public repository.
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: ""
+
+# ══════════════════════════════════════════════════════════════════════════
+#  Schemes
+# ══════════════════════════════════════════════════════════════════════════
+#
+# Declared explicitly so the scheme is SHARED. An Xcode-autocreated scheme
+# lands in `xcuserdata/`, which is gitignored, so `xcodebuild -scheme Home`
+# would work on the machine that opened Xcode once and fail in CI with
+# "scheme not found" — a confusing failure with an unrelated-looking message.
+schemes:
+  Home:
+    build:
+      targets:
+        Home: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+    profile:
+      config: Release
+    analyze:
+      config: Debug
+    archive:
+      config: Release

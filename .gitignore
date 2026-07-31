@@ -52,6 +52,33 @@ tooling/git-repo-map/git-repo-map.json
 # workflow run instead, where they expire.
 .lighthouseci/
 
+# ios
+# Which backend the phone talks to. Written by apps/ios/scripts/seed-config.sh
+# from the two NEXT_PUBLIC_* values in this repo's .env, and gitignored for the
+# same reason .env itself is: it is *environment*, not secret. Committing it
+# would mean a production build silently pointed at dev:hip-dragon-50 until
+# somebody remembered to edit a tracked file — a failure whose symptom is wrong
+# rows in the wrong database, and which nothing would surface.
+# apps/ios/Config/Config.local.example.plist is committed in its place.
+#
+# Note what is NOT here: Home.xcodeproj is deliberately COMMITTED even though
+# XcodeGen generates it, so that CI and a fresh clone can build without a
+# Homebrew install first. See apps/ios/README.md.
+apps/ios/Config/Config.local.plist
+
+# Xcode per-user and per-machine state. `xcuserdata` holds window positions,
+# breakpoints and autocreated schemes — which is why apps/ios/project.yml
+# declares the Home scheme explicitly, so the shared copy under xcshareddata is
+# the one `xcodebuild -scheme Home` finds.
+**/xcuserdata/
+**/*.xcuserdatad
+apps/ios/DerivedData/
+apps/ios/build/
+# SwiftPM's local resolution cache and checkouts (the convex-swift xcframework
+# alone is 147 MB). Package.resolved under xcshareddata/swiftpm IS tracked.
+.swiftpm/xcode/package.workspace/
+**/.swiftpm/configuration/
+
 # logs
 *.log
 npm-debug.log*

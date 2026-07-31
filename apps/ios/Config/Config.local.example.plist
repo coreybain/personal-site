@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  ═════════════════════════════════════════════════════════════════════════
+   TEMPLATE. The real file is `Config/Config.local.plist`, which is
+   GITIGNORED and is written by `scripts/seed-config.sh` from the repo-root
+   `.env`. This file is committed so that the shape is documented and so a
+   fresh clone can fall back to:
+
+       cp Config/Config.local.example.plist Config/Config.local.plist
+
+   Same pattern as `tooling/collector/collector.config.example.json`.
+  ═════════════════════════════════════════════════════════════════════════
+
+  ── Neither value below is a secret ──────────────────────────────────────
+
+  Both are public by design and both already ship inside the web app's client
+  bundle — that is what the `NEXT_PUBLIC_` prefix on their `.env` names means.
+  A Convex deployment URL is the WebSocket endpoint every browser tab already
+  connects to; a Clerk *publishable* key is the counterpart to the secret key
+  and is meant to be embedded in clients. Anything in an iOS app bundle is
+  readable by anyone who unzips the `.ipa`, so a real secret could never live
+  here regardless.
+
+  The two credentials that ARE secret never come near this file:
+
+    - The human session token: minted by Clerk at sign-in, stored by ClerkKit
+      in the Keychain, never written to disk by this app (ADR 006).
+    - The `health:write` ingest token: the phone's OWN scoped bearer token for
+      POSTing to /ingest/health, independently revocable from the collector's
+      (ADR 006a). It belongs in the Keychain too, entered once in Settings —
+      NOT in this plist, where it would be extractable from the bundle.
+
+  ── Why a plist and not an .xcconfig ─────────────────────────────────────
+
+  The obvious choice was `Config.local.xcconfig` feeding `$(VAR)` substitution
+  into Info.plist. It does not survive contact with the actual data. xcconfig
+  treats `//` as a line comment ANYWHERE on a line, with no escape sequence,
+  and the very first value we need is:
+
+      https://hip-dragon-50.convex.cloud
+            ^^ truncated to "https:" by the xcconfig parser
+
+  The usual workaround (`SLASH = /` then `https:$(SLASH)$(SLASH)host`) is a
+  hack that the next person would have to reverse-engineer, and `$` in a value
+  is a second, quieter landmine of the same kind. A plist has a real parser and
+  holds arbitrary strings correctly, so the format matches the data instead of
+  fighting it.
+
+  ── Why it is gitignored ─────────────────────────────────────────────────
+
+  Not because the values are sensitive — see above — but because they are
+  *environment-specific*. This file points the app at the `dev:hip-dragon-50`
+  deployment and a Clerk development instance. Committing it would mean a
+  production build silently talking to the dev backend unless someone
+  remembered to edit a tracked file first, i.e. the failure mode is "wrong data
+  in the real database" and it is invisible. Deriving the file from `.env`
+  makes the environment a property of the checkout, exactly as it is for
+  apps/web.
+-->
+<plist version="1.0">
+<dict>
+	<!-- From NEXT_PUBLIC_CONVEX_URL in the repo-root .env.
+	     The `.convex.cloud` origin, used by ConvexMobile for queries,
+	     mutations and actions over WebSocket.
+
+	     NOTE for the health agent: HTTP *actions* — including the
+	     `/ingest/health` endpoint — live on the sibling `.convex.site`
+	     origin, not this one. Config.swift derives it rather than adding a
+	     third key that could drift out of step with this one. -->
+	<key>ConvexURL</key>
+	<string>https://REPLACE-ME.convex.cloud</string>
+
+	<!-- From NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY in the repo-root .env.
+	     `pk_test_…` for a Clerk development instance, `pk_live_…` for
+	     production. Passed to `Clerk.configure(publishableKey:)` once at
+	     launch; ClerkKit decodes the Frontend API host out of it, which is
+	     why no separate domain key is needed. -->
+	<key>ClerkPublishableKey</key>
+	<string>pk_test_REPLACE-ME</string>
+</dict>
+</plist>
