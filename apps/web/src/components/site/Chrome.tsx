@@ -149,16 +149,15 @@ const RESUME_NAV_ITEM = {
  * ── The one gated key ──────────────────────────────────────────────────────
  *
  * "Writing" appears only when `showBlog` is true, which the layout computes
- * from `showBlogInNav()`: `siteSettings.nav.blog` **and** at least one published
- * post. Both halves are server-derived and neither is guessable from the client
- * — the decision is made during the render, and the browser is sent a pill that
+ * from `showBlogInNav()`: the `siteSettings.nav.blog` toggle, server-derived
+ * (the old published-post condition was removed 2026-07-31 — ADR 0018
+ * amendment; the `/blog` empty state was built to stand on its own). The
+ * decision is made during the render, and the browser is sent a pill that
  * either has the key in it or does not. There is no flicker, no `hidden`
  * attribute and no CSS that could be defeated by a stylesheet failing to load.
  *
- * ADR 018 is the whole reason: the blog may launch empty, and a nav item leading
- * to an empty list is the exact flaw the rebuild is fixing. **Hiding the key
- * does not hide the route** — `/blog` renders for anyone who types it, links to
- * it, or finds it in a search result.
+ * **Hiding the key does not hide the route** — `/blog` renders for anyone who
+ * types it, links to it, or finds it in a search result.
  *
  * `showBlog` defaults to `false` so that a caller who has not been updated —
  * an archived variant, a future layout — fails closed rather than advertising a

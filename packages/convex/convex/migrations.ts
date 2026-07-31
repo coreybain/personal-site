@@ -349,3 +349,55 @@ export const deleteMachineRows = internalMutation({
     };
   },
 });
+
+/**
+ * Flip one key of `siteSettings.nav` from the CLI.
+ *
+ * Not a schema migration — operational maintenance, here for the same reason
+ * `deleteMachineRows` is: the value lives behind `requireAdmin`, and a CLI
+ * invocation has no user identity to satisfy it. The gate on this function is
+ * "can you deploy to this backend" (the `issueForMachine` argument, at length
+ * in ingestTokens.ts) — anyone who can run it could push a mutation that does
+ * the same thing.
+ *
+ *     bunx convex run migrations:setNavVisibility '{"key":"blog","value":true}'
+ *
+ * The admin UI's Site settings screen is the everyday way to do this; the CLI
+ * path exists for bootstrap and for fixing a setting when the browser session
+ * is not to hand. No-ops (already the requested value) report `changed: false`.
+ */
+export const setNavVisibility = internalMutation({
+  args: {
+    key: v.union(
+      v.literal('work'),
+      v.literal('labs'),
+      v.literal('blog'),
+      v.literal('fun'),
+      v.literal('resume'),
+      v.literal('contact'),
+      v.literal('ask'),
+    ),
+    value: v.boolean(),
+  },
+  handler: async (ctx, args) => {
+    const settings = await ctx.db.query('siteSettings').order('desc').first();
+    if (settings === null) {
+      invalid({
+        code: 'invalid-format',
+        field: 'siteSettings',
+        message: 'No siteSettings row exists yet — seed the site first.',
+      });
+      return; // unreachable; invalid() throws
+    }
+
+    const current = settings.nav[args.key];
+    if (current === args.value) {
+      return { key: args.key, value: args.value, changed: false };
+    }
+
+    await ctx.db.patch(settings._id, {
+      nav: { ...settings.nav, [args.key]: args.value },
+    });
+    return { key: args.key, value: args.value, changed: true };
+  },
+});

@@ -3,6 +3,13 @@
 - **Date:** 2026-07-30
 - **Status:** Accepted
 
+> **Amendment (2026-07-31):** The "nav entry hidden until it has content" rule is
+> relaxed, at the owner's request: the nav's Writing entry is now governed by the
+> `siteSettings.nav.blog` toggle alone, with no published-post condition. The
+> `/blog` empty state was built to read as intentional, so pointing the nav at it
+> is an editorial call made in `/admin/settings`, not a hard-coded rule. The
+> toggle was flipped on the same day. Everything else in this ADR stands.
+
 ## Context
 
 There are two ways to ship this. Launch incrementally — put the dashboard up early and add work,

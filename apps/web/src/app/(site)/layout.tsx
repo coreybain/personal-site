@@ -132,16 +132,15 @@ export async function generateMetadata(): Promise<Metadata> {
  *
  * ── The nav's one conditional key ──────────────────────────────────────────
  *
- * `showBlogInNav()` decides whether the pill carries "Writing": the admin's
- * `siteSettings.nav.blog` flag **and** at least one published post, both
- * server-derived (ADR 018). It is resolved here, in the shell, because the pill
- * is mounted here and persists across navigations — a per-page answer would let
- * the key appear and disappear as the reader moved around the site.
+ * `showBlogInNav()` decides whether the pill carries "Writing": the
+ * `siteSettings.nav.blog` toggle, server-derived (see the function for why the
+ * old published-post condition was removed on 2026-07-31 — ADR 0018 amendment).
+ * It is resolved here, in the shell, because the pill is mounted here and
+ * persists across navigations — a per-page answer would let the key appear and
+ * disappear as the reader moved around the site.
  *
- * It is cheap by construction. `getNav()` shares the layout's own
- * `siteSettings.get`, and the `&&` inside `showBlogInNav` short-circuits, so
- * while the flag is off — the launch state — no `(site)` page issues a
- * `posts.list` query at all. See the function for the full argument.
+ * It is cheap by construction: `getNav()` shares the layout's own
+ * `siteSettings.get`, so the pill costs no extra query in either state.
  */
 export default async function SiteLayout({
   children,

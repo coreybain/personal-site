@@ -955,28 +955,23 @@ export async function getNav(): Promise<NavVisibility | null> {
 }
 
 /**
- * Whether "Writing" appears in the nav pill. **Two conditions, both server-side.**
+ * Whether "Writing" appears in the nav pill. **One condition, server-side:**
+ * `siteSettings.nav.blog` is true — the owner has decided the blog is part of
+ * the site, and the toggle in `/admin/settings` is the whole switch.
  *
- *   1. `siteSettings.nav.blog` is true — the admin has decided the blog is part
- *      of the site. Ships `false` (ADR 018, schema.ts says so at the field).
- *   2. At least one published post exists — because the flag being on is a
- *      statement of intent and an empty list is still an empty list. v2's most
- *      visible flaw was a nav item leading to "No blog posts published yet"; the
- *      ADR names it, and this is the line that prevents it recurring.
- *
- * **The `&&` is load-bearing for the read budget.** JavaScript short-circuits,
- * so while the flag is `false` — which is the state the site launches in —
- * `getPosts()` is never called and no `(site)` page pays for a `posts.list`
- * query it would learn nothing from. The cost of this feature today is zero
- * queries; the day the flag is flipped it becomes one memoised query per
- * request, shared with `/blog` itself.
+ * This used to be two conditions: the flag AND at least one published post,
+ * per ADR 018's "nav entry hidden until populated". The second condition was
+ * removed on 2026-07-31 at the owner's request (recorded as an amendment on
+ * ADR 0018): the empty state on `/blog` was built to read as intentional, and
+ * whether to point the nav at it is an editorial call, not a hard-coded rule.
+ * The admin toggle is where that call is made — flip it off if the empty list
+ * starts to feel like v2's "No blog posts published yet".
  *
  * Direct navigation to `/blog` is unaffected by any of this. The route always
  * renders — hiding a link is not the same as removing a page, an inbound link
- * from elsewhere must still resolve, and the empty state exists precisely so
- * that arriving early reads as intentional.
+ * from elsewhere must still resolve.
  */
 export async function showBlogInNav(): Promise<boolean> {
   const nav = await getNav();
-  return nav?.blog === true && (await getPosts()).length > 0;
+  return nav?.blog === true;
 }
