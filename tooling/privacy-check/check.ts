@@ -198,6 +198,9 @@ if (siteUrl !== undefined) {
 
 const bytes = captures.reduce((sum, c) => sum + c.text.length, 0);
 console.log(`  surface     ${captures.length} responses, ${(bytes / 1024).toFixed(1)} KB`);
+console.log(
+  `  breakdown   ${surface.breakdownNamesAudited} heatmap attribution name(s) audited structurally`,
+);
 
 /**
  * The tracked-source sweep.
@@ -298,10 +301,31 @@ for (const finding of surface.authFindings) {
 }
 if (surface.authFindings.length > 0) console.log('');
 
-if (leaks.length === 0) {
+/**
+ * The whitelist half, from `auditContributionBreakdown` in surface.ts.
+ *
+ * Printed separately from `leaks` because it is a different kind of failure: a
+ * leak is "a name we know is private turned up", this is "a name turned up that
+ * nobody ever sanctioned". The second catches the cases the corpus structurally
+ * cannot see — public-but-uncurated repos, and repos the deployment's PAT can
+ * read and this Mac's `gh` token cannot. Both fail the run.
+ */
+for (const finding of surface.breakdownFindings) {
+  console.log(`ATTRIB — ${finding}`);
+}
+if (surface.breakdownFindings.length > 0) console.log('');
+
+if (leaks.length === 0 && surface.breakdownFindings.length === 0) {
   console.log(
     `PASS — no private repo identifier, name or directory in ${captures.length} ` +
-      `public ${sweepTree ? 'responses and tracked files' : 'responses'}.`,
+      `public ${sweepTree ? 'responses and tracked files' : 'responses'}; ` +
+      `all ${surface.breakdownNamesAudited} heatmap attribution name(s) are published titles ` +
+      'or the neutral bucket.',
+  );
+} else if (leaks.length === 0) {
+  console.log(
+    `FAIL — no corpus leak, but ${surface.breakdownFindings.length} unsanctioned heatmap ` +
+      'attribution name(s) above.',
   );
 } else {
   console.log(`FAIL — ${leaks.length} leak(s):`);
@@ -313,4 +337,10 @@ if (leaks.length === 0) {
   }
 }
 
-process.exit(leaks.length === 0 && surface.authFindings.length === 0 ? 0 : 1);
+process.exit(
+  leaks.length === 0 &&
+    surface.authFindings.length === 0 &&
+    surface.breakdownFindings.length === 0
+    ? 0
+    : 1,
+);

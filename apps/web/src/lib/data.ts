@@ -337,7 +337,7 @@ function mapIdentity(source: IdentityRow): Identity {
 }
 
 /**
- * `gitStats` — field-for-field, with the calendar guarded.
+ * `gitStats` — field-for-field, with the calendar guarded and normalised.
  *
  * The one substitution: an *empty* `calendar` borrows the mock's grid. A snapshot
  * row written before the git cron exists (phase 4) has real totals and no grid,
@@ -345,6 +345,29 @@ function mapIdentity(source: IdentityRow): Identity {
  * here is a thrown exception on /resume, which is worse than an obviously
  * placeholder heatmap next to real numbers. Everything else is passed straight
  * through, including a `languages` list that may legitimately be empty.
+ *
+ * ── Why the grid is rebuilt rather than handed over ────────────────────────
+ *
+ * `byProject` — the per-day, per-project commit counts the heatmap's day popup
+ * lists — is `v.optional()` on the Convex row and **required** on the contract,
+ * and this function is the seam where that difference is settled. The optional
+ * is transitional (Convex validates existing documents at push time, and the
+ * stored singleton predates the field; see `contributionDay.byProject` in
+ * schema.ts), but "transitional" has to mean something in the type system for
+ * the duration, and what it means is here: a day with no breakdown becomes a day
+ * with an empty one.
+ *
+ * `[]` is a meaningful value rather than a fudge — the contract already defines
+ * an empty `byProject` on an active day as "this day happened, attribution could
+ * not speak for it", which is exactly the truth about a row written by the old
+ * cron. The popup renders the count and no breakdown, and starts listing
+ * projects on its own the first time the rebuilt cron writes the field.
+ *
+ * That costs a `.map()` over 364 cells per snapshot read, which is why it is
+ * worth saying why it is not conditional: a "does any day have it?" pre-check
+ * would still walk the grid, and a partially-populated calendar (mid-rollout,
+ * or a cron that failed halfway) is precisely the case a per-day default handles
+ * and a whole-grid decision gets wrong.
  */
 function mapGitStats(source: SnapshotRow["gitStats"]): GitStats {
   return {
@@ -354,7 +377,21 @@ function mapGitStats(source: SnapshotRow["gitStats"]): GitStats {
     publicRepoCount: source.publicRepoCount,
     currentStreakDays: source.currentStreakDays,
     calendar:
-      source.calendar.length > 0 ? source.calendar : mock.gitStats.calendar,
+      source.calendar.length > 0
+        ? source.calendar.map((week) =>
+            week.map((day) => ({
+              date: day.date,
+              count: day.count,
+              level: day.level,
+              project: day.project,
+              // The producer owns the ordering and the invariants (sorted
+              // descending, names unique, `sum ≤ count`). This does not re-sort
+              // or re-check: a reader that quietly repairs its input is a reader
+              // that hides a broken producer.
+              byProject: day.byProject ?? [],
+            })),
+          )
+        : mock.gitStats.calendar,
     languages: source.languages.map((l) => ({ name: l.name, pct: l.pct })),
   };
 }

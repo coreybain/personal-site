@@ -1,0 +1,12 @@
+{
+  "name": "@home/git-repo-map",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Seeds the private gitRepoMap table from a machine-local, gitignored file. Maps a repository to the public display name the heatmap's day popup is allowed to call it (ADR 008). Repository names never leave this Mac except into a Convex table with no public query.",
+  "scripts": {
+    "check": "bun run seed.ts",
+    "seed": "bun run seed.ts --push",
+    "counts": "bun run seed.ts --counts"
+  }
+}

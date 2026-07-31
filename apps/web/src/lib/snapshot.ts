@@ -31,13 +31,72 @@
 
 export type ContributionLevel = 0 | 1 | 2 | 3 | 4;
 
+/**
+ * One project's slice of one day's commits — `QuoteCloud · 5 commits`, as the
+ * heatmap's day popup prints it.
+ *
+ * ⚠️ `name` is a DISPLAY NAME and only ever a display name: a case-study title,
+ * a Lab title, or `OTHER_WORK` below. Never a repository identifier — not
+ * `pricing-portal-v2`, not `coreybain/boca`, not any owner/name pair, public or
+ * private. ADR 008 lives or dies on this field, because unlike every other
+ * number on the page this one is a *string the producer chose*, and it lands
+ * verbatim in a public tooltip. The live pipeline maps repositories to names
+ * server-side against a table with no public query; a repository it cannot name
+ * folds into `OTHER_WORK` rather than naming itself.
+ */
+export type ContributionProject = {
+  name: string;
+  /** Commits attributed to that name on that day. Always ≥ 1. */
+  commits: number;
+};
+
+/**
+ * The neutral bucket for commits the producer will not name — unmapped private
+ * work, and public-but-uncurated repos (ADR 014: junk repos stay unsurfaced).
+ *
+ * Real commits, honestly counted, deliberately not attributed. Hiding them would
+ * understate the day; naming them would break ADR 008.
+ *
+ * `OTHER_WORK_LABEL` in `@home/types` is the canonical declaration. It is copied
+ * here rather than imported because this module is import-free by doctrine — it
+ * is the zero-dependency fallback the `/v/*` studies render from, and it stays
+ * that way. Same string, three files (here, `@home/types`, the Convex cron), one
+ * owner.
+ */
+export const OTHER_WORK = 'Other work';
+
 export type ContributionDay = {
   /** ISO date, `YYYY-MM-DD`, UTC. */
   date: string;
   count: number;
   level: ContributionLevel;
-  /** Primary project receiving commits that day; null on an inactive day. */
+  /**
+   * The day's TOP project by commit count; `null` on an inactive day.
+   *
+   * A summary of `byProject`, not an independent fact: it is
+   * `byProject[0].name`, or `null`. It survives alongside the breakdown because
+   * it predates it and because consumers that will never grow a popup read it —
+   * the eight archived studies under `app/v/*`, which are pinned to this file
+   * and must not be touched. A producer may be stricter and leave it `null`
+   * while `byProject` is populated (the live cron refuses to label a day whose
+   * leader holds only a minority of it), but it may never name something that
+   * is absent from `byProject`.
+   *
+   * It cannot answer "which projects, how many each". That is `byProject`.
+   */
   project: string | null;
+  /**
+   * Per-project commit counts for that day. **Empty on an inactive day**, and
+   * legitimately empty on an active one the producer could not attribute — in
+   * which case the popup shows the count and no breakdown, which is the honest
+   * output rather than a missing one.
+   *
+   * Sorted by `commits` descending, ties by `name` ascending. Names unique.
+   * Every count ≥ 1. `sum(commits) ≤ count`: `count` is GitHub's *contribution*
+   * total (commits, but also PRs, reviews and issues), so the two need not meet
+   * and nothing may invent commits to close the gap.
+   */
+  byProject: ContributionProject[];
 };
 
 /** Seven days, Sunday → Saturday. One column of the heatmap. */
@@ -324,16 +383,126 @@ function levelFor(count: number): ContributionLevel {
   return 4;
 }
 
+/**
+ * How many *additional* projects a day of `count` commits can carry.
+ *
+ * The split below guarantees the primary project keeps a strict plurality — the
+ * contract says `project === byProject[0].name`, so a tie would make the mock's
+ * own summary field ambiguous. That guarantee needs room: with two extras taking
+ * at most 28% each, a day needs enough commits that flooring cannot collapse the
+ * shares into a three-way tie. Four and eight are where that stops being a risk.
+ *
+ * The effect is also true to life. A three-commit Sunday is one thing being
+ * poked at; a forty-commit Wednesday is a day that touched three.
+ */
+function extraProjectCapacity(count: number): number {
+  if (count < 4) return 0;
+  if (count < 8) return 1;
+  return 2;
+}
+
 function buildCalendar(): ContributionWeek[] {
   const rand = mulberry32(CALENDAR_SEED);
   const projectRand = mulberry32(CALENDAR_SEED ^ 0x51a7c0de);
+  /**
+   * A THIRD stream, seeded independently, and that is the whole trick.
+   *
+   * `byProject` was added to a file whose contract is byte-identical output
+   * forever. Drawing the split from `rand` or `projectRand` would have shifted
+   * every subsequent draw and silently rewritten twelve months of counts and
+   * labels — every `/v/*` study, every screenshot, every number anyone has ever
+   * quoted off this mock. A separate generator leaves both existing streams
+   * consuming exactly what they consumed before, so `date`, `count`, `level` and
+   * `project` are unchanged to the byte and `byProject` is pure addition.
+   */
+  const splitRand = mulberry32(CALENDAR_SEED ^ 0x5b1177e5);
 
-  const nextProject = (): (typeof CONTRIBUTION_PROJECTS)[number] => {
+  const nextProjectIndex = (): number => {
     const roll = projectRand();
-    if (roll < 0.4) return CONTRIBUTION_PROJECTS[0];
-    if (roll < 0.66) return CONTRIBUTION_PROJECTS[1];
-    if (roll < 0.84) return CONTRIBUTION_PROJECTS[2];
-    return CONTRIBUTION_PROJECTS[3];
+    if (roll < 0.4) return 0;
+    if (roll < 0.66) return 1;
+    if (roll < 0.84) return 2;
+    return 3;
+  };
+
+  /**
+   * Split one day's commits across one to three named buckets.
+   *
+   * Deterministic, exhaustive and ordered — the three properties the popup needs
+   * to be worth rendering:
+   *
+   *   • The shares sum to `count` exactly, so a reader can add the popup up and
+   *     get the number on the tile. (The live pipeline is allowed to fall short
+   *     — GitHub counts reviews and issues as contributions, and those are not
+   *     commits — but a mock that cannot even add up would be demonstrating the
+   *     wrong thing.)
+   *   • The primary keeps a strict plurality, so `project` stays exactly the
+   *     name it was before this field existed.
+   *   • Extras are distinct from the primary and from each other, drawn by
+   *     rotating through the project list rather than re-rolling, because
+   *     re-rolling can collide and "QuoteCloud · 4, QuoteCloud · 2" is not a
+   *     thing the contract permits.
+   */
+  const attribute = (count: number, primaryIndex: number): ContributionProject[] => {
+    if (count <= 0) return [];
+
+    const spread = splitRand();
+    const rotation = splitRand();
+
+    const wanted = spread < 0.42 ? 0 : spread < 0.78 ? 1 : 2;
+    const extras = Math.min(wanted, extraProjectCapacity(count));
+
+    // 0–2, so `1 + ((step + i) % 3)` is 1–3: never 0 (which would collide with
+    // the primary) and never repeated across the two extras.
+    const step = Math.floor(rotation * 3);
+
+    const entries: ContributionProject[] = [];
+    let remaining = count;
+
+    for (let i = 0; i < extras; i++) {
+      // 10–28% of what is left, at least one commit. The ceiling is what keeps
+      // the primary in front; the floor is what keeps a named project from
+      // appearing with zero commits beside it.
+      const share = 0.1 + splitRand() * 0.18;
+      const commits = Math.max(1, Math.floor(remaining * share));
+      remaining -= commits;
+
+      const offset = 1 + ((step + i) % 3);
+      entries.push({
+        name: CONTRIBUTION_PROJECTS[
+          (primaryIndex + offset) % CONTRIBUTION_PROJECTS.length
+        ],
+        commits,
+      });
+    }
+
+    // Roughly one day in four with a breakdown hands its smallest slice to the
+    // neutral bucket, so the popup demonstrates what the live site does with
+    // work it will not name. Only ever the *last* extra: `OTHER_WORK` must never
+    // lead a day, or `project` would print it as the day's headline.
+    if (entries.length > 0 && splitRand() < 0.28) {
+      entries[entries.length - 1] = {
+        name: OTHER_WORK,
+        commits: entries[entries.length - 1].commits,
+      };
+    }
+
+    entries.push({ name: CONTRIBUTION_PROJECTS[primaryIndex], commits: remaining });
+
+    // Descending by commits, ties broken by name, exactly as the contract says.
+    // The primary is provably the largest, so this is a formality for the
+    // extras — but the contract is a total order and a formality that is written
+    // down survives someone changing the share maths.
+    //
+    // Codepoint comparison, never `localeCompare`: this file's whole discipline
+    // is that the same import produces byte-identical output on every machine,
+    // and collation is exactly the kind of thing that differs between one
+    // machine's ICU build and another's.
+    entries.sort(
+      (a, b) => b.commits - a.commits || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0),
+    );
+
+    return entries;
   };
 
   // Columns run Sunday → Saturday, so the grid ends on the Saturday of the
@@ -369,11 +538,19 @@ function buildCalendar(): ContributionWeek[] {
         count = quiet < 0.06 ? 0 : Math.floor(r * 40) + 5;
       }
 
+      // One `nextProjectIndex()` call per active day, exactly as before — the
+      // breakdown is derived from the same draw rather than adding one.
+      const byProject = count > 0 ? attribute(count, nextProjectIndex()) : [];
+
       week.push({
         date: isoDate(ms),
         count,
         level: levelFor(count),
-        project: count > 0 ? nextProject() : null,
+        // `byProject` is sorted, so its head IS the top project. Reading the
+        // summary off the breakdown rather than tracking it separately is how
+        // the two are kept from ever disagreeing.
+        project: byProject[0]?.name ?? null,
+        byProject,
       });
     }
 
@@ -391,7 +568,12 @@ function buildCalendar(): ContributionWeek[] {
     if (day.count === 0) {
       day.count = Math.floor(streakRand() * 6) + 1;
       day.level = levelFor(day.count);
-      day.project = nextProject();
+      // Same order of operations as an ordinary day: draw the primary, split the
+      // count, read the summary back off the head. A day rescued for the streak
+      // is a day like any other and must not be the one that violates the
+      // `project === byProject[0].name` rule.
+      day.byProject = attribute(day.count, nextProjectIndex());
+      day.project = day.byProject[0]?.name ?? null;
     }
   }
 

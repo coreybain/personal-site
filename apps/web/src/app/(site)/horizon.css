@@ -1582,6 +1582,88 @@
   text-transform: uppercase;
 }
 
+/*
+ * The scope line — "3 projects" — which replaces the project name in the total
+ * row on any day that carries a breakdown.
+ *
+ * It drops to the mono micro-caps used for the date and the "commits" caption
+ * rather than staying in the project name's 12px body face, because it is a
+ * caption now: the names moved to the list below it, and the row's remaining
+ * job is to say how many things the big number is spread across. Same face as
+ * the two labels bracketing it, so the popup reads as one object.
+ */
+.hor .hor-heat-tooltip-project.is-scope {
+  color: var(--hor-ink-3);
+  font-family: var(--font-hor-mono), ui-monospace, monospace;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/*
+ * The per-project breakdown: "QuoteCloud … 12".
+ *
+ * A hairline rather than a heading separates it from the total, because the
+ * relationship is obvious from the arithmetic and a "BY PROJECT" label would
+ * be a third caption in a 196px box. `--hor-line` and not `--hor-line-strong`:
+ * the tooltip's own border is already line-strong, and matching it inside would
+ * read as two stacked panels instead of one panel with a rule in it.
+ */
+.hor .hor-heat-tooltip-split {
+  display: grid;
+  gap: 0.3rem;
+  margin: 0.5rem 0 0;
+  padding: 0.45rem 0 0;
+  border-top: 1px solid var(--hor-line);
+  list-style: none;
+}
+
+.hor .hor-heat-tooltip-split li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  min-width: 0;
+  gap: 0.6rem;
+}
+
+/*
+ * Names truncate; counts never do. A project name is recoverable from a
+ * truncation ("QuoteClo…" is still QuoteCloud to anyone who knows the work),
+ * a clipped number is not — "1" and "12" are different claims. So the name
+ * takes all the slack and the count is `flex: none`.
+ */
+.hor .hor-heat-tooltip-split li > span {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--hor-ink-2);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hor .hor-heat-tooltip-split li > b {
+  flex: none;
+  color: var(--hor-ink-3);
+  font-family: var(--font-hor-mono), ui-monospace, monospace;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.25;
+}
+
+/* "+2 more" — the overflow row. Quieter than a name, because it is not one. */
+.hor .hor-heat-tooltip-split .is-rest > span {
+  color: var(--hor-ink-4);
+  font-family: var(--font-hor-mono), ui-monospace, monospace;
+  font-size: 8px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 @keyframes hor-heat-tooltip-in {
   from {
     opacity: 0;

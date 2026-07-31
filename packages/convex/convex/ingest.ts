@@ -53,7 +53,7 @@
  *
  * ── Upsert semantics, stated once ─────────────────────────────────────────
  *
- * Both tables are keyed on the day (`aiUsageDays` on `(day, agent)`,
+ * Both tables are keyed on the day (`aiUsageDays` on `(day, agent, machine)`,
  * `healthDays` on `day`) and both mutations **patch an existing row rather than
  * inserting a second one**. This is load-bearing: the Collector re-scans a
  * trailing window on every run and the phone re-posts today's steps whenever
@@ -63,6 +63,31 @@
  *
  * Re-posting a day therefore *replaces* it. The newer number wins; there is no
  * merge, no max, no sum. The producer owns the day and knows the truth about it.
+ *
+ * ── …and the third of the AI key that says WHICH producer ─────────────────
+ *
+ * "The producer owns the day" is only a coherent sentence once the row records
+ * which producer. The Collector runs on more than one computer, and keyed
+ * `(day, agent)` the second machine to post a day did not add to the first —
+ * it *replaced* it, silently, with this mutation returning `daysUpdated: 1` as
+ * though that were the correct outcome. A laptop and a desktop both working on
+ * the 30th produced one row containing whichever of them ran last.
+ *
+ * `machine` (from the push envelope: one push, one computer) is the third of the
+ * key. Each machine owns its own claim about a day; a re-push replaces that
+ * claim and touches nothing else; N machines are additive. Health needs no
+ * equivalent because a day has exactly one step count, and a `manual` correction
+ * is *meant* to overwrite the watch.
+ *
+ * Two consequences, both live in this file:
+ *
+ *   1. **A `(day, agent)` lookup is now a collection, not a `.unique()`.** The
+ *      upsert below reads the full triple. Anything that reads two-thirds of the
+ *      key gets one row per machine and must sum them.
+ *   2. **`machine` is required on the body.** A push without it is a `400` with
+ *      the reason spelled out, not a default. A collector too old to send the
+ *      field is a collector that will silently clobber another machine's rows,
+ *      so it has to fail where somebody will see it — see `parseMachineLabel`.
  */
 
 import type { FunctionReference } from 'convex/server';
@@ -393,6 +418,76 @@ function parseSlug(value: unknown, field: string): ParseResult<string> {
   return { ok: true, value };
 }
 
+const MACHINE_LABEL_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
+
+/** `MachineLabelSchema`'s ceiling, restated. */
+const MAX_MACHINE_LABEL_LENGTH = 32;
+
+/**
+ * Which computer this push is speaking for. Mirrors `MachineLabelSchema`.
+ *
+ * ═══════════════════════════════════════════════════════════════════════════
+ *  REQUIRED. AN OLD COLLECTOR MUST FAIL HERE RATHER THAN CLOBBER SILENTLY.
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * This is a **breaking change to the wire format**, and it is breaking on
+ * purpose. A collector built before `machine` existed sends a body that is
+ * perfectly well-formed by the old contract and catastrophic under the new one:
+ * its rows would need a label to be keyed by, and any label this endpoint
+ * invented for it — `'unknown'`, `'default'`, `''` — would be *shared* with
+ * every other machine that also forgot, putting them back in the same bucket,
+ * overwriting each other, exactly as before. The failure would be invisible: a
+ * `200`, a plausible `daysUpdated`, and a number on the homepage quietly missing
+ * whatever the other computer did.
+ *
+ * So there is no default and no fallback. The message below names the field, the
+ * shape, and the reason, because the reader is a launchd log at 09:20 on a
+ * machine nobody is watching. Fix: upgrade the collector, or set `machineId`.
+ *
+ * ── Why the shape is this narrow ──────────────────────────────────────────
+ *
+ * Lowercase alphanumerics and hyphens, 1–32 characters. The narrowness is the
+ * privacy control (see the header of `@home/types`/ingest.ts): the field's job
+ * is to make two rows distinct, and an operator-chosen `'laptop'` does that as
+ * well as anything. `Corey's MacBook Pro.local` and `/Users/coreybaines` do not
+ * match this pattern, so an accidental `os.hostname()` or a path pasted into a
+ * config is a `400` rather than a stored fact about somebody's living room.
+ *
+ * Uppercase is rejected rather than lowercased for the same reason `parseIsoDate`
+ * refuses to normalise February 31st: this value is part of a key. `Laptop` and
+ * `laptop` silently becoming one row is a merge nobody asked for, and silently
+ * staying two is a split; refusing the input is the only answer that cannot be
+ * wrong later.
+ */
+function parseMachineLabel(value: unknown, field: string): ParseResult<string> {
+  if (value === undefined) {
+    return fail(
+      field,
+      "Missing 'machine'. Every AI-usage push must say which computer produced it" +
+        ' — it is part of the (day, agent, machine) upsert key, and without it one' +
+        " machine's rows overwrite another's. Upgrade tooling/collector, or set" +
+        ' `machineId` in collector.config.json (e.g. "laptop").',
+    );
+  }
+  if (
+    typeof value !== 'string' ||
+    value.length < 1 ||
+    value.length > MAX_MACHINE_LABEL_LENGTH
+  ) {
+    return fail(
+      field,
+      `Expected a machine label of 1–${MAX_MACHINE_LABEL_LENGTH} characters, got ${describe(value)}.`,
+    );
+  }
+  if (!MACHINE_LABEL_PATTERN.test(value)) {
+    return fail(
+      field,
+      `Expected a short lowercase machine label such as "laptop" or "work-desktop", got ${JSON.stringify(value)}. Hostnames, paths and capitals are refused deliberately — this label is stored and is part of the upsert key.`,
+    );
+  }
+  return { ok: true, value };
+}
+
 /** A non-negative integer count, bounded. */
 function parseCount(value: unknown, field: string, max: number): ParseResult<number> {
   if (typeof value !== 'number' || !Number.isFinite(value)) {
@@ -462,10 +557,16 @@ export type AiUsageDayInput = {
 /** The whole `POST /ingest/ai-usage` body. Mirrors `AiUsageIngestSchema`. */
 export type AiUsageIngestInput = {
   days: AiUsageDayInput[];
+  /**
+   * Which computer produced these numbers. On the envelope, not per day: one
+   * push comes from one machine, and a body claiming to be two at once is not
+   * something any honest producer could build.
+   */
+  machine: string;
   postedAt: string;
 };
 
-const AI_USAGE_BODY_KEYS = ['days', 'postedAt'] as const;
+const AI_USAGE_BODY_KEYS = ['days', 'machine', 'postedAt'] as const;
 const AI_USAGE_DAY_KEYS = ['day', 'agent', 'sessions', 'hours', 'projects'] as const;
 const AI_USAGE_PROJECT_KEYS = ['projectSlug', 'sessions', 'hours'] as const;
 
@@ -487,6 +588,11 @@ const AI_USAGE_PROJECT_KEYS = ['projectSlug', 'sessions', 'hours'] as const;
  *   • No `(day, agent)` appears twice, and no `projectSlug` twice within a day.
  *     The mutation reads its own writes, so a duplicate would silently mean
  *     "last one wins" — a lossy answer to what is unambiguously a producer bug.
+ *     Note this stays `(day, agent)` and not the full key: `machine` is fixed
+ *     for the whole body, so within one push the pair *is* the key.
+ *   • `machine` is present and is a label. See `parseMachineLabel` for why a
+ *     missing one is a `400` rather than a default — it is the one change here
+ *     that will break an existing producer, and it has to.
  */
 export function parseAiUsageBody(raw: unknown): ParseResult<AiUsageIngestInput> {
   if (!isPlainObject(raw)) {
@@ -495,6 +601,12 @@ export function parseAiUsageBody(raw: unknown): ParseResult<AiUsageIngestInput> 
 
   const unknownKey = rejectUnknownKeys(raw, AI_USAGE_BODY_KEYS, '');
   if (unknownKey !== null) return { ok: false, problem: unknownKey };
+
+  // Checked before `days`, deliberately. An old collector's body is otherwise
+  // entirely valid, and reporting "machine is missing" beats letting it get as
+  // far as a per-day error that says nothing about the real problem.
+  const machine = parseMachineLabel(raw.machine, 'machine');
+  if (!machine.ok) return machine;
 
   const postedAt = parseIsoDateTime(raw.postedAt, 'postedAt');
   if (!postedAt.ok) return postedAt;
@@ -553,7 +665,7 @@ export function parseAiUsageBody(raw: unknown): ParseResult<AiUsageIngestInput> 
     if (seenDayAgents.has(key)) {
       return fail(
         `${at}.day`,
-        `Duplicate (day, agent) pair ${day.value}/${agent} in one push. Aggregate before posting; the route replaces a day rather than adding to it.`,
+        `Duplicate (day, agent) pair ${day.value}/${agent} in one push from machine ${machine.value}. Aggregate before posting; the route replaces this machine's row for that day rather than adding to it.`,
       );
     }
     seenDayAgents.add(key);
@@ -627,7 +739,7 @@ export function parseAiUsageBody(raw: unknown): ParseResult<AiUsageIngestInput> 
     days.push({ day: day.value, agent, sessions: sessions.value, hours: hours.value, projects });
   }
 
-  return { ok: true, value: { days, postedAt: postedAt.value } };
+  return { ok: true, value: { days, machine: machine.value, postedAt: postedAt.value } };
 }
 
 /** One day of movement, as parsed. Mirrors `HealthDayIngestSchema`. */
@@ -773,6 +885,17 @@ export function parseHealthBody(raw: unknown): ParseResult<HealthIngestInput> {
  * first cron), or a Snapshot whose calendar came back empty (no PAT, a GitHub
  * outage that still returned a shell).
  */
+/**
+ * …and the second thing the two writers must agree about: **summing machines**.
+ *
+ * Both folds — this file's `recordAiUsage` and `snapshotBuild.foldAiUsage` — are
+ * range reads over `aiUsageDays` that add up every row they see, and both are
+ * therefore already correct now that a day has one row *per machine* rather than
+ * one row. That is not luck, but it is fragile in one specific way worth naming:
+ * either fold could be "optimised" into a per-(day, agent) lookup, which would
+ * have been harmless under the old key and now silently drops every computer but
+ * one. Neither may use `.unique()` on anything shorter than the full triple.
+ */
 async function aiStatsWindowStart(ctx: MutationCtx): Promise<string> {
   const snapshot = await ctx.db.query('snapshot').order('desc').first();
   const firstDay = snapshot?.gitStats.calendar[0]?.[0]?.date;
@@ -820,6 +943,14 @@ async function aiStatsWindowStart(ctx: MutationCtx): Promise<string> {
  * before the patch overwrites them. The hourly cron reconciles every other
  * project; this keeps the ones that just changed honest immediately.
  *
+ * ── One machine, one claim ────────────────────────────────────────────────
+ *
+ * `machine` comes off the envelope and is stamped onto every row this push
+ * writes, so the lookup below is the full `(day, agent, machine)` triple. Two
+ * computers reporting the same day now hold two rows, and both folds add them
+ * up. The mutation cannot express "overwrite somebody else's day", which is the
+ * point: it is not a rule being followed, it is a shape with no way to say it.
+ *
  * @returns `{ daysCreated, daysUpdated, projectsUpdated, projectsCleared, unmappedProjects }`
  *   — counts only. `unmappedProjects` is the number of slugs with no matching
  *   `projects` row; the slugs themselves are not echoed, per ADR 008.
@@ -841,6 +972,18 @@ export const recordAiUsage = internalMutation({
         ),
       }),
     ),
+    /**
+     * The pushing computer's label — `machineLabel` in schema.ts, which is
+     * itself a `v.string()`: Convex validators cannot express a pattern, so the
+     * narrowing lives in `parseMachineLabel` above and in `MachineLabelSchema`.
+     * Declared here rather than per day because the row-level field is copied
+     * from this one value, and a per-day `machine` would let a caller that
+     * skipped the parser write two computers' claims in one transaction.
+     *
+     * Not imported from schema.ts because `machineLabel` is module-private
+     * there; `v.string()` is the identical validator either way.
+     */
+    machine: v.string(),
     postedAt: v.string(),
   },
   handler: async (ctx, args) => {
@@ -861,9 +1004,18 @@ export const recordAiUsage = internalMutation({
     const touched = new Set<string>();
 
     for (const day of args.days) {
+      // THE upsert key: the full triple, off `by_day_agent_machine`. Reading
+      // only `(day, agent)` here is the clobbering bug — it would return some
+      // other computer's row and patch this machine's numbers over it. `.first()`
+      // rather than `.unique()` because the index is a prefix match and the
+      // three-field probe is unique by construction; `.unique()` would add a
+      // throw for a case that cannot arise and would tempt a future edit to
+      // shorten the probe to make it "work".
       const existing = await ctx.db
         .query('aiUsageDays')
-        .withIndex('by_day_agent', (q) => q.eq('day', day.day).eq('agent', day.agent))
+        .withIndex('by_day_agent_machine', (q) =>
+          q.eq('day', day.day).eq('agent', day.agent).eq('machine', args.machine),
+        )
         .first();
 
       // Read the outgoing breakdown BEFORE the patch replaces it, or a dropped
@@ -880,6 +1032,16 @@ export const recordAiUsage = internalMutation({
       const fields = {
         day: day.day,
         agent: day.agent,
+        // Redundant on the patch path — it is the value the row was found by —
+        // and written anyway so `fields` is one shape for both branches. A
+        // row-level `machine` that could differ from the one in the key would be
+        // a row nothing could find again.
+        //
+        // It also means the migration's `'pre-multi-machine'` rows are never
+        // rewritten by an ingest: the lookup cannot match them under a real
+        // label, so they stay as the honest record of "written before machines
+        // were distinguished" and are summed alongside everything else.
+        machine: args.machine,
         sessions: day.sessions,
         hours: day.hours,
         projects: day.projects,
@@ -911,11 +1073,19 @@ export const recordAiUsage = internalMutation({
       /** slug → `{ sessions, hours }` across every stored day in the window. */
       const totals = new Map<string, { sessions: number; hours: number }>();
 
-      // `by_day_agent` is usable from its `day` prefix — schema.ts says so, and
-      // it is why there is no separate `by_day`. Same range read as the fold.
+      // `by_day_agent_machine` is usable from its `day` prefix — schema.ts says
+      // so, and it is why there is no separate `by_day`. Same range read as
+      // `snapshotBuild.foldAiUsage`, over the same window, off the same index.
+      //
+      // Every row in the window is summed, which is what makes this correct
+      // across machines: one day now yields up to `machines × agents` rows and
+      // a project's total is the sum of its slices in all of them. Narrowing
+      // this read to the pushing machine would be the tempting optimisation and
+      // the wrong one — `aiBuildStats` is the project's total effort, not this
+      // laptop's.
       const rows = await ctx.db
         .query('aiUsageDays')
-        .withIndex('by_day_agent', (q) => q.gte('day', windowStart))
+        .withIndex('by_day_agent_machine', (q) => q.gte('day', windowStart))
         .collect();
 
       for (const row of rows) {

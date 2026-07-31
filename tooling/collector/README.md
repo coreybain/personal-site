@@ -19,8 +19,8 @@ bun test                 # the privacy tests
 
 ## What leaves the machine
 
-Exactly this, and the JSON below is the whole payload — there is no envelope, no
-client version, no hostname, no run id:
+Exactly this, and the JSON below is the whole payload — no client version, no
+run id, no hostname:
 
 ```jsonc
 {
@@ -35,12 +35,27 @@ client version, no hostname, no run id:
       ]
     }
   ],
+  "machine": "laptop",            // which computer this is — see below
   "postedAt": "2026-07-31T09:20:04.117Z"
 }
 ```
 
-Six kinds of value: a date, an agent id, a slug, two counts and an instant. No
-prompts, no code, no file contents, no filenames, no directory names, no paths.
+Seven kinds of value: a date, an agent id, a slug, two counts, an instant, and
+one short machine label. No prompts, no code, no file contents, no filenames, no
+directory names, no paths.
+
+`machine` is the only one of those that is not a number, a date or a slug, so it
+is worth being precise about. It is a label like `laptop` or `work-desktop`,
+1–32 characters of `[a-z0-9-]`, and its entire job is to make two computers'
+rows distinct on the server. It is **not a hostname**: the shape has no room for
+one, and a `Coreys-MacBook-Pro.local` posted into that field is refused with a
+400 rather than stored.
+
+If you do not set it, the collector derives a label from this computer's short
+hostname, sanitised to fit — and says so, loudly, on every run. That fallback
+exists so a new machine works before it is configured, not because a derived
+label is a good one; on this Mac it produces `macos-c02dn08x0kpf`, which is a
+hardware serial. **Set `machineId`.**
 
 ### How that is enforced rather than promised
 
@@ -77,8 +92,10 @@ no free-form fields and must not gain any.
 builds payloads from fixtures whose prompts contain absolute paths, fake API
 keys, filenames and marker strings, then asserts:
 
-- every key in the serialised payload is one of eight allowed names;
-- every string in it is a date, an agent id, or a slug from the config;
+- every key in the serialised payload is one of nine allowed names;
+- every string in it is a date, an agent id, a slug from the config, or the
+  exact machine label the run was given — and a path fed to `sanitiseMachineId`
+  comes back with no separator, no dot and no capital, or comes back `null`;
 - everything else is a finite, non-negative number;
 - the bytes contain no `/`, no `\`, no `users`, and none of the markers;
 - the dry-run summary — which gets printed to a log file — is aggregate-only too;
@@ -165,6 +182,103 @@ Some seeded slugs have no matching directory on this machine — `traveldocs`,
 `soldonline`, `statline` and `pintlog` at the time of writing. They will report
 no AI usage, correctly, because none was measured here. Add an entry to `repos`
 if a checkout appears.
+
+---
+
+## Several computers
+
+The collector runs on more than one machine, and until recently that quietly did
+not work.
+
+`aiUsageDays` was keyed on (`day`, `agent`). The laptop would post *2026-07-30 ·
+claude · 6 sessions*, the desktop would post its own *2026-07-30 · claude · 2
+sessions*, and the second push **overwrote** the first. Not double-counted —
+erased, with the endpoint answering `200` and `daysUpdated: 1` as though it had
+done the right thing. The homepage silently showed whichever computer pushed
+last.
+
+The key is now (`day`, `agent`, `machine`), and `machine` is a label this
+collector sends on every push:
+
+```jsonc
+// collector.config.json
+"machineId": "laptop"
+```
+
+- **Additive.** Two machines reporting the same day hold two rows. Every fold —
+  `snapshot.aiUsage`, `projects.aiBuildStats` — sums them, exactly as it already
+  summed across agents.
+- **Idempotent, per machine.** A re-push replaces *this* machine's row for a day
+  and touches no other machine's. Re-running is still free; the weekly overlap
+  is still free.
+- **Independent.** Machines never need to coordinate, agree on a schedule, or
+  know that the others exist.
+
+### Choosing a label
+
+Lowercase letters, digits and hyphens, 1–32 characters, starting with a letter
+or digit. `laptop`, `work-desktop`, `mini`. Resolution order:
+
+1. `$COLLECTOR_MACHINE_ID` — a per-run override.
+2. `machineId` in `collector.config.json` — where it belongs.
+3. A sanitised short hostname — the fallback, which warns on every run.
+
+A configured label is **validated, never repaired**: `"Work Laptop"` is an error
+rather than a silent rewrite to `work-laptop`, because a value that is part of a
+key must mean the same thing in your file and in the database.
+
+> **Choose it once and leave it alone.** Renaming a machine splits its history:
+> the old label's rows stay where they are and keep counting, the new label
+> re-sends the lookback window under its own name, and the overlap is counted
+> twice. If a machine is retired, leave its rows too — the work happened.
+
+### Setting up a second machine
+
+```sh
+cp collector.config.example.json collector.config.json
+# edit: machineId, and the `repos` mapping for THIS machine's checkouts
+bun run inventory          # what is on this machine and how it maps
+bun run collect            # dry run
+bun run collect:push
+./launchd/install.sh
+```
+
+Each machine needs its own `repos` mapping (it describes where *that* computer
+keeps its checkouts) and can use its own token — two tokens means either can be
+revoked alone, which is the whole point of scoped tokens.
+
+### ⚠️ Breaking change: `machine` is required
+
+A collector too old to send it gets **`400 malformed-body`, field `machine`**,
+with the fix in the message, and `push.ts` does not retry 4xx. Upgrade it or set
+`machineId`.
+
+The server has no default and will not invent one, deliberately: any label it
+made up would be shared by *every* collector that forgot to send one, putting
+them all back in a single bucket to overwrite each other — the original bug with
+a server-side excuse. One loud line per day in the launchd log beats a month of
+`200`s that quietly lose a machine's data.
+
+### If a machine has been pushing already
+
+Rows written before `machine` existed are stamped `pre-multi-machine` by
+`migrations:stampLegacyMachineLabels`. Those rows were written by *some*
+computer, and once that computer starts pushing under a real label its lookback
+window arrives as a second set of rows describing the same sessions — which the
+folds then add up. Hand them over once:
+
+```sh
+cd packages/convex
+bunx convex run migrations:adoptLegacyMachineRows '{"machine":"laptop"}'
+```
+
+Legacy rows the machine has not re-sent are relabelled; ones it has are deleted
+in favour of the fresh push. Idempotent, and safe before or after that machine's
+first labelled push.
+
+A label that should never have existed — a typo, or a test machine — is removed
+with `migrations:deleteMachineRows '{"machine":"…"}'`, followed by a
+`gitStats:rebuild` to refold. A *retired* machine is not that: leave it.
 
 ---
 
@@ -267,10 +381,12 @@ comes from the totals and `projects.aiBuildStats` from the breakdown; neither is
 derivable from the other.
 
 **The window is `lookbackDays` (7) ending today, and every day in it is a
-complete recomputation.** Each row upserts on (`day`, `agent`) server-side, so
-re-sending is a no-op rather than a doubling — which is what makes a week of
-overlap free, and what makes a missed run self-healing. Today's row is always
-incomplete and is replaced tomorrow.
+complete recomputation.** Each row upserts on (`day`, `agent`, `machine`)
+server-side, so re-sending is a no-op rather than a doubling — which is what
+makes a week of overlap free, and what makes a missed run self-healing. Today's
+row is always incomplete and is replaced tomorrow. The `machine` third of that
+key is what keeps the no-op from being a no-op *for somebody else's data*; see
+§ Several computers.
 
 The scanners deliberately look one day further back than the window and let the
 builder discard the overshoot. Both filter on coarse signals — file mtime for
@@ -287,6 +403,7 @@ paste:
   AI usage collector — 2026-07-24 … 2026-07-30 (UTC, 7 days)
   scanned in 0.1s — claude: 11 transcripts read, 16 older than window, 0 unusable,
                     codex: 76 first-lines read, 215 day dirs skipped, 0 unusable
+  machine              laptop (from config)
 
   sessions in window   81
   hours in window      57.26
@@ -319,6 +436,7 @@ fields optional except `convexSiteUrl` and `repos`:
 
 | field | default | |
 |---|---|---|
+| `machineId` | sanitised short hostname | This computer's label — a third of the server's upsert key. Set it; the default warns. Override per-run with `$COLLECTOR_MACHINE_ID`. See § Several computers. |
 | `convexSiteUrl` | — | Convex **HTTP actions** origin: `https://<deployment>.convex.site`, *not* `.convex.cloud`. Override per-run with `$COLLECTOR_CONVEX_SITE_URL`. |
 | `tokenEnvVar` | `COLLECTOR_INGEST_TOKEN` | Environment variable holding the plaintext token. |
 | `tokenFile` | `~/.config/home-collector/token` | Fallback when the environment has none — the path that works under launchd. |
@@ -336,7 +454,7 @@ fields optional except `convexSiteUrl` and `repos`:
 | | |
 |---|---|
 | `collector.ts` | CLI. Dry run is the default; `--push` is the only route to the network. |
-| `config.ts` | Config loading, token resolution, and the repo→slug resolver. |
+| `config.ts` | Config loading, token resolution, the machine label, and the repo→slug resolver. |
 | `sessions.ts` | `SessionSample`, the duration estimators, UTC day attribution. |
 | `scan-claude.ts` | `~/.claude/projects` → samples, by streaming for timestamps. |
 | `scan-codex.ts` | `~/.codex/sessions` → samples, by reading line 1 only. |

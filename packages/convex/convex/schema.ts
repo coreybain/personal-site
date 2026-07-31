@@ -97,6 +97,16 @@ const isoDate = v.string();
 /** Lowercase kebab-case identifier. `SlugSchema`. */
 const slug = v.string();
 
+/**
+ * Short operator-chosen machine label, e.g. `'laptop'`. `MachineLabelSchema`.
+ *
+ * NOT a hostname and never derived from one — the length and alphabet limits in
+ * `@home/types` exist to make an accidental `os.hostname()` a rejected request.
+ * The Zod schema is where that is enforced; this alias is the mirror's reminder
+ * that a bare `v.string()` here is not "anything goes".
+ */
+const machineLabel = v.string();
+
 /* ------------------------------------------------------------------ *
  * Shared validators
  *
@@ -213,6 +223,25 @@ export const healthSource = v.union(
 export const aiBuildStats = v.object({ sessions: v.number(), hours: v.number() });
 
 /**
+ * One project's slice of one day's commits. Mirrors `ContributionProjectSchema`.
+ *
+ * ⚠️ `name` IS A DISPLAY NAME. A case-study title (`'QuoteCloud'`), a Lab title
+ * (`'statline'`), or the neutral bucket `'Other work'`. It is **never** a
+ * repository identifier — not `pricing-portal-v2`, not `coreybain/boca`, not any
+ * owner/name pair, public or private. ADR 008 in the one place it is easiest to
+ * break: this is a producer-chosen string that lands verbatim in a public
+ * tooltip, so the mapping from repo → name happens in the git cron against
+ * `gitRepoMap` (below) and a repo with no entry folds into `'Other work'`
+ * rather than naming itself.
+ */
+const contributionProject = v.object({
+  /** Display name. See the warning above. */
+  name: v.string(),
+  /** Commits attributed to that name on that day. Always ≥ 1. */
+  commits: v.number(),
+});
+
+/**
  * One cell of the GitHub contribution heatmap. Mirrors `ContributionDaySchema`.
  *
  * `level` is the 0–4 bucket the UI colours from. It is precomputed rather than
@@ -231,11 +260,35 @@ const contributionDay = v.object({
     v.literal(4),
   ),
   /**
-   * Display title of the project receiving most of that day's commits; `null`
-   * on an inactive day. ADR 008: only named, attributed projects ever appear
-   * here — this string is rendered in a public tooltip.
+   * The day's TOP project by commit count, or `null` on an inactive or
+   * unattributed day — a summary of `byProject`, not a fact of its own. The
+   * rule is `project ∈ { byProject[0].name, null }`: the leader's name, or
+   * nothing, never a name absent from the breakdown.
+   *
+   * Kept alongside `byProject` because it predates it and is read by consumers
+   * that will never grow a popup (the archived variants under
+   * `apps/web/src/app/v/*`). ADR 008: only named, attributed projects ever
+   * appear here — this string is rendered in a public tooltip.
    */
   project: v.union(v.string(), v.null()),
+  /**
+   * Per-project commit counts for that day — what the heatmap's day popup
+   * lists. `[]` on an inactive day, and legitimately `[]` on an active one
+   * whose commits could not be attributed.
+   *
+   * Sorted by `commits` descending (ties by `name` ascending), names unique,
+   * every count ≥ 1, and `sum(commits) ≤ count` — the gap is real (GitHub's
+   * `count` includes PRs, reviews and issues, which are not commits) and is
+   * left unexplained rather than padded. `ContributionDaySchema` in
+   * `@home/types` carries the full statement of these invariants.
+   *
+   * Required since the first post-attribution rebuild rewrote the whole row
+   * (the calendar is derived, not authored, so there was never a backfill to
+   * write — one cron pass was the migration). `mapGitStats` in
+   * `apps/web/src/lib/data.ts` still tolerates `undefined` for the mock-era
+   * fallback shape, which costs nothing and keeps zero-env rendering.
+   */
+  byProject: v.array(contributionProject),
 });
 
 /**
@@ -777,7 +830,8 @@ export default defineSchema({
    *     bearer token (ADR 006a). No admin mutation, no user session.
    *   • Read ONLY by the hourly cron that folds them onto the Snapshot. No
    *     page query, no iOS query, no public function returns a row from here.
-   *   • Keyed by the day they describe, and UPSERTED. Never appended to.
+   *   • Keyed by the day they describe — plus, for AI usage, by *who is
+   *     claiming it* — and UPSERTED. Never appended to.
    *
    * The last one is the whole design. A push is a claim about a day, and days
    * get revised: HealthKit restates a step count once the watch syncs, the
@@ -785,14 +839,22 @@ export default defineSchema({
    * for a week posts seven days at once. An endpoint that added to a running
    * total would double-count all three and could never correct a single day.
    * Replacing the day makes a re-send idempotent by construction, so the fold
-   * always sees exactly one truth per day and "run it again" is always safe.
+   * always sees exactly one truth per claim and "run it again" is always safe.
+   *
+   * "Per claim" rather than "per day" because the two tables differ on who may
+   * claim a day, and the difference is deliberate. A day has exactly one step
+   * count, so `healthDays` is keyed on `day` alone and a `manual` correction is
+   * *meant* to overwrite the watch. A day's agent usage, by contrast, is the sum
+   * of what several computers did, and each of them may only speak for itself —
+   * hence `(day, agent, machine)`. Keyed on `(day, agent)`, the second machine
+   * to post silently erased the first.
    *
    * Both mirror schemas in `@home/types`/ingest.ts, which carries the longer
    * version of this reasoning.
    * ================================================================== */
 
   /**
-   * AI usage, one row per (day, agent). Mirrors `AiUsageDaySchema`.
+   * AI usage, one row per (day, agent, machine). Mirrors `AiUsageDaySchema`.
    *
    * ── Written by ──  Pipeline 2, `POST /ingest/ai-usage`, scope
    *                   `ai-usage:write`. Producer is `tooling/collector`: a Bun
@@ -818,17 +880,59 @@ export default defineSchema({
    * from the totals and the case-study numbers from the breakdown, never derive
    * one from the other.
    *
-   * Size, because it decides the query strategy: two agents × 365 days is ~730
-   * rows a year. Every fold below is a full-table read summed in memory, which
-   * at that scale is correct and cheap. That is also why there is no separate
-   * per-project table — it would trade a trivial in-memory group-by for a second
-   * table to keep consistent.
+   * Size, because it decides the query strategy: two agents × 365 days × a
+   * couple of computers is ~1,500 rows a year. Every fold below is a full-table
+   * read summed in memory, which at that scale is correct and cheap. That is
+   * also why there is no separate per-project table — it would trade a trivial
+   * in-memory group-by for a second table to keep consistent.
+   *
+   * ── The key is a TRIPLE, and the fold must sum ─────────────────────────────
+   *
+   * The collector runs on more than one computer. Keyed `(day, agent)`, the
+   * second machine to post a day *erased* the first — not double-counted,
+   * erased, with the endpoint reporting `daysUpdated: 1` as though that were
+   * correct. `machine` is the third of the key, so a push replaces only its own
+   * previous claim: N machines are additive, and any machine may re-send any day
+   * as often as it likes without disturbing the others.
+   *
+   * The consequence for every reader: a single day now has up to
+   * `machines × agents` rows and they must be SUMMED. A fold that still assumes
+   * one row per (day, agent) under-reports by whatever the other computers did,
+   * which is the same bug the key change fixes, wearing a different hat.
    */
   aiUsageDays: defineTable({
     /** The calendar day reported, UTC. A label, not a timestamp. */
     day: isoDate,
-    /** `'claude'` | `'codex'`. The machine id — see `aiAgent`. */
+    /** `'claude'` | `'codex'`. The agent id — see `aiAgent`. */
     agent: aiAgent,
+    /**
+     * Which computer reported it — the third of the upsert key. Copied from the
+     * push envelope onto every row of that push.
+     *
+     * An operator-chosen opaque label (`'laptop'`, `'work-desktop'`), never a
+     * hostname: the collector's standing promise is that it says nothing about
+     * the machine it runs on, and `MachineLabelSchema` in `@home/types` is
+     * narrow enough that an accidental `os.hostname()` is rejected at the HTTP
+     * boundary. Nothing public reads it — the site cannot tell you how many
+     * computers there are.
+     *
+     * ⚠️ TRANSITIONALLY OPTIONAL — promote to `machineLabel`. Required in
+     * `AiUsageDaySchema`, which is the contract; optional here only because
+     * Convex validates existing documents at push time and this deployment
+     * holds rows written before the field existed. The sequence is the standard
+     * Convex three-step and the middle step is already built:
+     *
+     *   1. push it optional (this commit),
+     *   2. run `migrations:stampLegacyMachineLabels`, which stamps every
+     *      machine-less row with `'pre-multi-machine'`,
+     *   3. drop the `v.optional()` and push again.
+     *
+     * Step 3 landed: `stampLegacyMachineLabels` reported `remaining: 0` and
+     * every writer sends the field, so the validator now enforces what the
+     * ingest route already required — a writer that forgets `machine` fails
+     * the compiler, not just the 400.
+     */
+    machine: machineLabel,
     /** Agent sessions started that day. */
     sessions: v.number(),
     /** Wall-clock hours across those sessions. Fractional. */
@@ -842,19 +946,36 @@ export default defineSchema({
      */
     ingestedAt: isoDateTime,
   })
-    // THE upsert key. The ingest mutation looks up (day, agent) here and
-    // patches, so re-posting a day replaces it instead of duplicating it.
+    // THE upsert key. The ingest mutation looks up (day, agent, machine) here
+    // and patches, so re-posting a day replaces that machine's row instead of
+    // duplicating it — or, as it used to, instead of overwriting another
+    // computer's.
     //
-    // Also serves the fold's range read: a Convex index is usable from any
-    // prefix of its fields, so `q.gte('day', …)` on this index covers "every
-    // agent's rows in the trailing year" and a separate `by_day` would be write
-    // cost for nothing.
-    .index('by_day_agent', ['day', 'agent'])
+    // A Convex index is usable from any prefix of its fields, so this one also
+    // serves every read `by_day_agent` served: the fold's range read
+    // `q.gte('day', windowStart)` off the `day` prefix (which is why there is no
+    // separate `by_day`), and a (day, agent) lookup off the two-field prefix.
+    // ⚠️ That two-field lookup now returns a *collection* — one row per machine
+    // — and is no longer `.unique()`. A caller that still assumes one row will
+    // throw the moment a second computer posts.
+    .index('by_day_agent_machine', ['day', 'agent', 'machine'])
+    // (The old two-field `by_day_agent` index is gone: it was a strict prefix
+    // of the triple above, nothing names it any more, and keeping a second
+    // plausible answer to "what is the upsert key?" is how the clobbering bug
+    // happened in the first place.)
+    //
     // The other access path: one agent's rows in day order. The Collector asks
     // "what is the newest day you already have for codex?" to decide how far
     // back to re-scan, and admin renders a per-agent time series. Neither can
     // use the index above — its leading field is `day`, so filtering by agent
     // alone would be a scan.
+    //
+    // Deliberately still (agent, day) and not (agent, machine, day). The
+    // per-agent time series wants every machine's rows interleaved in date
+    // order, which (agent, machine, day) would return grouped by machine
+    // instead. A collector cursor that genuinely needs "newest day for THIS
+    // machine" can read this index's `agent` prefix and filter — at ~750 rows
+    // per agent that is not worth a third index.
     .index('by_agent_day', ['agent', 'day']),
 
   /**
@@ -906,6 +1027,92 @@ export default defineSchema({
     // `by_source` index for the same reason — nothing queries by source, it is
     // provenance stamped on the row.
     .index('by_day', ['day']),
+
+  /* ================================================================== *
+   * Private attribution mapping
+   * ================================================================== */
+
+  /**
+   * Repository → public display name. Mirrors `GitRepoMapEntrySchema`.
+   *
+   * ┌───────────────────────────────────────────────────────────────────────┐
+   * │ ⛔ NO PUBLIC QUERY MAY EVER EXIST FOR THIS TABLE.                     │
+   * │                                                                       │
+   * │ Not a filtered one. Not a redacted one. Not "just the displayNames".  │
+   * │ Not one behind admin auth. Not a count. No `query()` in this package  │
+   * │ may read `gitRepoMap` — only `internalQuery`/`internalMutation` and   │
+   * │ the git cron's own `ctx.db` reads, whose *output* is display names.   │
+   * │ It is listed in `privateTables` in `@home/types` so this is testable  │
+   * │ rather than remembered.                                               │
+   * └───────────────────────────────────────────────────────────────────────┘
+   *
+   * ── Why it exists ─────────────────────────────────────────────────────────
+   *
+   * The heatmap's day popup answers "which projects, and how many commits
+   * each". Most of Corey's commits are in private repositories, and ADR 008 is
+   * absolute that a private repo *name* never reaches a stored public field —
+   * yet the named case studies (QuoteCloud, TravelDocs, ZeroRisk, SoldOnline)
+   * are published, attributed work whose titles are already on the site. The
+   * gap between those two facts is exactly this table: an operator states, by
+   * hand, that `<some private repo>` is the thing the site already calls
+   * `'QuoteCloud'`. The cron reads the mapping, emits the title, and the
+   * repository identifier stops there.
+   *
+   * ── Why it holds the only private names in the model ──────────────────────
+   *
+   * Because nothing else can. Every other route was tried and rejected:
+   * inferring the title from the repo name is a heuristic that leaks the tenth
+   * time it guesses; storing the mapping in `projects` puts a private repo name
+   * on a row with a public query; keeping it in the cron's source puts it in
+   * git. A table with no query and a gitignored seed file is the one shape where
+   * the name exists on the server and nowhere else.
+   *
+   * ── How rows get here ─────────────────────────────────────────────────────
+   *
+   * Seeded from a machine-local, **gitignored** JSON file — the same pattern
+   * `tooling/collector` uses for its config, with a committed `.example` that
+   * carries no real names. Never seeded from a committed fixture, never typed
+   * into a public admin form, never logged. `tooling/privacy-check` sweeps the
+   * git tree for exactly this mistake.
+   *
+   * ── Unmapped is not an error ──────────────────────────────────────────────
+   *
+   * A repository with no row here is not named: its commits fold into the
+   * neutral bucket `'Other work'` (`OTHER_WORK_LABEL`). `kind: 'ignore'` is the
+   * *explicit* form of the same outcome — "I have triaged this repo and it stays
+   * unsurfaced" (ADR 014's junk repos) as opposed to "nobody has looked at it
+   * yet". Identical behaviour, different meaning, and the difference is the
+   * whole value of writing the row.
+   */
+  gitRepoMap: defineTable({
+    /**
+     * `owner/name` as GitHub spells it, **lowercased**. GitHub is
+     * case-insensitive and a hand-written seed file will say `CoreyBain/Boca`
+     * as often as `coreybain/boca`; the cron's existing Lab allowlist already
+     * keys on the lowercase form, so this matches it.
+     */
+    repoFullName: v.string(),
+    /**
+     * The public label — a case-study or Lab title, never the repo name or a
+     * derivative of it. This is the string that reaches the tooltip.
+     *
+     * Ignored when `kind` is `'ignore'`; keep it human anyway ("old scratch
+     * repo") so the seed file explains itself to the person maintaining it.
+     */
+    displayName: v.string(),
+    /**
+     * `'project'` — a sanctioned case study; `displayName` should equal the
+     * `projects` row's `title` or the site says two names for one thing.
+     * `'lab'` — a curated Lab (ADR 014); mostly for the private repo a Lab is
+     * built from, since a public Lab is already attributable via its own public
+     * `repoFullName`. `'ignore'` — fold into `'Other work'`, silently.
+     */
+    kind: v.union(v.literal('project'), v.literal('lab'), v.literal('ignore')),
+  })
+    // The cron's only access path: it holds a repository from GitHub's response
+    // and asks what, if anything, this site is allowed to call it. Seeding
+    // upserts on the same key so re-running the seed is idempotent.
+    .index('by_repoFullName', ['repoFullName']),
 
   /**
    * Knowledge base for "Ask Corey" (ADR 015) — one chunk of retrievable text per

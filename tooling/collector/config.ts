@@ -47,7 +47,7 @@
  */
 
 import { existsSync, readFileSync } from 'node:fs';
-import { homedir } from 'node:os';
+import { homedir, hostname } from 'node:os';
 import { dirname, isAbsolute, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -83,6 +83,52 @@ export type RepoMapping = {
 
 export type CollectorConfig = {
   /**
+   * Which computer this is. One short label, sent on every push.
+   *
+   * ═════════════════════════════════════════════════════════════════════════
+   *  THIS IS A THIRD OF THE SERVER-SIDE UPSERT KEY. CHOOSE IT ONCE.
+   * ═════════════════════════════════════════════════════════════════════════
+   *
+   * `aiUsageDays` is keyed on (`day`, `agent`, `machine`). Before `machine`
+   * existed the key was (`day`, `agent`), which meant the second computer to
+   * post a day *erased* the first — silently, with the endpoint answering
+   * `daysUpdated: 1` as though that were the right answer. With the label in the
+   * key, a push replaces only its own previous claim: N machines are additive,
+   * and any machine may re-send any day as often as it likes.
+   *
+   * The corollary is that **renaming it splits history**. The old label's rows
+   * stay where they are and keep counting, the new label starts from nothing and
+   * re-sends the lookback window under its own name, and for `lookbackDays` the
+   * overlap is counted twice. Pick a label per machine and leave it alone; if a
+   * machine is retired, leave its rows alone too — they are history.
+   *
+   * ── What it may contain ───────────────────────────────────────────────────
+   *
+   * `MachineLabelSchema` in `@home/types`: lowercase letters, digits and
+   * hyphens, 1–32 characters, first character alphanumeric. `laptop`,
+   * `work-desktop`, `mini`. That shape is deliberately too narrow to hold a
+   * path, a person's name with spaces, or a `.local` hostname — see
+   * `sanitiseMachineId` below, and the header of `packages/types/src/ingest.ts`
+   * for why the narrowness is a privacy control rather than tidiness.
+   *
+   * It is a *public-ish* label in the sense that matters here: it is stored on
+   * the server, so choose something you would not mind an operator reading, and
+   * override the derived default if the derivation produced your name. Nothing
+   * public reads the field — no query returns it and the site cannot say how
+   * many computers there are — but "not currently rendered" is a weaker promise
+   * than "never sensitive in the first place".
+   *
+   * Resolution order (see `resolveMachineId`): `$COLLECTOR_MACHINE_ID`, then
+   * `machineId` in the config file, then a sanitised short hostname as a last
+   * resort. Only the first two are choices; the third is a fallback that warns.
+   */
+  machineId: string;
+  /**
+   * Where `machineId` came from. Not sent anywhere — the CLI prints it, and
+   * `'hostname'` is the case that earns a warning.
+   */
+  machineIdSource: MachineIdSource;
+  /**
    * Convex **HTTP actions** origin — `https://<deployment>.convex.site`, not
    * `.convex.cloud`. Those are two different hosts serving two different things:
    * `.cloud` is the sync/function API the web app talks to, `.site` is where
@@ -111,8 +157,10 @@ export type CollectorConfig = {
    * How many days back to recompute and re-send, inclusive of today.
    *
    * Every emitted day is a *complete* recomputation of that day, and the ingest
-   * endpoint upserts on (`day`, `agent`), so re-sending is idempotent rather
-   * than additive (see packages/types/src/ingest.ts). A week of overlap costs a
+   * endpoint upserts on (`day`, `agent`, `machineId`), so re-sending is
+   * idempotent rather than additive — and idempotent *per machine*, which is the
+   * part that matters once there are two (see packages/types/src/ingest.ts and
+   * `machineId` above). A week of overlap costs a
    * few hundred milliseconds and covers a laptop that was shut for the weekend,
    * a failed run nobody noticed, and yesterday's session that was appended to
    * after midnight.
@@ -138,6 +186,164 @@ export type CollectorConfig = {
   /** Local directory ↔ public slug. The funnel. See the file header. */
   repos: RepoMapping[];
 };
+
+/* ------------------------------------------------------------------ *
+ * The machine label
+ * ------------------------------------------------------------------ */
+
+/** Where a resolved `machineId` came from, worst last. */
+export type MachineIdSource = 'env' | 'config' | 'hostname';
+
+/**
+ * `MachineLabelSchema`'s alphabet, restated.
+ *
+ * Restated rather than imported for the same reason `config.ts` hand-rolls the
+ * rest of its validation: this is the local half, its failure mode is a typo in
+ * a file the author owns, and a thrown sentence beats a Zod stack. The wire is
+ * still validated by the real schema — `buildPayload` parses through
+ * `AiUsageIngestSchema` before anything is sent, so a divergence between these
+ * two patterns is a build-time throw, not a bad row on the server.
+ */
+export const MACHINE_ID_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
+
+/** `MachineLabelSchema`'s ceiling. */
+export const MACHINE_ID_MAX_LENGTH = 32;
+
+/** Environment override, mostly for testing a second machine from one checkout. */
+export const MACHINE_ID_ENV_VAR = 'COLLECTOR_MACHINE_ID';
+
+/**
+ * What a hostname degrades to when nothing legible survives sanitising.
+ *
+ * A valid label, and an obviously *unchosen* one, so an operator looking at the
+ * rows can tell "nobody named this machine" from "somebody named it that".
+ */
+export const FALLBACK_MACHINE_ID = 'unnamed-machine';
+
+/**
+ * Force an arbitrary string into the machine-label shape, or refuse.
+ *
+ * ═══════════════════════════════════════════════════════════════════════════
+ *  A PATH CANNOT SURVIVE THIS FUNCTION AS A PATH. THAT IS ITS JOB.
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * Every character outside `[a-z0-9]` — including `/`, `\`, `.`, `_`, spaces and
+ * every non-ASCII byte — becomes a hyphen, runs of hyphens collapse, and the
+ * result is trimmed and cut to 32 characters. So `/Users/coreybaines/GitHub`
+ * cannot arrive at the server *as a path*: it arrives, if at all, as
+ * `users-coreybaines-github`, which is a label and not a location. It is still
+ * derived from something local, which is exactly why the derived case warns and
+ * the documentation says to override it.
+ *
+ * Everything before the first `.` is taken first, which is the "strip domain
+ * suffixes" step: `studio.local`, `studio.lan`, `studio.example.internal` all
+ * reduce to `studio`. mDNS appends `.local` to every Mac on the network, so
+ * without this step the default label would be the same word on every machine
+ * with the suffix attached.
+ *
+ * @returns the label, or `null` when nothing usable is left (an empty string, a
+ *   string of punctuation, a name that was entirely non-ASCII). `null` is a
+ *   refusal, never a silent substitution — the caller decides what to do about
+ *   it, because "your config is wrong" and "your hostname is unhelpful" want
+ *   different answers.
+ */
+export function sanitiseMachineId(raw: string): string | null {
+  const label = raw
+    .trim()
+    .toLowerCase()
+    // Strip the domain part. `hostname()` on a Mac is routinely `name.local`.
+    .split('.')[0]!
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, MACHINE_ID_MAX_LENGTH)
+    // The slice can leave a trailing hyphen behind. Trim again rather than
+    // before, or a 33-character name would keep one.
+    .replace(/-+$/, '');
+
+  return label.length > 0 && MACHINE_ID_PATTERN.test(label) ? label : null;
+}
+
+/**
+ * This machine's default label: the short hostname, sanitised.
+ *
+ * ── The disagreement this function represents, stated out loud ─────────────
+ *
+ * `packages/types/src/ingest.ts` says the label is "operator-chosen … never
+ * derived from the environment", and it is right that a *transmitted* hostname
+ * is a privacy regression: `os.hostname()` on a personal Mac is habitually
+ * `Coreys-MacBook-Pro.local`, which is a first name and a device model.
+ *
+ * This function derives one anyway, as a **last-resort fallback**, and the
+ * reasoning is worth being explicit about rather than burying:
+ *
+ *   • The alternative is a collector that refuses to run until a config is
+ *     edited. On a second machine, at the moment the operator is trying to prove
+ *     multi-machine ingest works, that is a worse first experience than a label
+ *     they can see and change.
+ *   • The value is sanitised into a shape that cannot be a hostname *as such* —
+ *     no dots, no domain, no case, 32 characters — so what reaches the server is
+ *     a word, not an identifier resolvable back to a device.
+ *   • It is announced. `collector.ts` prints the label and, when it came from
+ *     here, prints a line telling the operator to pin it in the config.
+ *
+ * The cost is real and is not hidden: if the operator ignores the warning, a
+ * label derived from their computer's name is stored server-side. Nothing public
+ * reads it, but "unread" is not "absent". Set `machineId` and the derivation
+ * never runs.
+ *
+ * @param name - injectable so the tests do not depend on the machine they run
+ *   on. Defaults to `os.hostname()`.
+ */
+export function defaultMachineId(name: string = hostname()): string {
+  return sanitiseMachineId(name) ?? FALLBACK_MACHINE_ID;
+}
+
+/**
+ * Resolve the label: environment, then config, then hostname.
+ *
+ * The environment comes first because it is the per-run override — one checkout
+ * can push as a different machine without editing a file, which is how the
+ * multi-machine behaviour gets exercised without inventing a second laptop.
+ *
+ * A configured value is **validated, not sanitised**. Silently rewriting
+ * `Work Laptop` to `work-laptop` would mean the operator's file and the server's
+ * rows disagree about what this machine is called, and the first symptom would
+ * be a duplicated history the day somebody "fixed" the config to match. A typo
+ * in a value that forms part of a key should be loud.
+ */
+export function resolveMachineId(
+  configured: unknown,
+  environment: NodeJS.ProcessEnv = process.env,
+): { machineId: string; machineIdSource: MachineIdSource } {
+  const fromEnv = environment[MACHINE_ID_ENV_VAR];
+  if (typeof fromEnv === 'string' && fromEnv.trim().length > 0) {
+    const value = fromEnv.trim();
+    if (!MACHINE_ID_PATTERN.test(value) || value.length > MACHINE_ID_MAX_LENGTH) {
+      throw new Error(
+        `$${MACHINE_ID_ENV_VAR} ("${value}") is not a machine label: lowercase letters,` +
+          ` digits and hyphens, 1–${MACHINE_ID_MAX_LENGTH} characters, starting with a letter or digit.`,
+      );
+    }
+    return { machineId: value, machineIdSource: 'env' };
+  }
+
+  if (configured !== undefined) {
+    if (
+      typeof configured !== 'string' ||
+      !MACHINE_ID_PATTERN.test(configured) ||
+      configured.length > MACHINE_ID_MAX_LENGTH
+    ) {
+      throw new Error(
+        `collector config: "machineId" (${JSON.stringify(configured)}) is not a machine label:` +
+          ` lowercase letters, digits and hyphens, 1–${MACHINE_ID_MAX_LENGTH} characters, starting` +
+          ' with a letter or digit. It is part of the server-side upsert key — see config.ts.',
+      );
+    }
+    return { machineId: configured, machineIdSource: 'config' };
+  }
+
+  return { machineId: defaultMachineId(), machineIdSource: 'hostname' };
+}
 
 /* ------------------------------------------------------------------ *
  * Loading
@@ -223,7 +429,13 @@ export function loadConfig(configPath: string = DEFAULT_CONFIG_FILE): CollectorC
     return note === undefined ? { dir, slug } : { dir, slug, note: String(note) };
   });
 
+  // Env → config → hostname. Throws on a configured value that is not a label;
+  // see `resolveMachineId` for why that is not sanitised into shape instead.
+  const { machineId, machineIdSource } = resolveMachineId(record.machineId);
+
   return {
+    machineId,
+    machineIdSource,
     convexSiteUrl: (process.env.COLLECTOR_CONVEX_SITE_URL ?? str('convexSiteUrl')).replace(
       /\/+$/,
       '',

@@ -132,6 +132,11 @@ function printUsage(): void {
       '',
       'The bearer token comes from $COLLECTOR_INGEST_TOKEN or the tokenFile in',
       'the config. See README.md § Issuing a token.',
+      '',
+      'This computer identifies itself with `machineId` from the config, or',
+      '$COLLECTOR_MACHINE_ID, or a sanitised short hostname. It is a third of the',
+      "server's upsert key, so pushes from several machines add up instead of",
+      'overwriting each other. See README.md § Several computers.',
     ].join('\n'),
   );
 }
@@ -236,6 +241,7 @@ async function main(): Promise<number> {
   const { payload, summary } = buildPayload(samples, makeSlugResolver(config.repos), {
     now,
     lookbackDays,
+    machine: config.machineId,
   });
 
   if (options.json) {
@@ -247,7 +253,21 @@ async function main(): Promise<number> {
   log('');
   log(`  AI usage collector — ${days[0]} … ${days[days.length - 1]} (UTC, ${lookbackDays} days)`);
   log(`  scanned in ${(scanMs / 1000).toFixed(1)}s — ${note}`);
+  log(`  machine              ${config.machineId} (from ${config.machineIdSource})`);
   log('');
+
+  // Printed on stderr, and printed whether or not `--quiet` is set, because it
+  // is the one setting a second machine gets wrong by doing nothing at all. The
+  // label is a third of the server's upsert key: a derived one still works, but
+  // it was chosen by `os.hostname()` rather than by a person, and pinning it is
+  // a one-line edit that stops it from ever changing under a macOS update.
+  if (config.machineIdSource === 'hostname') {
+    console.warn(
+      `  ! machineId was derived from this computer's hostname ("${config.machineId}").` +
+        '\n    Set "machineId" in collector.config.json to pin it — it is part of the' +
+        '\n    server-side upsert key, and renaming it later splits this machine\'s history.\n',
+    );
+  }
   log(`  sessions in window   ${summary.totalSessions}`);
   log(`  hours in window      ${summary.totalHours.toFixed(2)}`);
   log(`  day/agent rows       ${summary.rows}`);
@@ -320,7 +340,8 @@ async function main(): Promise<number> {
   const n = (value: number | null): string => (value === null ? '?' : String(value));
 
   log(
-    `  Pushed ${payload.days.length} day/agent rows in ${result.attempts} attempt(s).`,
+    `  Pushed ${payload.days.length} day/agent rows as "${payload.machine}"` +
+      ` in ${result.attempts} attempt(s).`,
   );
   // Created vs. updated is the line that tells an operator whether a re-run did
   // what a re-run is supposed to do: on the second run of the same day, every

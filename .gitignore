@@ -35,6 +35,16 @@ dist/
 # place; copy it and edit.
 tooling/collector/collector.config.json
 
+# git repo map
+# The repo→display-name mapping for the heatmap's day popup. Same reasoning as
+# the collector config above, one step more sensitive: the left-hand side of
+# every entry is a GitHub `owner/name` for a PRIVATE repository, which is the
+# exact shape ADR 008 forbids unconditionally (a bare product name may be
+# published once a case study is; an `owner/name` identifier never may be).
+# `git-repo-map.example.json` is committed in its place and every repository
+# name in it is invented. See tooling/git-repo-map/README.md.
+tooling/git-repo-map/git-repo-map.json
+
 # lighthouse ci
 # Run output: one JSON + one HTML report per URL per run. The HTML reports embed
 # full-page screenshots of an unlaunched site (ADR 018 keeps the preview

@@ -20,6 +20,7 @@
  * │ ingestTokens       table      IngestTokenSchema        ingest.ts           │
  * │ aiUsageDays        raw        AiUsageDaySchema         ingest.ts           │
  * │ healthDays         raw        HealthDaySummarySchema   ingest.ts           │
+ * │ gitRepoMap         private    GitRepoMapEntrySchema    stats.ts            │
  * │ knowledgeDocs      table      KnowledgeDocSchema       knowledge.ts        │
  * │ contactMessages    table      ContactMessageSchema     contact.ts          │
  * └────────────────────────────────────────────────────────────────────────────┘
@@ -27,6 +28,10 @@
  * `raw` marks a landing zone for a machine push (phase 4 Pipelines): written only
  * by an ingest endpoint, read only by the cron that folds it onto the Snapshot,
  * never by a page. See ingest.ts for why they are day-keyed and upserted.
+ *
+ * `private` is stronger still: not merely unread by pages, but forbidden from
+ * ever having a query at all. See `privateTables` below and the ADR 008 section
+ * in stats.ts.
  *
  * Conventions that hold across every schema in this package:
  *
@@ -72,6 +77,7 @@ import { KnowledgeDocSchema } from './knowledge';
 import { ExperienceEntrySchema, ResumeDocumentSchema } from './resume';
 import { SiteSettingsSchema } from './settings';
 import { SnapshotSchema } from './snapshot';
+import { GitRepoMapEntrySchema } from './stats';
 
 /**
  * Every table, keyed by its Convex table name.
@@ -92,6 +98,7 @@ export const tableSchemas = {
   ingestTokens: IngestTokenSchema,
   aiUsageDays: AiUsageDaySchema,
   healthDays: HealthDaySummarySchema,
+  gitRepoMap: GitRepoMapEntrySchema,
   knowledgeDocs: KnowledgeDocSchema,
   contactMessages: ContactMessageSchema,
 } as const;
@@ -113,6 +120,29 @@ export const rawIngestTables = [
 ] as const satisfies readonly TableName[];
 
 export type RawIngestTableName = (typeof rawIngestTables)[number];
+
+/**
+ * Tables that must never be readable from outside the backend.
+ *
+ * `rawIngestTables` says "no page reads these". This says something stricter and
+ * non-negotiable: **no query may exist**. `gitRepoMap` is the one document in the
+ * model that stores private repository names (ADR 008), and its whole reason to
+ * exist is to convert them into sanctioned display names *inside* the git cron
+ * so they never travel. A query that returned a row — even one field, even
+ * behind admin auth, even just a count — would put the thing the ADR protects on
+ * the wire.
+ *
+ * Enumerated rather than left as a convention so it can be asserted. Three
+ * checks should read this list rather than hardcode it: the Swift codegen task
+ * (a `Codable` struct for a table the client can never fetch is at best dead
+ * code and at worst an invitation), the "no public query touches a private
+ * table" test, and `tooling/privacy-check`.
+ */
+export const privateTables = [
+  'gitRepoMap',
+] as const satisfies readonly TableName[];
+
+export type PrivateTableName = (typeof privateTables)[number];
 
 /**
  * The three tables holding exactly one row. Convex has no singleton primitive, so

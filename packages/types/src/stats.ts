@@ -48,18 +48,116 @@ import {
 export const ContributionLevelSchema = z.literal([0, 1, 2, 3, 4]);
 export type ContributionLevel = z.infer<typeof ContributionLevelSchema>;
 
+/**
+ * The neutral bucket. Commits the producer will not name go here, under this
+ * exact string.
+ *
+ * There are two populations it absorbs and they are absorbed for different
+ * reasons, which is precisely why one honest label serves both:
+ *
+ *   - **Private work with no mapping.** A private repository is only nameable
+ *     at all because an operator wrote a `gitRepoMap` row for it by hand
+ *     (`GitRepoMapEntrySchema`, below). Absent that row there is no sanctioned
+ *     display name, and ADR 008 forbids inventing one from the repo identifier.
+ *   - **Public but uncurated repositories.** ADR 014's own examples — `dddddd`,
+ *     `test`, 2016 coursework. They are absent from /labs for a reason and the
+ *     heatmap tooltip is not a back door onto that list.
+ *
+ * Both are real commits and both are counted in `ContributionDay.count`
+ * already, so hiding them would understate the day. Naming the bucket rather
+ * than dropping the rows is what lets the popup add up.
+ *
+ * ⚠️ This string is *rendered in a public tooltip*. It is a bucket label, never
+ * a fallback for "I could not resolve the name" — a producer that finds itself
+ * wanting to put a repository name here has a bug, not a naming problem.
+ *
+ * Spelled once here. `packages/convex` cannot import this package (it is
+ * bundled into Convex's own runtime — see the header of
+ * `convex/lib/validate.ts`) and `apps/web/src/lib/snapshot.ts` keeps itself
+ * import-free by doctrine, so both re-declare the literal with a comment
+ * pointing back at this constant. Three copies, one owner.
+ */
+export const OTHER_WORK_LABEL = 'Other work';
+
+/**
+ * One project's slice of one day's commits: `QuoteCloud · 5 commits`.
+ *
+ * ⚠️ `name` is a **display name and nothing else** — a case-study title
+ * (`'QuoteCloud'`), a Lab title (`'statline'`), or `OTHER_WORK_LABEL`. It is
+ * never a repository identifier, public or private: not `pricing-portal-v2`, not
+ * `coreybain/boca`, not an owner/name pair of any kind. ADR 008 is the rule and
+ * this field is the surface it is most easily broken on, because unlike
+ * `privateContributions` (a number) this one is a string the producer chooses.
+ *
+ * The mapping from repository to display name is `gitRepoMap`, which is server
+ * side, has no public query, and is seeded from a machine-local file. A repo
+ * with no entry does not get named — it folds into `OTHER_WORK_LABEL`.
+ */
+export const ContributionProjectSchema = z.object({
+  /** Display name. See the warning above. */
+  name: NonEmptyStringSchema,
+  /** Commits attributed to that name on that day. Always ≥ 1 — see below. */
+  commits: CountSchema.positive(),
+});
+export type ContributionProject = z.infer<typeof ContributionProjectSchema>;
+
 export const ContributionDaySchema = z.object({
   date: IsoDateSchema,
   count: CountSchema,
   level: ContributionLevelSchema,
   /**
-   * Display title of the project that received most of that day's commits;
-   * `null` on an inactive day.
+   * The day's **top** project by commit count, or `null`.
+   *
+   * Kept — and kept first-class — because it predates `byProject` and is read
+   * by consumers that will never grow a popup: the eight archived variants
+   * under `apps/web/src/app/v/*`, and anything else that wants one word rather
+   * than a breakdown. It is a *summary of* `byProject`, not an independent
+   * fact, and the rule tying the two together is exact:
+   *
+   *     project ∈ { byProject[0].name, null }
+   *
+   * i.e. it is the name of the highest-commit entry, or `null`. Never a name
+   * that is absent from `byProject`, and never non-null when `byProject` is
+   * empty. A producer MAY be stricter and null it out while `byProject` is
+   * populated — `gitStats.ts` does exactly that via `ATTRIBUTION_MAJORITY`,
+   * refusing to label a day whose leader accounts for a minority of it — which
+   * is why this is a membership rule rather than a plain equality.
+   *
+   * Renderers wanting "which projects, how many each" must read `byProject`.
+   * This field cannot answer that and never could.
    *
    * ADR 008: only named, attributed projects ever appear here. Private repo
    * names must never reach this field — it is rendered in a public tooltip.
    */
   project: NonEmptyStringSchema.nullable(),
+  /**
+   * Per-project commit counts for that day — what the heatmap's day popup
+   * lists.
+   *
+   * Invariants, all of them the producer's job (this file does not `.refine()`
+   * them, for the same reason `LanguageShareSchema` does not check that the
+   * shares sum to 100 — see below):
+   *
+   *   - `count === 0` ⇒ `byProject` is `[]` and `project` is `null`.
+   *   - Non-empty ⇒ `count > 0`.
+   *   - Sorted by `commits` descending; ties broken by `name` ascending, so the
+   *     order is total and two runs of the same producer agree.
+   *   - `name` is unique within the array. Two rows for `QuoteCloud` is a fold
+   *     that was not folded.
+   *   - Every `commits` is ≥ 1. A zero-commit entry is a name leaked for no
+   *     reason; drop the entry instead.
+   *   - `sum(commits) ≤ count`, and the gap is left unexplained rather than
+   *     papered over. `count` is GitHub's *contribution* count (commits, but
+   *     also PRs, reviews and issues), while these are commits; per-repo day
+   *     pages can also be truncated. A producer must never invent commits to
+   *     close the gap — `OTHER_WORK_LABEL` carries real commits it declines to
+   *     name, not a remainder.
+   *
+   * An **empty array on an active day is legitimate** and means "this day
+   * happened, attribution could not speak for it" — the popup shows the count
+   * and no breakdown. It does not mean the day was idle.
+   */
+  byProject: z.array(ContributionProjectSchema),
 });
 export type ContributionDay = z.infer<typeof ContributionDaySchema>;
 
@@ -111,6 +209,84 @@ export const GitStatsSchema = z.object({
   languages: z.array(LanguageShareSchema),
 });
 export type GitStats = z.infer<typeof GitStatsSchema>;
+
+/* ------------------------------------------------------------------ *
+ * Attribution mapping — the private half of ADR 008
+ *
+ * `gitRepoMap` is the table that lets a *private* repository contribute a
+ * *public* name to the heatmap popup without the repository ever being named.
+ * It is the only place in the model where a private repo identifier is stored
+ * at all, and the rules around it are load-bearing:
+ *
+ *   • NO PUBLIC QUERY. Not a filtered one, not a redacted one, not "just the
+ *     display names". No function in `packages/convex` may return a row, a
+ *     field of a row, or the row count. The git cron reads it internally and
+ *     emits display names; that is the only egress.
+ *   • Seeded from a machine-local, gitignored file — the same pattern as
+ *     `tooling/collector`'s config. The mapping is Corey's private knowledge
+ *     about his own repositories and does not belong in version control.
+ *   • Nothing is inferred. A repository with no row is not named. There is no
+ *     heuristic that turns `pricing-portal-v2` into `QuoteCloud`, because a
+ *     heuristic that guesses right nine times out of ten leaks on the tenth.
+ *
+ * Both halves of ADR 008 hold at once as a result: aggregates over private work
+ * stay published (`privateContributions`, and now a *labelled* commit count),
+ * while private repository names stay off the wire entirely.
+ * ------------------------------------------------------------------ */
+
+/**
+ * What a mapped repository *is*, which decides where its display name comes
+ * from and whether it is used at all.
+ *
+ *   `project`  A sanctioned case study — QuoteCloud, TravelDocs, ZeroRisk,
+ *              SoldOnline. Published, attributed work (ADR 008), so the popup
+ *              may say `QuoteCloud · 5 commits`. `displayName` should match the
+ *              `projects` row's `title` exactly, or the site says two names for
+ *              one thing.
+ *   `lab`      A curated Lab (ADR 014). Mostly redundant — a public Lab is
+ *              already attributable through its own public `repoFullName` — and
+ *              exists for the private repo that a Lab is *built from*, and as
+ *              the manual override when the allowlist join is not enough.
+ *   `ignore`   Fold into `OTHER_WORK_LABEL`, silently. The explicit form of
+ *              "I have looked at this repo and decided it stays unsurfaced"
+ *              (ADR 014's junk repos), as distinct from a repo nobody has
+ *              triaged yet — which behaves identically today, on purpose, but
+ *              is a gap in the mapping rather than a decision recorded in it.
+ */
+export const GitRepoKindSchema = z.enum(['project', 'lab', 'ignore']);
+export type GitRepoKind = z.infer<typeof GitRepoKindSchema>;
+
+/**
+ * One repository → one public display name. Mirrors the `gitRepoMap` table.
+ *
+ * ⚠️ A row of this shape contains a private repository name. It is the one
+ * document in the model that does, and it may never be returned by a query,
+ * logged, echoed in an ingest response, or embedded in the Snapshot. Read the
+ * section header above before touching anything that reads this table.
+ */
+export const GitRepoMapEntrySchema = z.object({
+  /**
+   * `owner/name` exactly as GitHub spells it, **lowercased** on the way in.
+   * GitHub is case-insensitive about repository names and an operator seeding
+   * this by hand will type `CoreyBain/Boca` half the time; the lookup key has
+   * to be one of the two spellings, and lowercase is the one the git cron's
+   * existing allowlist already uses.
+   *
+   * Not a `SlugSchema` — a slug forbids the `/`, and this is two segments.
+   */
+  repoFullName: NonEmptyStringSchema.regex(
+    /^[^\s/]+\/[^\s/]+$/,
+    'Expected owner/name',
+  ),
+  /**
+   * The public label. A case-study or Lab title — never the repo name, never a
+   * derivative of it. Unused when `kind` is `'ignore'`; keep it human ("old
+   * scratch repo") so the seed file explains itself.
+   */
+  displayName: NonEmptyStringSchema,
+  kind: GitRepoKindSchema,
+});
+export type GitRepoMapEntry = z.infer<typeof GitRepoMapEntrySchema>;
 
 /* ------------------------------------------------------------------ *
  * AI usage

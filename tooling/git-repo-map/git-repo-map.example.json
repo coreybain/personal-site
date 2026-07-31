@@ -1,0 +1,74 @@
+{
+  "$comment": [
+    "TEMPLATE. Copy to `git-repo-map.json` (which is gitignored) and edit:",
+    "",
+    "    cp git-repo-map.example.json git-repo-map.json",
+    "",
+    "This file maps a GitHub repository to the name the site is allowed to call",
+    "it in the heatmap's day popup. It holds no secrets — but the left-hand side",
+    "of every real entry is a PRIVATE REPOSITORY NAME, which is why the real file",
+    "is not committed and why every `repoFullName` below is INVENTED.",
+    "",
+    "ADR 008 draws the line this file sits on. A private repository's *name* is",
+    "never publishable. A published case study's *title* — QuoteCloud, TravelDocs,",
+    "ZeroRisk, SoldOnline — is, because publishing the case study was the",
+    "sanctioning act. So the popup may say `QuoteCloud · 5 commits` and may never",
+    "say `contoso-widgets/pricing-portal-v2`. Stating which repository is which is the whole",
+    "job of this file, and it is knowledge that stays on this Mac and in a Convex",
+    "table with no public query.",
+    "",
+    "`kind`:",
+    "  project  A sanctioned case study. `displayName` MUST equal the `projects`",
+    "           row's `title` exactly, or the site says two names for one thing.",
+    "  lab      A curated Lab (ADR 014). Mostly for the private repo a Lab is",
+    "           built from — a *public* Lab is already attributed automatically",
+    "           from its own public `repoFullName`, with no row needed here.",
+    "  ignore   Fold into `Other work`, silently. The explicit, recorded form of",
+    "           'I have looked at this repo and it stays unsurfaced'. Identical",
+    "           behaviour to having no row at all; the difference is that one is a",
+    "           decision and the other is a gap. Keep `displayName` human so the",
+    "           file explains itself in a year.",
+    "",
+    "Several repositories may share one `displayName` — a case study that spans an",
+    "API, a web app and a mobile client is one project to a reader. Their commits",
+    "merge into a single popup row.",
+    "",
+    "A repository with no entry here is NOT named. Its commits either fold into",
+    "`Other work` (if the repo was publicly visible to the cron) or go unattributed",
+    "(if it was private, which GitHub does not itemise at all). Nothing is ever",
+    "inferred from a repository name — a heuristic that guesses right nine times",
+    "leaks on the tenth.",
+    "",
+    "Apply it with:",
+    "    bun run tooling/git-repo-map/seed.ts            # validate, write nothing",
+    "    bun run tooling/git-repo-map/seed.ts --push     # upsert"
+  ],
+
+  "entries": [
+    {
+      "repoFullName": "acme-corp/client-app-v2",
+      "displayName": "QuoteCloud",
+      "kind": "project"
+    },
+    {
+      "repoFullName": "acme-corp/client-app-api",
+      "displayName": "QuoteCloud",
+      "kind": "project"
+    },
+    {
+      "repoFullName": "example-org/internal-tool",
+      "displayName": "ZeroRisk",
+      "kind": "project"
+    },
+    {
+      "repoFullName": "example-user/private-lab-source",
+      "displayName": "Boca",
+      "kind": "lab"
+    },
+    {
+      "repoFullName": "example-user/scratch-2016",
+      "displayName": "old coursework, deliberately unsurfaced (ADR 014)",
+      "kind": "ignore"
+    }
+  ]
+}

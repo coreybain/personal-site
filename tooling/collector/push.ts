@@ -17,12 +17,30 @@
  * payload — no client version, no hostname, no run id. If it did, the thing on
  * the wire would no longer be the thing the privacy tests validated.
  *
+ * That still holds now that the body carries `machine`. The label is built into
+ * the payload by `buildPayload` from a value config.ts resolved, and is
+ * validated by the same Zod parse as everything else; this file neither reads
+ * `os.hostname()` nor adds a field. "No hostname here" is a statement about this
+ * module, and it is still true.
+ *
  * ── Retries ────────────────────────────────────────────────────────────────
  *
- * Idempotence is the endpoint's, not ours: every row upserts on (`day`,`agent`),
- * so re-sending the same body is a no-op rather than a doubling (see the raw
- * table rationale in packages/types/src/ingest.ts). That is what makes a blind
- * retry safe here and would not be safe against an appending endpoint.
+ * Idempotence is the endpoint's, not ours: every row upserts on
+ * (`day`, `agent`, `machine`), so re-sending the same body is a no-op rather
+ * than a doubling (see the raw table rationale in packages/types/src/ingest.ts).
+ * That is what makes a blind retry safe here and would not be safe against an
+ * appending endpoint.
+ *
+ * The `machine` third of that key is what makes a retry safe *in the presence of
+ * other computers*, which the two-field key was not: a resend replaces this
+ * machine's own previous claim about a day and leaves every other machine's
+ * alone. Before it existed, a retry from the laptop could erase the desktop's
+ * numbers for the same day.
+ *
+ * ⚠️ A body without `machine` is refused with `400 malformed-body` and is not
+ * retried (4xx never is). That is deliberate and is the breaking change: a
+ * collector too old to send the field must stop, loudly, rather than keep
+ * clobbering another machine's rows. See README.md § Several computers.
  *
  * Retried: network failures and 5xx. Not retried: 401/403 (the token is wrong or
  * revoked — retrying is just a slower way to be refused) and 4xx generally (the

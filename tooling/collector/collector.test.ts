@@ -7,10 +7,18 @@
  * That is two assertions, and they are tested two different ways:
  *
  *   • **"contains only …"** is tested *structurally*, by walking the serialised
- *     payload and requiring every key to be one of eight names and every string
- *     to be a date, an agent id, or a slug from the config. A new field carrying
- *     a number fails this as surely as one carrying a string, which is the point
- *     — the test is an allowlist, not a search for known-bad values.
+ *     payload and requiring every key to be one of nine names and every string
+ *     to be a date, an agent id, a slug from the config, or this machine's
+ *     label. A new field carrying a number fails this as surely as one carrying
+ *     a string, which is the point — the test is an allowlist, not a search for
+ *     known-bad values.
+ *
+ *     The ninth name is `machine`, added when the collector started running on
+ *     more than one computer. It is the only value on the wire that is not a
+ *     number, a date, an agent id or a slug, so section 7 gives it its own tests:
+ *     that a path cannot survive into it, that it is validated rather than
+ *     quietly repaired, and that it is the only thing that differs between two
+ *     machines' bodies for the same day.
  *
  *   • **"no prompt or file content can reach it"** is tested *adversarially*,
  *     with fixtures built to leak: transcripts whose prompts contain absolute
@@ -34,9 +42,16 @@ import { join } from 'node:path';
 
 import { AiUsageIngestSchema } from '../../packages/types/src/ingest';
 import {
+  FALLBACK_MACHINE_ID,
+  MACHINE_ID_ENV_VAR,
+  MACHINE_ID_MAX_LENGTH,
+  MACHINE_ID_PATTERN,
+  defaultMachineId,
   encodePathLikeClaude,
   makeSlugResolver,
+  resolveMachineId,
   resolveToken,
+  sanitiseMachineId,
   type CollectorConfig,
   type RepoMapping,
 } from './config';
@@ -88,8 +103,19 @@ const REPOS: RepoMapping[] = [
 
 const SLUGS = new Set(REPOS.map((repo) => repo.slug));
 
+/**
+ * The fixture machine label, invented like the `dir` values above.
+ *
+ * Never `os.hostname()`: a test whose expectations depend on the computer it
+ * runs on is not a test, and the real hostname is precisely the value this
+ * package tries not to transmit.
+ */
+const MACHINE = 'test-machine';
+
 function testConfig(overrides: Partial<CollectorConfig> = {}): CollectorConfig {
   return {
+    machineId: MACHINE,
+    machineIdSource: 'config',
     convexSiteUrl: 'https://example.convex.site',
     tokenEnvVar: 'COLLECTOR_INGEST_TOKEN',
     tokenFile: '~/.config/home-collector/token',
@@ -105,6 +131,9 @@ function testConfig(overrides: Partial<CollectorConfig> = {}): CollectorConfig {
 
 const HOUR = 3_600_000;
 const NOW = new Date();
+
+/** The options every `buildPayload` call in this file shares. */
+const BUILD_OPTIONS = { now: NOW, lookbackDays: 7, machine: MACHINE };
 
 function minutesAgo(minutes: number): Date {
   return new Date(NOW.getTime() - minutes * 60_000);
@@ -153,6 +182,12 @@ function nonStringLeavesIn(value: unknown, out: unknown[] = []): unknown[] {
 
 const ALLOWED_KEYS = new Set([
   'days',
+  // The envelope's machine label. Added when the collector started running on
+  // more than one computer — it is a third of the server's upsert key, and it is
+  // the ONLY key on this list whose value is neither a number, a date, an agent
+  // id nor a slug. Everything below still holds: it is a short operator-chosen
+  // label, matched against `MACHINE_ID_PATTERN` rather than waved through.
+  'machine',
   'postedAt',
   'day',
   'agent',
@@ -181,9 +216,15 @@ function assertOnlyAggregatesAndSlugs(payload: unknown, allowedSlugs: ReadonlySe
     const isInstant = ISO_INSTANT.test(value);
     const isAgent = value === 'claude' || value === 'codex';
     const isSlug = allowedSlugs.has(value);
-    if (!(isDay || isInstant || isAgent || isSlug)) {
+    // The machine label, and only the exact label this run was given. Checked
+    // by equality rather than by pattern on purpose: `MACHINE_ID_PATTERN` also
+    // matches `users-coreybaines-github`, so a pattern test would let a
+    // sanitised path through and call it a label. The builder may emit the
+    // string it was handed and nothing else.
+    const isMachineLabel = value === MACHINE;
+    if (!(isDay || isInstant || isAgent || isSlug || isMachineLabel)) {
       throw new Error(
-        `Payload contains a string that is not a date, an agent id or a configured slug: ${JSON.stringify(value)}`,
+        `Payload contains a string that is not a date, an agent id, a configured slug or this machine's label: ${JSON.stringify(value)}`,
       );
     }
   }
@@ -244,10 +285,7 @@ describe('buildPayload — the privacy boundary', () => {
   ];
 
   const resolveSlug = makeSlugResolver(REPOS);
-  const { payload, summary } = buildPayload(hostileSamples, resolveSlug, {
-    now: NOW,
-    lookbackDays: 7,
-  });
+  const { payload, summary } = buildPayload(hostileSamples, resolveSlug, BUILD_OPTIONS);
 
   test('produces a payload for in-window samples', () => {
     expect(payload).not.toBeNull();
@@ -295,6 +333,23 @@ describe('buildPayload — the privacy boundary', () => {
     }
   });
 
+  test('the payload names this machine, once, on the envelope', () => {
+    // One label for the whole push, not one per day: a body claiming to be two
+    // computers at once is not something the collector could honestly produce,
+    // and the server stamps this single value onto every row it writes.
+    expect(payload!.machine).toBe(MACHINE);
+    expect(Object.keys(payload!).sort()).toEqual(['days', 'machine', 'postedAt']);
+    for (const day of payload!.days) {
+      expect(Object.keys(day).sort()).toEqual([
+        'agent',
+        'day',
+        'hours',
+        'projects',
+        'sessions',
+      ]);
+    }
+  });
+
   test('the wire schema rejects a smuggled field rather than stripping it', () => {
     // The load-bearing property behind every assertion above: `strictObject`
     // means a future `cwd`, `hostname` or `prompt` on a payload is a thrown
@@ -310,9 +365,42 @@ describe('buildPayload — the privacy boundary', () => {
           cwd: '/Users/coreybaines/GitHub/personal-site',
         },
       ],
+      machine: MACHINE,
       postedAt: NOW.toISOString(),
     };
     expect(() => AiUsageIngestSchema.parse(smuggled)).toThrow();
+  });
+
+  test('the wire schema refuses a machine label that is really a path', () => {
+    // The one field whose value is a free-ish string, so it is the one field a
+    // path could ride in on. `MachineLabelSchema` has no room for `/`, `.`, a
+    // capital or a space, so an `os.hostname()` or a `cwd` assigned to it throws
+    // here — in the builder, on the machine — rather than being stored.
+    const body = (machine: unknown) => ({
+      days: [
+        { day: utcDay(NOW), agent: 'claude', sessions: 1, hours: 1, projects: [] },
+      ],
+      machine,
+      postedAt: NOW.toISOString(),
+    });
+
+    for (const bad of [
+      '/Users/coreybaines/GitHub',
+      '~/GitHub/personal-site',
+      'Coreys-MacBook-Pro.local',
+      'Work Laptop',
+      'UPPERCASE',
+      '-leading-hyphen',
+      '',
+      'x'.repeat(MACHINE_ID_MAX_LENGTH + 1),
+      undefined,
+      null,
+      42,
+    ]) {
+      expect(() => AiUsageIngestSchema.parse(body(bad))).toThrow();
+    }
+
+    expect(() => AiUsageIngestSchema.parse(body('laptop'))).not.toThrow();
   });
 
   test('samples outside the window are dropped, not clamped into it', () => {
@@ -322,16 +410,13 @@ describe('buildPayload — the privacy boundary', () => {
       hours: 4,
       pathToken: encodePathLikeClaude('/Users/coreybaines/GitHub/personal-site'),
     };
-    const { payload: only, summary: staleSummary } = buildPayload([stale], resolveSlug, {
-      now: NOW,
-      lookbackDays: 7,
-    });
+    const { payload: only, summary: staleSummary } = buildPayload([stale], resolveSlug, BUILD_OPTIONS);
     expect(only).toBeNull();
     expect(staleSummary.droppedOutsideWindow).toBe(1);
   });
 
   test('an empty window posts nothing rather than posting zeroes', () => {
-    const { payload: none } = buildPayload([], resolveSlug, { now: NOW, lookbackDays: 7 });
+    const { payload: none } = buildPayload([], resolveSlug, BUILD_OPTIONS);
     expect(none).toBeNull();
   });
 
@@ -444,10 +529,7 @@ describe('scanClaude — transcripts in, timestamps out', () => {
 
   test('end to end, a payload built from those transcripts leaks nothing', async () => {
     const result = await scanClaude(testConfig(), minutesAgo(60 * 24));
-    const { payload } = buildPayload(result.samples, makeSlugResolver(REPOS), {
-      now: NOW,
-      lookbackDays: 7,
-    });
+    const { payload } = buildPayload(result.samples, makeSlugResolver(REPOS), BUILD_OPTIONS);
     expect(payload).not.toBeNull();
     assertOnlyAggregatesAndSlugs(payload, SLUGS);
     assertNoCanaries(payload);
@@ -559,10 +641,7 @@ describe('scanCodex — line 1 and nothing else', () => {
     const result = await scanCodex(testConfig(), minutesAgo(60 * 24));
     expect(result.samples.length).toBe(3);
 
-    const { payload, summary } = buildPayload(result.samples, makeSlugResolver(REPOS), {
-      now: NOW,
-      lookbackDays: 7,
-    });
+    const { payload, summary } = buildPayload(result.samples, makeSlugResolver(REPOS), BUILD_OPTIONS);
     expect(payload).not.toBeNull();
     assertOnlyAggregatesAndSlugs(payload, SLUGS);
     assertNoCanaries(payload);
@@ -733,9 +812,172 @@ describe('the reporting window', () => {
     const { payload } = buildPayload([crossesMidnight], makeSlugResolver(REPOS), {
       now: new Date('2026-07-31T09:00:00Z'),
       lookbackDays: 7,
+      machine: MACHINE,
     });
     expect(payload!.days).toHaveLength(1);
     expect(payload!.days[0]!.day).toBe('2026-07-30');
     expect(payload!.days[0]!.hours).toBe(2);
+  });
+});
+
+/* ------------------------------------------------------------------ *
+ * 7. The machine label
+ *
+ * The only string on the wire that is neither a date, an agent id nor a
+ * configured slug — so it gets its own section. Two questions are being
+ * asked here, and they are different questions:
+ *
+ *   • **Can it be a path?** No. `sanitiseMachineId` destroys every
+ *     separator, and the wire schema refuses anything the sanitiser
+ *     would have had to fix. Tested above and again below.
+ *   • **Is it stable?** It has to be: it is a third of the server's
+ *     upsert key, so a label that changes between runs splits this
+ *     machine's history in two and double-counts the overlap.
+ * ------------------------------------------------------------------ */
+
+describe('sanitiseMachineId', () => {
+  test('strips the domain suffix, which is the whole point of "short hostname"', () => {
+    // mDNS appends `.local` to every Mac on the network. Without this step the
+    // default label would be the same suffix on every machine.
+    expect(sanitiseMachineId('studio.local')).toBe('studio');
+    expect(sanitiseMachineId('studio.lan.example.internal')).toBe('studio');
+  });
+
+  test('lowercases and hyphenates, so a human hostname becomes a label', () => {
+    expect(sanitiseMachineId('Coreys-MacBook-Pro.local')).toBe('coreys-macbook-pro');
+    expect(sanitiseMachineId('Work Laptop')).toBe('work-laptop');
+  });
+
+  test('a path cannot survive as a path', () => {
+    // The assertion the task asks for, stated as directly as it can be: feed it
+    // the most path-shaped things on this machine and prove that what comes out
+    // has no separator, no dot, no capital, and is a valid label or nothing.
+    for (const path of [
+      '/Users/coreybaines/GitHub/personal-site',
+      '~/GitHub/personal-site',
+      'C:\\Users\\corey\\repos',
+      '../../etc/passwd',
+      '/',
+      './',
+    ]) {
+      const label = sanitiseMachineId(path);
+      if (label === null) continue;
+      expect(label).not.toContain('/');
+      expect(label).not.toContain('\\');
+      expect(label).not.toContain('.');
+      expect(label).not.toContain('~');
+      expect(label).toBe(label.toLowerCase());
+      expect(MACHINE_ID_PATTERN.test(label)).toBe(true);
+      expect(label.length).toBeLessThanOrEqual(MACHINE_ID_MAX_LENGTH);
+    }
+
+    // `/` alone leaves nothing behind, which is a refusal rather than a guess.
+    expect(sanitiseMachineId('/')).toBeNull();
+    expect(sanitiseMachineId('   ')).toBeNull();
+    expect(sanitiseMachineId('...')).toBeNull();
+    expect(sanitiseMachineId('日本語')).toBeNull();
+  });
+
+  test('truncates to the schema ceiling without leaving a trailing hyphen', () => {
+    const long = sanitiseMachineId(`${'a'.repeat(31)}-${'b'.repeat(20)}`);
+    expect(long).not.toBeNull();
+    expect(long!.length).toBeLessThanOrEqual(MACHINE_ID_MAX_LENGTH);
+    expect(long!.endsWith('-')).toBe(false);
+    expect(MACHINE_ID_PATTERN.test(long!)).toBe(true);
+  });
+
+  test('the fallback is a valid label and obviously unchosen', () => {
+    expect(defaultMachineId('///')).toBe(FALLBACK_MACHINE_ID);
+    expect(MACHINE_ID_PATTERN.test(FALLBACK_MACHINE_ID)).toBe(true);
+    expect(FALLBACK_MACHINE_ID.length).toBeLessThanOrEqual(MACHINE_ID_MAX_LENGTH);
+    // Injectable, so this test does not depend on the computer running it.
+    expect(defaultMachineId('Some-Mac.local')).toBe('some-mac');
+  });
+});
+
+describe('resolveMachineId', () => {
+  test('environment beats config beats hostname', () => {
+    expect(resolveMachineId('from-config', { [MACHINE_ID_ENV_VAR]: 'from-env' })).toEqual({
+      machineId: 'from-env',
+      machineIdSource: 'env',
+    });
+    expect(resolveMachineId('from-config', {})).toEqual({
+      machineId: 'from-config',
+      machineIdSource: 'config',
+    });
+
+    const derived = resolveMachineId(undefined, {});
+    expect(derived.machineIdSource).toBe('hostname');
+    expect(MACHINE_ID_PATTERN.test(derived.machineId)).toBe(true);
+    expect(derived.machineId.length).toBeLessThanOrEqual(MACHINE_ID_MAX_LENGTH);
+  });
+
+  test('a configured label is validated, never quietly repaired', () => {
+    // Rewriting `Work Laptop` to `work-laptop` would leave the operator's file
+    // and the server's rows disagreeing about this machine's name, and the first
+    // symptom would be a duplicated history the day somebody "fixed" the config.
+    for (const bad of ['Work Laptop', '/Users/coreybaines', 'has.dots', '', 'x'.repeat(33), 7]) {
+      expect(() => resolveMachineId(bad, {})).toThrow();
+    }
+    for (const bad of ['Work Laptop', '/Users/coreybaines']) {
+      expect(() => resolveMachineId(undefined, { [MACHINE_ID_ENV_VAR]: bad })).toThrow();
+    }
+  });
+
+  test('an empty environment override falls through rather than blanking the label', () => {
+    // An exported-but-empty variable is the shape a shell script produces by
+    // accident. Treating it as "no override" is the only reading that cannot
+    // write an empty third of a key.
+    expect(resolveMachineId('from-config', { [MACHINE_ID_ENV_VAR]: '   ' })).toEqual({
+      machineId: 'from-config',
+      machineIdSource: 'config',
+    });
+  });
+});
+
+describe('the label on the wire', () => {
+  test('is the label the run was given, byte for byte', () => {
+    const sample: SessionSample = {
+      agent: 'claude',
+      startedAt: minutesAgo(30),
+      hours: 1,
+      pathToken: encodePathLikeClaude('/Users/coreybaines/GitHub/personal-site'),
+    };
+
+    for (const machine of ['laptop', 'work-desktop', 'mini2', FALLBACK_MACHINE_ID]) {
+      const { payload } = buildPayload([sample], makeSlugResolver(REPOS), {
+        now: NOW,
+        lookbackDays: 7,
+        machine,
+      });
+      expect(payload!.machine).toBe(machine);
+      // Still only aggregates, days, agent ids, slugs — and this one label.
+      assertOnlyAggregatesAndSlugs(payload, new Set([...SLUGS, machine]));
+      assertNoCanaries(payload);
+    }
+  });
+
+  test('two machines produce identical bodies apart from the label', () => {
+    // The property the server relies on to treat these as two claims about the
+    // same day rather than one revised claim: nothing else in the body moves.
+    const sample: SessionSample = {
+      agent: 'codex',
+      startedAt: minutesAgo(45),
+      hours: 2,
+      pathToken: encodePathLikeClaude('/Users/coreybaines/GitHub/client-app-v2'),
+    };
+    const build = (machine: string) =>
+      buildPayload([sample], makeSlugResolver(REPOS), {
+        now: NOW,
+        lookbackDays: 7,
+        machine,
+      }).payload!;
+
+    const laptop = build('laptop');
+    const desktop = build('desktop');
+
+    expect(laptop.machine).not.toBe(desktop.machine);
+    expect(JSON.stringify(laptop.days)).toBe(JSON.stringify(desktop.days));
+    expect(laptop.postedAt).toBe(desktop.postedAt);
   });
 });

@@ -80,7 +80,125 @@ export type Surface = {
   authFindings: string[];
   /** Published slugs, which double as the ADR 008 sanction list (see repos.ts). */
   publishedNames: string[];
+  /** Structural failures in the heatmap's per-project breakdown. See below. */
+  breakdownFindings: string[];
+  /** How many `byProject` names were audited, for the report header. */
+  breakdownNamesAudited: number;
 };
+
+/**
+ * The neutral bucket, mirrored from `OTHER_WORK_LABEL` in `@home/types`.
+ *
+ * `tooling/*` is not a workspace and cannot import the contract (see the header
+ * above), so this is the fourth copy of the string. It is spelled here rather
+ * than inferred so that a *renamed* bucket fails this check loudly instead of
+ * being silently accepted as an unrecognised name.
+ */
+const OTHER_WORK = 'Other work';
+
+/**
+ * Audit `snapshot.gitStats.calendar[][].byProject` structurally.
+ *
+ * ── Why the corpus sweep in check.ts is not enough on its own ──────────────
+ *
+ * That sweep is a *blacklist*: it searches every public response for names it
+ * already knows are private, built from `gh api` and `~/GitHub`. It does cover
+ * this field — `snapshot:get` is captured and stringified whole — and it would
+ * catch `contoso-widgets/pricing-portal-v2` appearing in a popup. But it has two blind
+ * spots that this field is unusually exposed to, because `byProject[].name` is a
+ * *producer-chosen string* rather than a stored, hand-reviewed one:
+ *
+ *   1. **Public but uncurated repositories.** `dddddd`, `test`, 2016 coursework
+ *      — ADR 014's own examples. They are public, so they are not in the private
+ *      corpus, so the blacklist has nothing to match. They are still exactly
+ *      what must not appear: the heatmap tooltip is not a back door onto the
+ *      list /labs deliberately excludes.
+ *   2. **Repositories the corpus cannot see.** The corpus is built from the
+ *      `gh` CLI's own token and this Mac's checkouts. A repo the *Convex
+ *      deployment's* PAT can see and this machine's `gh` cannot — a client org
+ *      that granted one and not the other — is invisible to the blacklist and
+ *      fully visible to the cron.
+ *
+ * So this is the *whitelist* half, and it is the stronger assertion: every name
+ * must be a title the site has actually published, or the neutral bucket. Both
+ * halves run; neither subsumes the other.
+ *
+ * The `/` test is called out separately even though the whitelist already
+ * implies it, because `owner/name` is the one shape ADR 008 forbids
+ * *unconditionally* — a bare product name is publishable once its case study is,
+ * and an identifier never is, not even for QuoteCloud. Worth its own finding
+ * text so a failure reads as the rule it broke.
+ */
+function auditContributionBreakdown(
+  snapshot: unknown,
+  publishedNames: string[],
+): { findings: string[]; namesAudited: number } {
+  const findings: string[] = [];
+  let namesAudited = 0;
+
+  const calendar = (
+    (snapshot as { gitStats?: { calendar?: unknown } } | null)?.gitStats ?? {}
+  ).calendar;
+
+  if (!Array.isArray(calendar)) {
+    // Not a finding. A deployment with no Snapshot row yet is a legitimate
+    // state, and inventing a failure for it would make the check red on a fresh
+    // deployment — which is how a check gets ignored.
+    return { findings, namesAudited };
+  }
+
+  // Normalised the same way check.ts normalises its sanction list, so
+  // `coreybaines.com` and `Boca` compare the way a human would expect.
+  const normalise = (value: string): string => value.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const sanctioned = new Set([...publishedNames, OTHER_WORK].map(normalise));
+
+  for (const week of calendar) {
+    if (!Array.isArray(week)) continue;
+
+    for (const day of week) {
+      if (day === null || typeof day !== 'object') continue;
+      const cell = day as { date?: unknown; project?: unknown; byProject?: unknown };
+      const date = typeof cell.date === 'string' ? cell.date : '<undated>';
+
+      const names: Array<{ value: string; field: string }> = [];
+      if (typeof cell.project === 'string') names.push({ value: cell.project, field: 'project' });
+      if (Array.isArray(cell.byProject)) {
+        for (const entry of cell.byProject) {
+          if (entry !== null && typeof entry === 'object') {
+            const name = (entry as { name?: unknown }).name;
+            if (typeof name === 'string') names.push({ value: name, field: 'byProject[].name' });
+          }
+        }
+      }
+
+      for (const { value, field } of names) {
+        namesAudited += 1;
+
+        // The offending value IS quoted here, unlike everywhere else in this
+        // repo. That is deliberate and safe in this one direction: a finding
+        // means the string is already published in a public query response, so
+        // printing it locally discloses nothing that is not already disclosed —
+        // and an operator who cannot see *what* leaked cannot fix it.
+        if (value.includes('/')) {
+          findings.push(
+            `calendar ${date}: ${field} is "${value}" — a repository IDENTIFIER (contains "/"). ` +
+              'ADR 008 forbids these unconditionally, published case study or not.',
+          );
+          continue;
+        }
+        if (!sanctioned.has(normalise(value))) {
+          findings.push(
+            `calendar ${date}: ${field} is "${value}", which is neither a published ` +
+              `project/lab title nor the neutral bucket "${OTHER_WORK}". ` +
+              'Only names the site has published may be attributed (ADR 008 + ADR 014).',
+          );
+        }
+      }
+    }
+  }
+
+  return { findings, namesAudited };
+}
 
 /**
  * Read every public query an anonymous caller can reach.
@@ -102,7 +220,7 @@ export async function readPublicSurface(base: string): Promise<Surface> {
 
   /* ---- the site's own reads ---------------------------------------- */
 
-  await capture('snapshot:get', 'snapshot:get');
+  const snapshot = await capture('snapshot:get', 'snapshot:get');
   await capture('resume:get', 'resume:get');
   await capture('siteSettings:get', 'siteSettings:get');
   await capture('experienceEntries:list', 'experienceEntries:list');
@@ -176,5 +294,22 @@ export async function readPublicSurface(base: string): Promise<Surface> {
     }
   }
 
-  return { captures, authFindings, publishedNames };
+  /* ---- the structural audit ----------------------------------------
+   *
+   * Run last, because it needs `publishedNames` — the sanction list is read
+   * from the deployment rather than hardcoded, for the same reason check.ts
+   * reads it from the deployment: so that adding a case study does not require
+   * editing this tool, and so the tool cannot grant an exemption the site never
+   * actually published.
+   * ------------------------------------------------------------------ */
+
+  const breakdown = auditContributionBreakdown(snapshot.value, publishedNames);
+
+  return {
+    captures,
+    authFindings,
+    publishedNames,
+    breakdownFindings: breakdown.findings,
+    breakdownNamesAudited: breakdown.namesAudited,
+  };
 }

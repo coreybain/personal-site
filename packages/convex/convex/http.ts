@@ -51,7 +51,10 @@
  *        HealthKit token cannot post AI usage, and it finds out with a 403.
  *   400  the body is not JSON, or does not parse against the payload shape —
  *        including **an unknown key**, which is a privacy check and not a
- *        pedantry (see the header of ingest.ts).
+ *        pedantry (see the header of ingest.ts), and including **a missing
+ *        `machine` on an AI-usage push**, which is a correctness check with the
+ *        same character: the alternative to refusing it is silently merging two
+ *        computers' data (see `aiUsageIngest` below).
  *   413  the body is larger than `MAX_BODY_BYTES`.
  *   200  written. The response is a terse JSON summary of what changed.
  *
@@ -385,13 +388,42 @@ async function requestSnapshotRefold(ctx: ActionCtx): Promise<'scheduled' | 'una
 /**
  * `POST /ingest/ai-usage` — the Collector's daily push (Pipeline 2).
  *
- * Body: `{ days: [{ day, agent, sessions, hours, projects: [{ projectSlug, sessions, hours }] }], postedAt }`.
- * Counts, durations and project slugs. Nothing else is accepted — an unknown key
- * is a 400, which is the mechanism the Verification plan's privacy assertion
- * rests on.
+ * Body: `{ days: [{ day, agent, sessions, hours, projects: [{ projectSlug, sessions, hours }] }], machine, postedAt }`.
+ * Counts, durations, project slugs, and one machine label. Nothing else is
+ * accepted — an unknown key is a 400, which is the mechanism the Verification
+ * plan's privacy assertion rests on.
  *
- * Upserts by `(day, agent)`, refreshes `projects.aiBuildStats` for the projects
- * that moved (ADR 016), and asks for a Snapshot refold.
+ * Upserts by `(day, agent, machine)`, refreshes `projects.aiBuildStats` for the
+ * projects that moved (ADR 016), and asks for a Snapshot refold.
+ *
+ * ═══════════════════════════════════════════════════════════════════════════
+ *  BREAKING WIRE CHANGE: `machine` IS REQUIRED. AN OLD COLLECTOR NOW 400s.
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * Until this change the key was `(day, agent)`, which made the endpoint's
+ * central promise — "a push replaces its own previous claim" — true only while
+ * exactly one computer ever pushed. With two, the second machine's push for the
+ * 30th *erased* the first's: not double-counted, erased, and answered `200`
+ * with a plausible `daysUpdated: 1`. The homepage lost whatever the other
+ * laptop did, and nothing anywhere reported a problem.
+ *
+ * `machine` is a short operator-chosen label on the envelope (one push comes
+ * from one computer, exactly like health's `source`) and is stamped onto every
+ * row of that push. N machines are additive; each may re-send any day as often
+ * as it likes; the folds sum across them.
+ *
+ * A body without it gets **400 `malformed-body`, field `machine`**, with the fix
+ * in the message. That is the only honest answer available: any default this
+ * route invented would be shared by every collector that forgot it, putting them
+ * all back in one bucket to overwrite each other — the original bug, now with a
+ * server-side excuse. Failing loudly on the first run beats a `200` that quietly
+ * loses a machine's data for a month. `push.ts` does not retry 4xx, so the
+ * launchd log gets one clear line per day until somebody upgrades the collector
+ * or sets `machineId`. See tooling/collector/README.md § Several computers.
+ *
+ * Producers, for the record: `tooling/collector` sends it from `machineId` in
+ * `collector.config.json` (or `$COLLECTOR_MACHINE_ID`). Nothing else pushes to
+ * this route.
  */
 const aiUsageIngest = httpAction(async (ctx, request) => {
   const auth = await authorize(ctx, request, 'ai-usage:write');

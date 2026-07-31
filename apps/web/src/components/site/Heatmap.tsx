@@ -10,7 +10,11 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 
-import type { ContributionDay, ContributionWeek } from "@/lib/snapshot";
+import type {
+  ContributionDay,
+  ContributionProject,
+  ContributionWeek,
+} from "@/lib/snapshot";
 
 import { longDate, monthLabel, num, parseIso } from "./format";
 
@@ -29,8 +33,27 @@ const LEFT = 22; // day-name gutter
 const TOP = 14; // month-label gutter
 const ROWS = 7;
 const TOOLTIP_HALF = 98;
-const TOOLTIP_HEIGHT = 72;
 const TOOLTIP_MARGIN = 12;
+
+/*
+ * Tooltip height is *estimated*, not measured, because it is needed one frame
+ * before the tooltip exists: `showTooltip` decides above-or-below from the
+ * cell's rect at pointer-enter, and the element it is sizing has not rendered.
+ * Measuring would mean render-then-reposition, i.e. a visible jump.
+ *
+ * So these three numbers stand in for the CSS, and they are the one place in
+ * this component that has to be kept in step with `horizon.css` by hand. They
+ * are deliberately slight over-estimates: guessing too tall places the tooltip
+ * below when it would just barely have fitted above, which is invisible;
+ * guessing too short places it above and lets it run off the top of the
+ * viewport, which is not.
+ */
+/** Head + total row + padding — a popup with no breakdown, as it always was. */
+const TOOLTIP_BASE_HEIGHT = 72;
+/** The hairline rule above the breakdown, plus the air either side of it. */
+const TOOLTIP_SPLIT_HEAD = 10;
+/** One `Name … n` line of the breakdown. */
+const TOOLTIP_SPLIT_ROW = 17;
 
 const LEVEL_CLASS = [
   "hor-lv0",
@@ -90,10 +113,90 @@ function monthTicks(weeks: ContributionWeek[]): MonthTick[] {
  */
 const NO_PROJECT_LABEL = "No project activity";
 
+/**
+ * How many named projects the popup prints before it starts counting the rest.
+ *
+ * The mock never exceeds three and a real day rarely does either, so this is a
+ * ceiling rather than a routine truncation — but it is a *fixed* ceiling, which
+ * is what keeps the estimated height above honest and stops one freak day from
+ * rendering a popup taller than the viewport.
+ */
+const BREAKDOWN_LIMIT = 4;
+
+type Breakdown = {
+  /** The rows the popup prints, largest first. Empty ⇒ print no breakdown. */
+  shown: ContributionProject[];
+  /** Projects folded into the trailing "+N more" row. `0` when all of them fit. */
+  hidden: number;
+};
+
+/**
+ * The single source of the breakdown, read by all three consumers — the visible
+ * list, the estimated height, and the accessible name.
+ *
+ * That is not tidiness, it is the fix for a bug this file has already had once:
+ * the tooltip and the `aria-label` were written out separately, the tooltip
+ * learned to handle `null` and the label did not, and screen-reader users heard
+ * "null · 18 commits" on every unattributed cell for a release. A breakdown is
+ * more moving parts than a nullable string — a cap, an overflow count, an empty
+ * case — so it is derived once here and never re-derived at a call site.
+ *
+ * `byProject` is defaulted rather than trusted. The type says it is always an
+ * array and `mapGitStats` guarantees it for the live snapshot, but this runs in
+ * the browser against JSON that was serialised by a different process on a
+ * different deploy: a stored row written before the field existed reaches this
+ * function as `undefined`, and `undefined.slice` in a client component blanks
+ * the section rather than degrading it.
+ */
+function breakdownOf(day: ContributionDay): Breakdown {
+  const byProject = day.byProject ?? [];
+  const shown = byProject.slice(0, BREAKDOWN_LIMIT);
+  return { shown, hidden: byProject.length - shown.length };
+}
+
+function commitCount(count: number): string {
+  return `${num(count)} commit${count === 1 ? "" : "s"}`;
+}
+
+/** Estimated rendered height, for the above-or-below decision. See the constants. */
+function tooltipHeight(day: ContributionDay): number {
+  const { shown, hidden } = breakdownOf(day);
+  if (shown.length === 0) return TOOLTIP_BASE_HEIGHT;
+
+  const rows = shown.length + (hidden > 0 ? 1 : 0);
+  return TOOLTIP_BASE_HEIGHT + TOOLTIP_SPLIT_HEAD + rows * TOOLTIP_SPLIT_ROW;
+}
+
+/**
+ * The cell's accessible name — what a screen reader announces on arrow-key
+ * navigation, and the only form of the popup a keyboard-only user gets.
+ *
+ * It carries the breakdown, because "which projects, how many each" is the
+ * whole point of the popup and an accessible name that omitted it would make
+ * the feature sighted-only. It carries the breakdown *tersely*: separators
+ * rather than sentences, the same cap as the visible list, no "attributed to"
+ * or "on this day". Thirty-odd cells are traversed per journey across this
+ * grid; a label that reads well once reads like an essay by the fourth.
+ */
 function cellTitle(day: ContributionDay): string {
-  return day.count === 0
-    ? `No commits · ${longDate(day.date)}`
-    : `${day.project ?? NO_PROJECT_LABEL} · ${num(day.count)} commit${day.count === 1 ? "" : "s"} · ${longDate(day.date)}`;
+  if (day.count === 0) return `No commits · ${longDate(day.date)}`;
+
+  const { shown, hidden } = breakdownOf(day);
+
+  // No breakdown — a day the producer could not attribute, or a stored snapshot
+  // predating the field. Word for word what this label said before `byProject`
+  // existed, so the absent case is a non-event rather than a regression.
+  if (shown.length === 0) {
+    return `${day.project ?? NO_PROJECT_LABEL} · ${commitCount(day.count)} · ${longDate(day.date)}`;
+  }
+
+  // "18 commits: QuoteCloud 12, TravelDocs 4, Other work 2 · Mon 4 Aug 2025".
+  // The colon is doing real work: it tells a listener the list about to arrive
+  // is a decomposition of the number just read, not a second set of numbers.
+  const parts = shown.map((entry) => `${entry.name} ${num(entry.commits)}`);
+  if (hidden > 0) parts.push(`and ${num(hidden)} more`);
+
+  return `${commitCount(day.count)}: ${parts.join(", ")} · ${longDate(day.date)}`;
 }
 
 type ActiveCell = {
@@ -128,6 +231,15 @@ export function Heatmap({
   const width = LEFT + weeks.length * PITCH - GAP;
   const height = TOP + ROWS * PITCH - GAP;
   const ticks = monthTicks(weeks);
+  /*
+   * Derived during render rather than stored alongside `active`, because it is
+   * a pure function of the active day: a second state field would be a second
+   * thing that can fall out of step with the first. It is one `slice` of an
+   * array of at most a handful of entries, once per hover — memoising it would
+   * cost more than it saves.
+   */
+  const breakdown = active ? breakdownOf(active.day) : null;
+  const namedProjects = breakdown ? breakdown.shown.length + breakdown.hidden : 0;
 
   const showTooltip = (
     day: ContributionDay,
@@ -152,9 +264,13 @@ export function Heatmap({
       minX <= maxX
         ? clamp(desiredX, minX, maxX)
         : clamp(desiredX, viewportMin, viewportMax);
-    const hasRoomAbove = cellBounds.top >= TOOLTIP_HEIGHT + TOOLTIP_MARGIN;
+    // Measured per day, not per component: a day that breaks down across three
+    // projects is materially taller than one that does not, and a fixed guess
+    // would flip a tall popup above a cell it cannot fit above.
+    const estimatedHeight = tooltipHeight(day);
+    const hasRoomAbove = cellBounds.top >= estimatedHeight + TOOLTIP_MARGIN;
     const hasRoomBelow =
-      window.innerHeight - cellBounds.bottom >= TOOLTIP_HEIGHT + TOOLTIP_MARGIN;
+      window.innerHeight - cellBounds.bottom >= estimatedHeight + TOOLTIP_MARGIN;
     const placement = hasRoomAbove || !hasRoomBelow ? "top" : "bottom";
 
     setActive({
@@ -306,16 +422,60 @@ export function Heatmap({
                   </span>
                 ) : null}
               </span>
+              {/*
+                The total row keeps its geometry in both states — the big
+                number on the right never moves — and only its left slot
+                changes meaning.
+
+                With a breakdown, the left slot states the *scope* ("3
+                projects") and the names live in the list below, so no name is
+                printed twice. Without one it falls back to the single label
+                this popup has always shown, which is what makes an absent or
+                empty `byProject` render as the old popup exactly rather than
+                as a broken new one.
+              */}
               <span className="hor-heat-tooltip-row">
-                <span className="hor-heat-tooltip-project">
-                  <i aria-hidden="true" />
-                  {active.day.project ?? NO_PROJECT_LABEL}
-                </span>
+                {breakdown && breakdown.shown.length > 0 ? (
+                  <span className="hor-heat-tooltip-project is-scope">
+                    {`${num(namedProjects)} project${namedProjects === 1 ? "" : "s"}`}
+                  </span>
+                ) : (
+                  <span className="hor-heat-tooltip-project">
+                    <i aria-hidden="true" />
+                    {active.day.project ?? NO_PROJECT_LABEL}
+                  </span>
+                )}
                 <strong>
                   {num(active.day.count)}
                   <small>{active.day.count === 1 ? "commit" : "commits"}</small>
                 </strong>
               </span>
+
+              {/*
+                The breakdown itself. `aria-hidden`, and deliberately so: the
+                cell already carries all of this in its accessible name, and
+                `aria-describedby` would make a screen reader read the day
+                twice — once as the label, once as the description. Sighted
+                users get the list, everyone gets the content.
+
+                A list element rather than rows of spans because it *is* a
+                list, and one whose length varies between one and five.
+              */}
+              {breakdown && breakdown.shown.length > 0 ? (
+                <ul className="hor-heat-tooltip-split" aria-hidden="true">
+                  {breakdown.shown.map((entry) => (
+                    <li key={entry.name}>
+                      <span>{entry.name}</span>
+                      <b>{num(entry.commits)}</b>
+                    </li>
+                  ))}
+                  {breakdown.hidden > 0 ? (
+                    <li className="is-rest">
+                      <span>{`+${num(breakdown.hidden)} more`}</span>
+                    </li>
+                  ) : null}
+                </ul>
+              ) : null}
             </div>,
             document.querySelector(".hor") ?? document.body,
           )

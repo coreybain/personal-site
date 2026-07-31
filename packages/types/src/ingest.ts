@@ -42,8 +42,36 @@
  *
  * The corollary is that nothing free-form may be added to these payloads. There
  * is no `collectorVersion`, no `hostname`, no `notes`: the Verification plan
- * asserts that an AI-usage body contains *only* numeric aggregates and slugs, and
- * that assertion is only checkable while it stays literally true.
+ * asserts that an AI-usage body contains *only* numeric aggregates, slugs and
+ * the machine label below, and that assertion is only checkable while it stays
+ * literally true.
+ *
+ * ── The one addition to that list, and why it is not a hostname ─────────────
+ *
+ * `AiUsageIngestSchema.machine` (`MachineLabelSchema`) was added when the
+ * collector started running on more than one computer. It is the *only*
+ * non-numeric, non-slug field in either payload, so it is worth stating exactly
+ * what it is and what it is not.
+ *
+ * It exists because the upsert key had to grow. A row keyed `(day, agent)` is a
+ * claim that one computer's day is *the* day: the laptop posts `2026-07-30 ·
+ * claude · 6 sessions`, then the desktop posts `2026-07-30 · claude · 2
+ * sessions` and the laptop's six are gone. Not double-counted — erased, silently,
+ * with the endpoint returning `daysUpdated: 1` as though it had done the right
+ * thing. Keying `(day, agent, machine)` restores the property the whole raw-table
+ * design rests on: a push replaces *its own* previous claim and nothing else, so
+ * N machines are additive and any machine may re-send any day as often as it
+ * likes. The fold sums across machines, which it was already doing across agents.
+ *
+ * It is NOT a hostname. `os.hostname()` on a personal machine is routinely a
+ * full name and a device model, and the file header's promise is that the
+ * collector transmits nothing about the machine it runs on. This is an operator-
+ * chosen opaque label — `'laptop'`, `'desktop'`, `'work'` — typed into the
+ * gitignored `collector.config.json` and never derived from the environment. The
+ * shape (`MachineLabelSchema`) is deliberately too narrow to hold a hostname,
+ * a path, or a person's name, and the field is never rendered: it exists to make
+ * two rows distinct, and the site cannot count how many computers there are
+ * because nothing public reads it.
  */
 
 import * as z from 'zod';
@@ -103,10 +131,60 @@ export type IngestToken = z.infer<typeof IngestTokenSchema>;
  *
  * Producer  `tooling/collector`, a Bun script under launchd, daily.
  * Transport POST /ingest/ai-usage, scope `ai-usage:write`.
- * Stored in `aiUsageDays`, upserted on (`day`, `agent`).
+ * Stored in `aiUsageDays`, upserted on (`day`, `agent`, `machine`).
  * Folded by the hourly snapshot cron into `snapshot.aiUsage` and into each
- *           `projects.aiBuildStats` (ADR 016).
+ *           `projects.aiBuildStats` (ADR 016), summing across machines.
  * ------------------------------------------------------------------ */
+
+/**
+ * Which computer a push came from. One short, operator-chosen label.
+ *
+ * Read the "not a hostname" section in this file's header first — the privacy
+ * reasoning is there and this is the shape that enforces it.
+ *
+ * Lowercase letters, digits and hyphens, 1–32 characters, starting with a
+ * letter or digit. That is `SlugSchema`'s alphabet, and the constraint is doing
+ * real work rather than tidying: `Corey's MacBook Pro.local` does not match,
+ * `/Users/coreybaines` does not match, and an accidental `os.hostname()` fails
+ * at the HTTP boundary instead of being stored. Deliberately not `SlugSchema`
+ * itself, because this is not a slug of anything — nothing joins on it, and it
+ * must not start meaning "a row in some table".
+ *
+ * Choose once per machine and never change it: the label IS a third of the
+ * upsert key, so renaming `laptop` to `mbp` orphans every row the laptop ever
+ * wrote (they stay, they keep counting, and the new label starts from nothing —
+ * the totals double). If a machine is retired, leave its rows alone; they are
+ * history, not clutter.
+ */
+export const MachineLabelSchema = z
+  .string()
+  .min(1)
+  .max(32)
+  .regex(
+    /^[a-z0-9][a-z0-9-]*$/,
+    'Expected a short lowercase label, e.g. "laptop" or "work-desktop"',
+  );
+export type MachineLabel = z.infer<typeof MachineLabelSchema>;
+
+/**
+ * The label stamped on rows written before `machine` existed.
+ *
+ * Every `aiUsageDays` row created before the multi-machine change was written by
+ * a single computer, and which one is not recorded anywhere — so a backfill
+ * cannot recover it and must not guess. `'pre-multi-machine'` says exactly that,
+ * out loud, in the one field an operator will be looking at when they wonder why
+ * a machine they never named has 300 rows.
+ *
+ * Two properties matter. It is a valid `MachineLabelSchema` value, so the
+ * backfilled rows satisfy the same schema as new ones and no reader needs a
+ * special case. And no human would ever choose it as their own label, so it can
+ * never collide with a real machine and quietly merge two histories.
+ *
+ * Used by the `stampLegacyMachineLabels` migration in
+ * `packages/convex/convex/migrations.ts`, which re-declares the literal (Convex
+ * cannot import this package — see the header of `convex/lib/validate.ts`).
+ */
+export const LEGACY_MACHINE_LABEL = 'pre-multi-machine';
 
 /**
  * One project's slice of one agent-day: "Codex spent 3.5 h across 4 sessions on
@@ -144,9 +222,13 @@ export type AiUsageProject = z.infer<typeof AiUsageProjectSchema>;
  * deriving one from the other.
  */
 export const AiUsageDayIngestSchema = z.strictObject({
-  /** The calendar day being reported, UTC. Half the upsert key. */
+  /** The calendar day being reported, UTC. One third of the upsert key. */
   day: IsoDateSchema,
-  /** The other half. `'claude'` | `'codex'` — an id, not a display name. */
+  /**
+   * The second third. `'claude'` | `'codex'` — an id, not a display name. The
+   * third is `machine`, which lives on the envelope rather than here: one push
+   * comes from one computer.
+   */
   agent: AiAgentSchema,
   sessions: CountSchema,
   /** Wall-clock hours across those sessions. Fractional. */
@@ -161,16 +243,29 @@ export type AiUsageDayIngest = z.infer<typeof AiUsageDayIngestSchema>;
  * A list of day/agent rows rather than one window aggregate. The collector may
  * re-send any day it likes — the usual shape is "today plus yesterday", because
  * yesterday's sessions can still be appended to after midnight — and each row
- * replaces its (`day`, `agent`) predecessor outright. A re-run over the same
- * period is therefore a no-op rather than a doubling, which is the property the
- * old window-based body could not offer.
+ * replaces its (`day`, `agent`, `machine`) predecessor outright. A re-run over
+ * the same period is therefore a no-op rather than a doubling, which is the
+ * property the old window-based body could not offer.
  *
  * There is no window: `days` *is* the window, and it does not have to be
  * contiguous.
+ *
+ * `machine` sits here rather than on each day for the same reason `source` sits
+ * on the envelope of the health push: one push comes from one place. Putting it
+ * per row would invite a body that claims to be two computers at once, which is
+ * not a thing the collector can honestly produce — it reads *this* machine's
+ * `~/.claude` and `~/.codex` and nothing else.
  */
 export const AiUsageIngestSchema = z.strictObject({
   /** One or more agent-days, oldest first. At least one, or say nothing. */
   days: z.array(AiUsageDayIngestSchema).nonempty(),
+  /**
+   * Which computer produced these numbers. Stamped onto every row in `days` and
+   * the third of the upsert key that makes N machines additive instead of
+   * mutually destructive. An opaque operator-chosen label, never a hostname —
+   * see `MachineLabelSchema` and this file's header.
+   */
+  machine: MachineLabelSchema,
   /** When the collector built this payload. Recorded as the rows' `ingestedAt`. */
   postedAt: IsoDateTimeSchema,
 });
@@ -180,12 +275,26 @@ export type AiUsageIngest = z.infer<typeof AiUsageIngestSchema>;
  * A stored `aiUsageDays` row — the wire shape plus when it was written.
  *
  * Mirrored by the `aiUsageDays` table in packages/convex/convex/schema.ts.
- * Exactly one row exists per (`day`, `agent`); the ingest mutation enforces that
- * by looking the pair up on `by_day_agent` and patching rather than inserting.
+ * Exactly one row exists per (`day`, `agent`, `machine`); the ingest mutation
+ * enforces that by looking the triple up on `by_day_agent_machine` and patching
+ * rather than inserting.
+ *
+ * The fold therefore sees up to `machines × agents` rows for a single day and
+ * must **sum them**, exactly as it already sums across agents. A fold that
+ * assumed one row per (day, agent) will now under-report by whatever the other
+ * computers did, which is the mirror image of the bug the key change fixes.
  */
 export const AiUsageDaySchema = z.object({
   day: IsoDateSchema,
   agent: AiAgentSchema,
+  /**
+   * Which computer reported it. Copied from the push envelope onto every row.
+   *
+   * Required here — this is the contract's target shape. The Convex mirror
+   * carries it as `v.optional()` for exactly as long as the backfill takes; see
+   * the note at `aiUsageDays.machine` in schema.ts.
+   */
+  machine: MachineLabelSchema,
   sessions: CountSchema,
   hours: NonNegativeNumberSchema,
   projects: z.array(AiUsageProjectSchema),

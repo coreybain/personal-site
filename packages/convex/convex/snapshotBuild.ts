@@ -61,6 +61,20 @@ import { nowIso } from './lib/validate';
  * Mirrored validators
  * ------------------------------------------------------------------ */
 
+/**
+ * Mirrors the (unexported) `contributionProject` in schema.ts.
+ *
+ * ⚠️ `name` is a DISPLAY NAME — a case-study title, a Lab title, or the neutral
+ * bucket `'Other work'`. Never a repository identifier. `gitStats.ts` resolves
+ * every one of these through its two allowlists and then asserts the result in
+ * `assertNoRepoIdentifiers` before handing it to this mutation; this validator
+ * is a shape check and is emphatically *not* that assertion.
+ */
+const contributionProject = v.object({
+  name: v.string(),
+  commits: v.number(),
+});
+
 /** Mirrors the (unexported) `contributionDay` in schema.ts. */
 const contributionDay = v.object({
   date: v.string(),
@@ -74,9 +88,22 @@ const contributionDay = v.object({
   ),
   /**
    * ADR 008: only a named, curated project title ever arrives here, resolved
-   * through the Lab allowlist in `gitStats.ts`. `null` is the normal value.
+   * through the allowlists in `gitStats.ts`. `null` is the normal value.
    */
   project: v.union(v.string(), v.null()),
+  /**
+   * The day popup's per-project commit counts.
+   *
+   * **Required here, `v.optional()` in schema.ts**, and the asymmetry is
+   * deliberate rather than an oversight. schema.ts has to tolerate the stored
+   * `snapshot` singleton that predates the field, because Convex validates
+   * existing documents on push. This validator guards the *payload* instead, and
+   * the payload is produced fresh by `gitStats.rebuild` on every tick — there is
+   * no legacy producer to accommodate, so requiring it here is what turns
+   * "the cron forgot to send the breakdown" from a silently empty popup into a
+   * rejected mutation that leaves last hour's honest row in place.
+   */
+  byProject: v.array(contributionProject),
 });
 
 /** Mirrors `snapshot.gitStats`. The payload `gitStats.rebuild` produces. */
@@ -263,18 +290,37 @@ type AiUsageFold = {
  * always; a reader noticing that `topProjects` does not add up to
  * `totalSessions` is seeing the truth, not a bug.
  *
+ * ── Several computers, summed ──────────────────────────────────────────────
+ *
+ * `aiUsageDays` is keyed on (`day`, `agent`, `machine`), so one calendar day
+ * holds up to `machines × agents` rows and **the fold must add them together**.
+ * It does, because it is a range read that sums every row it sees rather than a
+ * per-(day, agent) lookup — the same loop that already summed across agents
+ * sums across machines for free.
+ *
+ * That is worth writing down precisely because nothing here looks like it is
+ * doing it. A future edit that replaces the range read with a keyed lookup, or
+ * that adds a `.unique()` anywhere, would compile, pass on a one-laptop
+ * deployment, and under-report the site's real numbers by whatever the other
+ * computers did — which is the same bug the key change fixed, wearing a hat.
+ * `machine` is deliberately not read below: nothing in the Snapshot is grouped
+ * by it, and nothing public may be.
+ *
  * ── Full-table read ────────────────────────────────────────────────────────
  *
- * Two agents × 365 days is ~730 rows a year, which schema.ts explicitly designs
- * for: "Every fold below is a full-table read summed in memory, which at that
- * scale is correct and cheap." The range read below is narrower still.
+ * Two agents × 365 days × a couple of computers is ~1,500 rows a year, which
+ * schema.ts explicitly designs for: "Every fold below is a full-table read
+ * summed in memory, which at that scale is correct and cheap." The range read
+ * below is narrower still.
  */
 async function foldAiUsage(ctx: QueryCtx, windowStart: string): Promise<AiUsageFold> {
-  // `by_day_agent` is usable from its `day` prefix, which is why schema.ts does
-  // not carry a separate `by_day`.
+  // `by_day_agent_machine` is usable from its `day` prefix, which is why
+  // schema.ts does not carry a separate `by_day`. The same index and the same
+  // window as `recordAiUsage`'s own recompute — the two writers of
+  // `projects.aiBuildStats` must not disagree; see `aiStatsWindowStart` there.
   const rows = await ctx.db
     .query('aiUsageDays')
-    .withIndex('by_day_agent', (q) => q.gte('day', windowStart))
+    .withIndex('by_day_agent_machine', (q) => q.gte('day', windowStart))
     .collect();
 
   let totalSessions = 0;

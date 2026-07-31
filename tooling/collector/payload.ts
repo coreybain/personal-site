@@ -17,6 +17,16 @@
  *   • `sessions`       a non-negative integer
  *   • `hours`          a non-negative number
  *   • `postedAt`       an RFC 3339 instant   — `new Date().toISOString()`
+ *   • `machine`        a machine label       — resolved in config.ts
+ *
+ * `machine` is the one addition to that list since it was first written, and it
+ * is the only non-numeric, non-slug, non-date value on the wire. It is a caller-
+ * supplied label from `resolveMachineId` — `'laptop'`, `'work-desktop'` — passed
+ * in as an option rather than read here, because this file constructs the body
+ * and does not decide policy about the machine it runs on. It exists because the
+ * server upserts on (`day`, `agent`, `machine`): without it the second computer
+ * to post a day overwrote the first. See config.ts's `machineId` and the header
+ * of packages/types/src/ingest.ts.
  *
  * `pathToken` is read exactly once, in `resolveSlug(sample.pathToken)`, and its
  * value is never written to an output object. A repo with no mapping resolves to
@@ -134,7 +144,14 @@ type DayAccumulator = {
  *
  * @param samples - every session both scanners found. Order is irrelevant.
  * @param resolveSlug - from `makeSlugResolver`. The only consumer of `pathToken`.
- * @param now - the instant this run started; fixes the window and `postedAt`.
+ * @param options.now - the instant this run started; fixes the window and `postedAt`.
+ * @param options.machine - this computer's label, from `resolveMachineId`. Sits
+ *   on the envelope rather than on each day, because one push comes from one
+ *   computer: a body claiming to be two machines at once is not something this
+ *   builder could honestly produce, so there is no shape for it. It is not
+ *   validated here — `AiUsageIngestSchema` at the bottom of this function is the
+ *   gate, and a label that got past config.ts but not past Zod is a bug worth a
+ *   throw rather than a quiet repair.
  *
  * @returns `payload: null` when the window contains no sessions at all — the
  *   schema requires `days` to be non-empty, and "nothing happened" is correctly
@@ -144,7 +161,7 @@ type DayAccumulator = {
 export function buildPayload(
   samples: readonly SessionSample[],
   resolveSlug: (pathToken: string) => string | null,
-  options: { now: Date; lookbackDays: number },
+  options: { now: Date; lookbackDays: number; machine: string },
 ): { payload: AiUsagePayload | null; summary: BuildSummary } {
   const days = windowDays(options.now, options.lookbackDays);
   const inWindow = new Set(days);
@@ -259,9 +276,12 @@ export function buildPayload(
     return { payload: null, summary };
   }
 
-  // The gate. Strict at every level — see the file header, point 1.
+  // The gate. Strict at every level — see the file header, point 1. `machine` is
+  // checked here too: `MachineLabelSchema` is narrow enough that a hostname, a
+  // path or a person's name with spaces throws rather than ships.
   const payload = AiUsageIngestSchema.parse({
     days: dayRows,
+    machine: options.machine,
     postedAt: options.now.toISOString(),
   });
 
