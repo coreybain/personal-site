@@ -100,9 +100,9 @@ function daysBeforeComputedAt(days: number): string {
  * on the page instead of an empty box.
  */
 const HEADLINE =
-  'I build the platforms other teams depend on — document automation, ' +
-  'compliance, real-time auctions — and I ship them with agents in the loop, ' +
-  'every day.';
+  'I build the platforms teams depend on — document automation, ' +
+  'compliance, real-time infrastructure — and I ship them with agents in the ' +
+  'loop, every day.';
 
 /**
  * SYNTHESISED. Which top-level routes exist, read off the filesystem rather than

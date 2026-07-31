@@ -126,8 +126,7 @@ export function AskUnconfiguredPanel({
           "The retrieval, the citations and the rate limiting are all built and live — but the key that answers is not set on this deployment, so there is nothing to answer with. Rather than improvise a reply, it stops."}
       </p>
 
-      {/* The mechanism, printed on the chrome — the same habit as the contact
-          form's `POST contactMessages.submit` readout. */}
+      {/* Name the missing variables when the route can identify them. */}
       {missing.length > 0 ? (
         <dl className="ask-keys" aria-label="What Ask Corey is waiting for">
           {missing.map((name) => (

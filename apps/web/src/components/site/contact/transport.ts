@@ -25,7 +25,7 @@
 export type ContactTransport = "convex" | "mailto";
 
 /** The three fields the form owns, and the only ones an error can point at. */
-export type ContactField = "name" | "email" | "message";
+export type ContactField = "name" | "email" | "message" | "attachments";
 
 /**
  * What the action hands back, and the only thing the status line renders.
@@ -38,6 +38,11 @@ export type ContactField = "name" | "email" | "message";
 export type ContactState =
   | { status: "idle" }
   | { status: "sent" }
+  | {
+      status: "partial";
+      /** The note arrived, but its files could not be stored. */
+      message: string;
+    }
   | {
       status: "error";
       /** The input at fault, so the form can mark it — or `null` for the form. */

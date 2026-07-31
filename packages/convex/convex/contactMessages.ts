@@ -28,12 +28,12 @@
  * convenience.
  */
 
-import { v } from 'convex/values';
-import { mutation, query } from './_generated/server';
-import { requireAdmin } from './lib/auth';
-import { RATE_LIMITS, consumeRateLimit } from './lib/rateLimit';
-import { assertEmail, assertText, invalid, nowIso } from './lib/validate';
-import { contactStatus } from './schema';
+import { v } from "convex/values";
+import { mutation, query } from "./_generated/server";
+import { requireAdmin } from "./lib/auth";
+import { RATE_LIMITS, consumeRateLimit } from "./lib/rateLimit";
+import { assertEmail, assertText, invalid, nowIso } from "./lib/validate";
+import { contactStatus } from "./schema";
 
 /* ------------------------------------------------------------------ *
  * Bounds — mirrored from `ContactFormSchema` in @home/types
@@ -62,7 +62,10 @@ export const CONTACT_MESSAGE_ADMIN_READ_LIMIT = 500;
 /** Pure and exported only so the read-boundary contract has a focused test. */
 export function contactMessageReadLimit(requested?: number): number {
   if (requested === undefined || !Number.isFinite(requested)) return 100;
-  return Math.min(Math.max(Math.trunc(requested), 1), CONTACT_MESSAGE_ADMIN_READ_LIMIT);
+  return Math.min(
+    Math.max(Math.trunc(requested), 1),
+    CONTACT_MESSAGE_ADMIN_READ_LIMIT,
+  );
 }
 
 /* ------------------------------------------------------------------ *
@@ -125,46 +128,151 @@ export const submit = mutation({
     company: v.optional(v.string()),
     message: v.string(),
     identifierHash: v.string(),
+    attachmentSecret: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    assertText(args.name, 'name', MAX_NAME);
+    assertText(args.name, "name", MAX_NAME);
     assertEmail(args.email);
-    assertText(args.message, 'message', MAX_MESSAGE);
+    assertText(args.message, "message", MAX_MESSAGE);
+    if (
+      args.attachmentSecret !== undefined &&
+      !/^[a-f0-9]{64}$/.test(args.attachmentSecret)
+    ) {
+      invalid({
+        code: "invalid-format",
+        field: "attachmentSecret",
+        message: "The attachment capability is invalid.",
+      });
+    }
 
     // Optional, but a present-and-blank `company` is a form bug rather than a
     // submission worth storing, so it is normalised away instead of stored.
     const company = args.company?.trim();
     if (company !== undefined && company.length > MAX_COMPANY) {
       invalid({
-        code: 'out-of-range',
-        field: 'company',
+        code: "out-of-range",
+        field: "company",
         message: `company must be ${MAX_COMPANY} characters or fewer.`,
       });
     }
 
-    const decision = await consumeRateLimit(ctx, 'contact', args.identifierHash);
+    const decision = await consumeRateLimit(
+      ctx,
+      "contact",
+      args.identifierHash,
+    );
     if (!decision.allowed) {
       // Minutes, not seconds: "try again in 43 minutes" is a sentence, "in 2,580
       // seconds" is a number the reader has to do arithmetic on. Rounded up so
       // the advice is never early.
       const minutes = Math.max(1, Math.ceil(decision.retryAfterSeconds / 60));
       invalid({
-        code: 'rate-limited',
+        code: "rate-limited",
         message:
           `That is ${RATE_LIMITS.contact.limit} messages in an hour, which is the limit. ` +
-          `Try again in ${minutes} minute${minutes === 1 ? '' : 's'} — or email direct, which is not limited.`,
+          `Try again in ${minutes} minute${minutes === 1 ? "" : "s"} — or email direct, which is not limited.`,
       });
     }
 
-    await ctx.db.insert('contactMessages', {
+    await ctx.db.insert("contactMessages", {
       name: args.name.trim(),
       // Lower-cased so the inbox does not show the same sender twice, and
       // trimmed because a trailing space in a mail client's autofill is common.
       email: args.email.trim().toLowerCase(),
       ...(company !== undefined && company.length > 0 ? { company } : {}),
       message: args.message.trim(),
-      status: 'new',
+      ...(args.attachmentSecret === undefined
+        ? {}
+        : { attachmentSecret: args.attachmentSecret }),
+      status: "new",
       createdAt: nowIso(),
+    });
+
+    return null;
+  },
+});
+
+const contactAttachment = v.object({
+  name: v.string(),
+  url: v.string(),
+  storageKey: v.string(),
+  size: v.number(),
+  contentType: v.string(),
+});
+
+/**
+ * Finish the attachment phase for a newly submitted message.
+ *
+ * The random capability is single-use: successful files are stored and the
+ * capability is removed in the same patch. Passing an empty array deliberately
+ * clears the capability after an upload failure without adding an empty field.
+ */
+export const finishAttachments = mutation({
+  args: {
+    attachmentSecret: v.string(),
+    attachments: v.array(contactAttachment),
+  },
+  handler: async (ctx, args) => {
+    if (!/^[a-f0-9]{64}$/.test(args.attachmentSecret)) {
+      invalid({
+        code: "invalid-format",
+        field: "attachmentSecret",
+        message: "The attachment capability is invalid.",
+      });
+    }
+    if (args.attachments.length > 3) {
+      invalid({
+        code: "out-of-range",
+        field: "attachments",
+        message: "A message can include up to 3 attachments.",
+      });
+    }
+
+    let totalSize = 0;
+    for (const attachment of args.attachments) {
+      assertText(attachment.name, "attachment.name", 180);
+      assertText(attachment.url, "attachment.url", 2_048);
+      assertText(attachment.storageKey, "attachment.storageKey", 500);
+      assertText(attachment.contentType, "attachment.contentType", 120);
+      if (
+        !Number.isSafeInteger(attachment.size) ||
+        attachment.size <= 0 ||
+        attachment.size > 4 * 1024 * 1024
+      ) {
+        invalid({
+          code: "out-of-range",
+          field: "attachment.size",
+          message: "An attachment has an invalid size.",
+        });
+      }
+      totalSize += attachment.size;
+    }
+    if (totalSize > 4 * 1024 * 1024) {
+      invalid({
+        code: "out-of-range",
+        field: "attachments",
+        message: "Attachments are capped at 4 MB combined.",
+      });
+    }
+
+    const row = await ctx.db
+      .query("contactMessages")
+      .withIndex("by_attachmentSecret", (q) =>
+        q.eq("attachmentSecret", args.attachmentSecret),
+      )
+      .unique();
+
+    if (row === null) {
+      invalid({
+        code: "not-found",
+        field: "attachmentSecret",
+        message: "That attachment capability has expired.",
+      });
+    }
+
+    await ctx.db.patch(row._id, {
+      ...(args.attachments.length > 0 ? { attachments: args.attachments } : {}),
+      attachmentSecret: undefined,
     });
 
     return null;
@@ -203,16 +311,16 @@ export const list = query({
     if (args.status !== undefined) {
       const status = args.status;
       return await ctx.db
-        .query('contactMessages')
-        .withIndex('by_status_createdAt', (q) => q.eq('status', status))
-        .order('desc')
+        .query("contactMessages")
+        .withIndex("by_status_createdAt", (q) => q.eq("status", status))
+        .order("desc")
         .take(limit);
     }
 
     return await ctx.db
-      .query('contactMessages')
-      .withIndex('by_createdAt')
-      .order('desc')
+      .query("contactMessages")
+      .withIndex("by_createdAt")
+      .order("desc")
       .take(limit);
   },
 });
@@ -237,9 +345,9 @@ export const listAdmin = query({
   handler: async (ctx) => {
     await requireAdmin(ctx);
     return await ctx.db
-      .query('contactMessages')
-      .withIndex('by_createdAt')
-      .order('desc')
+      .query("contactMessages")
+      .withIndex("by_createdAt")
+      .order("desc")
       .take(CONTACT_MESSAGE_ADMIN_READ_LIMIT);
   },
 });
@@ -259,15 +367,16 @@ export const counts = query({
   handler: async (ctx) => {
     await requireAdmin(ctx);
 
-    const states = ['new', 'read', 'replied', 'archived', 'spam'] as const;
+    const states = ["new", "read", "replied", "archived", "spam"] as const;
     const tallies = await Promise.all(
-      states.map(async (status) =>
-        (
-          await ctx.db
-            .query('contactMessages')
-            .withIndex('by_status_createdAt', (q) => q.eq('status', status))
-            .take(CONTACT_MESSAGE_ADMIN_READ_LIMIT)
-        ).length,
+      states.map(
+        async (status) =>
+          (
+            await ctx.db
+              .query("contactMessages")
+              .withIndex("by_status_createdAt", (q) => q.eq("status", status))
+              .take(CONTACT_MESSAGE_ADMIN_READ_LIMIT)
+          ).length,
       ),
     );
 
@@ -298,7 +407,7 @@ export const counts = query({
  */
 export const setStatus = mutation({
   args: {
-    messageId: v.id('contactMessages'),
+    messageId: v.id("contactMessages"),
     status: contactStatus,
   },
   handler: async (ctx, args) => {
@@ -307,9 +416,9 @@ export const setStatus = mutation({
     const row = await ctx.db.get(args.messageId);
     if (row === null) {
       invalid({
-        code: 'not-found',
-        field: 'messageId',
-        message: 'That message no longer exists.',
+        code: "not-found",
+        field: "messageId",
+        message: "That message no longer exists.",
       });
     }
 
@@ -329,7 +438,7 @@ export const setStatus = mutation({
  * `archived` instead — this is irreversible, and the admin UI must confirm.
  */
 export const remove = mutation({
-  args: { messageId: v.id('contactMessages') },
+  args: { messageId: v.id("contactMessages") },
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
 

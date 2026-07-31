@@ -1,6 +1,14 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  experimental: {
+    /**
+     * Contact submissions may include up to 4 MB of attachments. The default
+     * Server Action limit is 1 MB, so leave one megabyte for multipart fields
+     * and React's action envelope while keeping the public request bounded.
+     */
+    serverActions: { bodySizeLimit: "5mb" },
+  },
   /**
    * Deliberately no `outputFileTracingIncludes` for the résumé PDF's fonts.
    *

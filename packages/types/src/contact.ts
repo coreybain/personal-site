@@ -7,8 +7,12 @@
  * after the server has added the fields the client must not control.
  */
 
-import * as z from 'zod';
-import { EmailSchema, IsoDateTimeSchema, NonEmptyStringSchema } from './primitives';
+import * as z from "zod";
+import {
+  EmailSchema,
+  IsoDateTimeSchema,
+  NonEmptyStringSchema,
+} from "./primitives";
 
 /**
  * Triage state.
@@ -18,11 +22,11 @@ import { EmailSchema, IsoDateTimeSchema, NonEmptyStringSchema } from './primitiv
  * the spam that a public form on a site aimed at recruiters will certainly attract.
  */
 export const ContactStatusSchema = z.enum([
-  'new',
-  'read',
-  'replied',
-  'archived',
-  'spam',
+  "new",
+  "read",
+  "replied",
+  "archived",
+  "spam",
 ]);
 export type ContactStatus = z.infer<typeof ContactStatusSchema>;
 
@@ -43,8 +47,23 @@ export const ContactFormSchema = z.strictObject({
 });
 export type ContactForm = z.infer<typeof ContactFormSchema>;
 
+/** One file stored alongside a contact message. */
+export const ContactAttachmentSchema = z.strictObject({
+  name: NonEmptyStringSchema.max(180),
+  url: z.url(),
+  storageKey: NonEmptyStringSchema.max(500),
+  size: z
+    .number()
+    .int()
+    .positive()
+    .max(4 * 1024 * 1024),
+  contentType: NonEmptyStringSchema.max(120),
+});
+export type ContactAttachment = z.infer<typeof ContactAttachmentSchema>;
+
 /** The stored row: the submitted fields plus server-owned triage state. */
 export const ContactMessageSchema = ContactFormSchema.extend({
+  attachments: z.array(ContactAttachmentSchema).max(3).optional(),
   status: ContactStatusSchema,
   createdAt: IsoDateTimeSchema,
 });

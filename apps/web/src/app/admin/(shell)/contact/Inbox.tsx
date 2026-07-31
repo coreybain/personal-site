@@ -127,7 +127,9 @@ export function Inbox() {
         { key: "status", label: "Status" },
         { key: "actions", label: "", align: "right" },
       ]}
-      toolbar={<StatusFilter value={filter} onChange={setFilter} counts={counts} />}
+      toolbar={
+        <StatusFilter value={filter} onChange={setFilter} counts={counts} />
+      }
       loading={rows === undefined}
       empty={rows?.length === 0}
       emptyTitle={
@@ -310,8 +312,8 @@ function MessageDetail({
 
         <AdminPanel title="That message is gone">
           <AdminNotice tone="warn">
-            It was either deleted, or the status you just set moved it out of the
-            filter you are looking at. Both are normal.
+            It was either deleted, or the status you just set moved it out of
+            the filter you are looking at. Both are normal.
           </AdminNotice>
         </AdminPanel>
       </>
@@ -381,7 +383,10 @@ function MessageDetail({
                     quiet
                     title={`Mark this message ${status.label.toLowerCase()}`}
                     onAction={() =>
-                      setStatus({ messageId: message._id, status: status.value })
+                      setStatus({
+                        messageId: message._id,
+                        status: status.value,
+                      })
                     }
                   >
                     <span className="adm-sr-only">Mark this message </span>
@@ -439,6 +444,33 @@ function MessageDetail({
         >
           {message.message}
         </p>
+
+        {message.attachments === undefined ||
+        message.attachments.length === 0 ? null : (
+          <div className="adm-contact-attachments">
+            <div className="adm-eyebrow">
+              Attachments · {message.attachments.length}
+            </div>
+            <ul>
+              {message.attachments.map((attachment) => (
+                <li key={attachment.storageKey}>
+                  <a
+                    className="adm-link"
+                    href={attachment.url}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                  >
+                    {attachment.name}
+                  </a>
+                  <span className="adm-micro adm-mono">
+                    {attachment.contentType} ·{" "}
+                    {Math.max(1, Math.round(attachment.size / 1024))} KB
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {action.failure ? (
           <p className="adm-error" role="alert">

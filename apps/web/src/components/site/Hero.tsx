@@ -2,6 +2,7 @@ import type { CSSProperties } from "react";
 
 import type { AiUsage, GitStats, Identity, Project } from "@/lib/snapshot";
 
+import { ContactSheetTrigger } from "./contact/ContactSheet";
 import { PersonalCard } from "./PersonalCard";
 import { num } from "./format";
 
@@ -37,7 +38,10 @@ export function Hero({
   projects: Project[];
 }) {
   const SKYLINE = [
-    { value: num(gitStats.totalContributionsYear), label: "Contributions, 12 mo" },
+    {
+      value: num(gitStats.totalContributionsYear),
+      label: "Contributions, 12 mo",
+    },
     { value: num(aiUsage.totalSessions), label: "Agent sessions" },
     { value: String(projects.length), label: "Platforms in production" },
   ];
@@ -53,7 +57,10 @@ export function Hero({
             </span>
           </div>
 
-          <h1 className="hor-display hor-rise mt-8 text-balance sm:mt-10" style={delay(110)}>
+          <h1
+            className="hor-display hor-rise mt-8 text-balance sm:mt-10"
+            style={delay(110)}
+          >
             {identity.name}
           </h1>
 
@@ -72,16 +79,29 @@ export function Hero({
             </div>
           </div>
 
-          <p className="hor-lede hor-rise mt-7 max-w-[48ch] text-pretty" style={delay(240)}>
-            I build the platforms other teams depend on — document automation,
-            compliance, real-time auctions — and I ship them with agents in the
-            loop, every day. Everything below this line is measured, not claimed.
+          <p
+            className="hor-lede hor-rise mt-7 max-w-[48ch] text-pretty"
+            style={delay(240)}
+          >
+            I build the platforms teams depend on — document automation,
+            compliance, real-time infrastructure — and I ship them with agents
+            in the loop, every day. Everything below this line is measured, not
+            claimed.
           </p>
 
-          <div className="hor-rise mt-9 flex flex-wrap items-center gap-3" style={delay(300)}>
-            <a className="hor-btn" href={`mailto:${identity.email}`}>
+          <div
+            className="hor-rise mt-9 flex flex-wrap items-center gap-3"
+            style={delay(300)}
+          >
+            <ContactSheetTrigger className="hor-btn">
               Get in touch
-              <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true">
+              <svg
+                width="13"
+                height="13"
+                viewBox="0 0 13 13"
+                fill="none"
+                aria-hidden="true"
+              >
                 <path
                   d="M2.6 6.5h7.8M7.2 3.3l3.2 3.2-3.2 3.2"
                   stroke="currentColor"
@@ -90,7 +110,7 @@ export function Hero({
                   strokeLinejoin="round"
                 />
               </svg>
-            </a>
+            </ContactSheetTrigger>
             <a
               className="hor-btn hor-btn-ghost"
               href={`https://github.com/${identity.github}`}

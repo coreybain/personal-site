@@ -63,14 +63,21 @@ function buildBody(name: string, from: string, message: string): string {
 export function ContactForm({
   email,
   action,
+  idPrefix = "contact",
+  context = "page",
 }: {
   email: string;
   /** The Server Action, or `null` on a deployment with no Convex. */
   action: ContactSubmitAction | null;
+  /** Keeps labels unique when the page composer and global sheet coexist. */
+  idPrefix?: string;
+  context?: "page" | "sheet";
 }) {
   const [name, setName] = useState("");
   const [from, setFrom] = useState("");
   const [message, setMessage] = useState("");
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [fileInputKey, setFileInputKey] = useState(0);
 
   /** mailto path only: the last submit opened a mail client. */
   const [handedOff, setHandedOff] = useState(false);
@@ -100,10 +107,12 @@ export function ContactForm({
     async (previous, form) => {
       if (action === null) return previous;
       const next = await action(previous, form);
-      if (next.status === "sent") {
+      if (next.status === "sent" || next.status === "partial") {
         setName("");
         setFrom("");
         setMessage("");
+        setSelectedFiles([]);
+        setFileInputKey((key) => key + 1);
       }
       return next;
     },
@@ -150,19 +159,39 @@ export function ContactForm({
   }
 
   const direct = action !== null;
+  const nameId = `${idPrefix}-name`;
+  const emailId = `${idPrefix}-email`;
+  const messageId = `${idPrefix}-message`;
+  const attachmentsId = `${idPrefix}-attachments`;
+
+  function onFilesSelected(event: ChangeEvent<HTMLInputElement>) {
+    setSelectedFiles(Array.from(event.target.files ?? []));
+  }
+
+  function clearFiles() {
+    setSelectedFiles([]);
+    setFileInputKey((key) => key + 1);
+  }
+
+  function fileSize(bytes: number): string {
+    if (bytes < 1024 * 1024)
+      return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
 
   return (
     <form
       className="contact-form"
+      data-context={context}
       {...(direct ? { action: formAction } : { onSubmit: onMailtoSubmit })}
     >
       <div className="contact-pair">
         <div>
-          <label className="hor-label contact-lbl" htmlFor="contact-name">
+          <label className="hor-label contact-lbl" htmlFor={nameId}>
             Your name
           </label>
           <input
-            id="contact-name"
+            id={nameId}
             name="name"
             className="contact-in"
             type="text"
@@ -176,11 +205,11 @@ export function ContactForm({
         </div>
 
         <div>
-          <label className="hor-label contact-lbl" htmlFor="contact-email">
+          <label className="hor-label contact-lbl" htmlFor={emailId}>
             Your email
           </label>
           <input
-            id="contact-email"
+            id={emailId}
             name="email"
             className="contact-in"
             type="email"
@@ -196,11 +225,11 @@ export function ContactForm({
       </div>
 
       <div>
-        <label className="hor-label contact-lbl" htmlFor="contact-message">
+        <label className="hor-label contact-lbl" htmlFor={messageId}>
           Message
         </label>
         <textarea
-          id="contact-message"
+          id={messageId}
           name="message"
           className="contact-in"
           rows={6}
@@ -212,20 +241,81 @@ export function ContactForm({
         />
       </div>
 
-      {/* The wire: what the submit button will actually hand over, printed on
-          the chrome. Two transports, two honest readouts. */}
-      <div className="contact-wire" aria-hidden="true">
-        <span className="hor-label">{direct ? "POST" : "SUBJ"}</span>
-        <span className="hor-vrule hor-vrule-sm" />
-        <span className="hor-mono hor-micro contact-wire-val">
-          {direct ? `contactMessages.submit → ${email}` : subject}
-        </span>
-      </div>
+      {direct ? (
+        <div className="contact-attachments">
+          <div className="contact-attachment-head">
+            <span className="hor-label">Attachments</span>
+            <span className="hor-micro">Up to 3 files · 4 MB combined</span>
+          </div>
+          <input
+            key={fileInputKey}
+            id={attachmentsId}
+            name="attachments"
+            className="contact-file-input"
+            type="file"
+            multiple
+            accept=".pdf,.doc,.docx,.txt,.rtf,.png,.jpg,.jpeg,.webp"
+            onChange={onFilesSelected}
+            aria-invalid={invalidField === "attachments" || undefined}
+          />
+          <div className="contact-attachment-actions">
+            <label className="contact-attach-btn" htmlFor={attachmentsId}>
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 20 20"
+                fill="none"
+                aria-hidden="true"
+              >
+                <path
+                  d="M7.3 10.7l4.9-4.9a2.5 2.5 0 113.5 3.5l-6.1 6.1a4 4 0 01-5.7-5.7l6.3-6.3"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              {selectedFiles.length === 0
+                ? "Attach files"
+                : "Choose different files"}
+            </label>
+            {selectedFiles.length > 0 ? (
+              <button
+                type="button"
+                className="contact-file-clear"
+                onClick={clearFiles}
+              >
+                Clear
+              </button>
+            ) : null}
+          </div>
+          {selectedFiles.length > 0 ? (
+            <ul className="contact-file-list" aria-label="Selected attachments">
+              {selectedFiles.map((file, index) => (
+                <li key={`${file.name}-${file.lastModified}-${index}`}>
+                  <span>{file.name}</span>
+                  <span>{fileSize(file.size)}</span>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="contact-actions mt-1">
         <button type="submit" className="hor-btn" disabled={pending}>
-          {direct ? (pending ? "Sending…" : "Send message") : "Open in mail app"}
-          <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true">
+          {direct
+            ? pending
+              ? "Sending…"
+              : "Send message"
+            : "Open in mail app"}
+          <svg
+            width="13"
+            height="13"
+            viewBox="0 0 13 13"
+            fill="none"
+            aria-hidden="true"
+          >
             <path
               d="M2.6 6.5h7.8M7.2 3.3l3.2 3.2-3.2 3.2"
               stroke="currentColor"
@@ -235,11 +325,6 @@ export function ContactForm({
             />
           </svg>
         </button>
-        <span className="hor-label">
-          {direct
-            ? "convex · stored, then read by one person"
-            : "mailto · nothing leaves this page"}
-        </span>
       </div>
 
       {direct ? (
@@ -258,6 +343,11 @@ export function ContactForm({
               <span className="contact-dot" aria-hidden="true" />
               Sent. It is in the inbox behind {email}, read by one person — a
               reply comes from that address, not from this form.
+            </>
+          ) : shown === "partial" && state.status === "partial" ? (
+            <>
+              <span className="contact-dot" aria-hidden="true" />
+              {state.message}
             </>
           ) : shown === "error" && state.status === "error" ? (
             <>
@@ -281,12 +371,13 @@ export function ContactForm({
             <>
               <span className="contact-dot" aria-hidden="true" />
               Handed a draft addressed to {email} to your mail app. Nothing was
-              sent or stored here — if nothing opened, use the address at the top.
+              sent or stored here — if nothing opened, use the address at the
+              top.
             </>
           ) : (
             <>
-              Submitting opens your mail app with these fields prefilled. It is not
-              a send: direct delivery arrives with the backend phase.
+              Submitting opens your mail app with these fields prefilled. It is
+              not a send: direct delivery arrives with the backend phase.
             </>
           )}
         </p>

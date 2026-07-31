@@ -77,8 +77,8 @@
  *     `@home/types` without leaking into the Swift contract.
  */
 
-import { defineSchema, defineTable } from 'convex/server';
-import { v } from 'convex/values';
+import { defineSchema, defineTable } from "convex/server";
+import { v } from "convex/values";
 
 /* ------------------------------------------------------------------ *
  * Scalars
@@ -122,7 +122,7 @@ const machineLabel = v.string();
  * presigned URL and stores the result here, so Convex never holds the bytes.
  */
 export const mediaAsset = v.object({
-  kind: v.union(v.literal('image'), v.literal('video')),
+  kind: v.union(v.literal("image"), v.literal("video")),
   url: v.string(),
   /** Required. Every image on the site is described; there is no decorative media. */
   alt: v.string(),
@@ -146,10 +146,10 @@ export const mediaAsset = v.object({
 
 /** The four kinds of Fun Entry. Mirrors `FunEntryKindSchema`. */
 export const funEntryType = v.union(
-  v.literal('beer'),
-  v.literal('coffee'),
-  v.literal('walk'),
-  v.literal('pub'),
+  v.literal("beer"),
+  v.literal("coffee"),
+  v.literal("walk"),
+  v.literal("pub"),
 );
 
 /**
@@ -161,9 +161,9 @@ export const funEntryType = v.union(
  * token that can be issued and never used, or used and never issued.
  */
 export const ingestScope = v.union(
-  v.literal('ai-usage:write'),
-  v.literal('health:write'),
-  v.literal('git:write'),
+  v.literal("ai-usage:write"),
+  v.literal("health:write"),
+  v.literal("git:write"),
 );
 
 /**
@@ -173,11 +173,11 @@ export const ingestScope = v.union(
  * which must accept exactly the states the column stores and nothing else.
  */
 export const contactStatus = v.union(
-  v.literal('new'),
-  v.literal('read'),
-  v.literal('replied'),
-  v.literal('archived'),
-  v.literal('spam'),
+  v.literal("new"),
+  v.literal("read"),
+  v.literal("replied"),
+  v.literal("archived"),
+  v.literal("spam"),
 );
 
 /**
@@ -194,9 +194,9 @@ export const contactStatus = v.union(
  * send a message.
  */
 export const rateLimitBucket = v.union(
-  v.literal('ask'),
-  v.literal('ask-retrieve'),
-  v.literal('contact'),
+  v.literal("ask"),
+  v.literal("ask-retrieve"),
+  v.literal("contact"),
 );
 
 /** `{ name, sessions }` — mirrors `AgentUsageSchema` and `ProjectUsageSchema`. */
@@ -214,7 +214,7 @@ const namedSessions = v.object({ name: v.string(), sessions: v.number() });
  * `ingestScope` is exported: an agent the endpoint accepts but the column cannot
  * store is a push that 200s and vanishes.
  */
-export const aiAgent = v.union(v.literal('claude'), v.literal('codex'));
+export const aiAgent = v.union(v.literal("claude"), v.literal("codex"));
 
 /**
  * One project's slice of one agent-day. Mirrors `AiUsageProjectSchema`.
@@ -234,12 +234,15 @@ const aiUsageProject = v.object({
 
 /** Who measured a day of movement. Mirrors `HealthSourceSchema`. */
 export const healthSource = v.union(
-  v.literal('healthkit'),
-  v.literal('manual'),
+  v.literal("healthkit"),
+  v.literal("manual"),
 );
 
 /** Agent effort spent building one thing (ADR 016). `AiBuildStatsSchema`. */
-export const aiBuildStats = v.object({ sessions: v.number(), hours: v.number() });
+export const aiBuildStats = v.object({
+  sessions: v.number(),
+  hours: v.number(),
+});
 
 /**
  * One project's slice of one day's commits. Mirrors `ContributionProjectSchema`.
@@ -646,18 +649,18 @@ export default defineSchema({
     aiBuildStats: v.optional(aiBuildStats),
   })
     // Every `/work/[slug]` page is one lookup on this.
-    .index('by_slug', ['slug'])
+    .index("by_slug", ["slug"])
     // The listing: filter to published, already in display order.
-    .index('by_published_sortOrder', ['published', 'sortOrder'])
+    .index("by_published_sortOrder", ["published", "sortOrder"])
     // ── Added in build phase 2 (backend core) ─────────────────────────────
     // The dashboard's hero row, mirroring the index `labs` already had. Both
     // sections feed the same grid, and it would be a trap for one of them to
     // reach it by index and the other by scan-and-filter.
-    .index('by_published_featured', ['published', 'featured'])
+    .index("by_published_featured", ["published", "featured"])
     // The admin listing, which — unlike the public one — includes drafts, so it
     // cannot use `by_published_sortOrder`: that index's leading field pins
     // `published` to one value, and admin wants both in a single ordered read.
-    .index('by_sortOrder', ['sortOrder']),
+    .index("by_sortOrder", ["sortOrder"]),
 
   /**
    * Labs — personal side projects. Mirrors `LabSchema`.
@@ -709,16 +712,16 @@ export default defineSchema({
       syncedAt: v.optional(isoDateTime),
     }),
   })
-    .index('by_slug', ['slug'])
+    .index("by_slug", ["slug"])
     // The cron resolves rows to refresh by repo, not by slug.
-    .index('by_repoFullName', ['repoFullName'])
+    .index("by_repoFullName", ["repoFullName"])
     // The /labs listing, already in display order.
-    .index('by_published_sortOrder', ['published', 'sortOrder'])
+    .index("by_published_sortOrder", ["published", "sortOrder"])
     // The dashboard's hero row.
-    .index('by_published_featured', ['published', 'featured'])
+    .index("by_published_featured", ["published", "featured"])
     // ── Added in build phase 2 (backend core) ─────────────────────────────
     // The admin listing, drafts included — see the same addition on `projects`.
-    .index('by_sortOrder', ['sortOrder']),
+    .index("by_sortOrder", ["sortOrder"]),
 
   /**
    * Blog posts. Mirrors `PostSchema`. May launch empty (ADR 018).
@@ -744,8 +747,8 @@ export default defineSchema({
     publishedAt: v.union(isoDateTime, v.null()),
     published: v.boolean(),
   })
-    .index('by_slug', ['slug'])
-    .index('by_published_publishedAt', ['published', 'publishedAt']),
+    .index("by_slug", ["slug"])
+    .index("by_published_publishedAt", ["published", "publishedAt"]),
 
   /**
    * Fun Entries — dated life items, photo-first, usually captured on the phone.
@@ -755,9 +758,9 @@ export default defineSchema({
     // The `/fun` feed and the Snapshot's `latestFunEntry` both read
     // newest-first. `occurredAt` is an ISO instant, which sorts
     // lexicographically in chronological order — see the file header.
-    .index('by_occurredAt', ['occurredAt'])
+    .index("by_occurredAt", ["occurredAt"])
     // Per-kind filtering on the `/fun` page.
-    .index('by_type_occurredAt', ['type', 'occurredAt']),
+    .index("by_type_occurredAt", ["type", "occurredAt"]),
 
   /**
    * The Resume Document (ADR 012) — the single record both the web resume and
@@ -815,7 +818,7 @@ export default defineSchema({
     projectSlugs: v.optional(v.array(slug)),
   })
     // Admin list order, independent of the resume's own selection.
-    .index('by_sortOrder', ['sortOrder']),
+    .index("by_sortOrder", ["sortOrder"]),
 
   /**
    * Scoped bearer tokens for machine Ingest (ADR 006a). Mirrors
@@ -850,7 +853,7 @@ export default defineSchema({
     revokedAt: v.union(isoDateTime, v.null()),
   })
     // Hit on every single ingest request. The one index that must exist.
-    .index('by_hashedToken', ['hashedToken']),
+    .index("by_hashedToken", ["hashedToken"]),
 
   /* ================================================================== *
    * Raw ingest landing zones (build phase 4 — Pipelines)
@@ -989,7 +992,7 @@ export default defineSchema({
     // ⚠️ That two-field lookup now returns a *collection* — one row per machine
     // — and is no longer `.unique()`. A caller that still assumes one row will
     // throw the moment a second computer posts.
-    .index('by_day_agent_machine', ['day', 'agent', 'machine'])
+    .index("by_day_agent_machine", ["day", "agent", "machine"])
     // (The old two-field `by_day_agent` index is gone: it was a strict prefix
     // of the triple above, nothing names it any more, and keeping a second
     // plausible answer to "what is the upsert key?" is how the clobbering bug
@@ -1007,7 +1010,7 @@ export default defineSchema({
     // instead. A collector cursor that genuinely needs "newest day for THIS
     // machine" can read this index's `agent` prefix and filter — at ~750 rows
     // per agent that is not worth a third index.
-    .index('by_agent_day', ['agent', 'day']),
+    .index("by_agent_day", ["agent", "day"]),
 
   /**
    * Daily movement summaries, one row per day. Mirrors `HealthDaySummarySchema`.
@@ -1057,7 +1060,7 @@ export default defineSchema({
     // sit beside it and make every reader decide which one wins. There is no
     // `by_source` index for the same reason — nothing queries by source, it is
     // provenance stamped on the row.
-    .index('by_day', ['day']),
+    .index("by_day", ["day"]),
 
   /* ================================================================== *
    * Private attribution mapping
@@ -1138,12 +1141,12 @@ export default defineSchema({
      * built from, since a public Lab is already attributable via its own public
      * `repoFullName`. `'ignore'` — fold into `'Other work'`, silently.
      */
-    kind: v.union(v.literal('project'), v.literal('lab'), v.literal('ignore')),
+    kind: v.union(v.literal("project"), v.literal("lab"), v.literal("ignore")),
   })
     // The cron's only access path: it holds a repository from GitHub's response
     // and asks what, if anything, this site is allowed to call it. Seeding
     // upserts on the same key so re-running the seed is idempotent.
-    .index('by_repoFullName', ['repoFullName']),
+    .index("by_repoFullName", ["repoFullName"]),
 
   /**
    * Knowledge base for "Ask Corey" (ADR 015) — one chunk of retrievable text per
@@ -1154,10 +1157,10 @@ export default defineSchema({
    */
   knowledgeDocs: defineTable({
     sourceType: v.union(
-      v.literal('project'),
-      v.literal('lab'),
-      v.literal('post'),
-      v.literal('resume'),
+      v.literal("project"),
+      v.literal("lab"),
+      v.literal("post"),
+      v.literal("resume"),
     ),
     /**
      * Slug of the source row; `null` for singletons (`resume`), which have no
@@ -1190,20 +1193,20 @@ export default defineSchema({
     published: v.boolean(),
   })
     // Reindexing is an upsert keyed on the source document.
-    .index('by_source', ['sourceType', 'sourceSlug'])
+    .index("by_source", ["sourceType", "sourceSlug"])
     // Retrieval. 1536 dimensions = OpenAI text-embedding-3-small; changing the
     // model means changing this number AND re-embedding every row, which is what
     // `embeddingModel` above exists to make detectable.
-    .vectorIndex('by_embedding', {
-      vectorField: 'embedding',
+    .vectorIndex("by_embedding", {
+      vectorField: "embedding",
       dimensions: 1536,
-      filterFields: ['published', 'sourceType'],
+      filterFields: ["published", "sourceType"],
     })
     // Keyword half of hybrid retrieval — embeddings alone miss exact terms like
     // a library name or a client name.
-    .searchIndex('by_plainText', {
-      searchField: 'plainText',
-      filterFields: ['published', 'sourceType'],
+    .searchIndex("by_plainText", {
+      searchField: "plainText",
+      filterFields: ["published", "sourceType"],
     }),
 
   /**
@@ -1216,6 +1219,23 @@ export default defineSchema({
     /** A hiring manager writing from a personal address still counts. */
     company: v.optional(v.string()),
     message: v.string(),
+    attachments: v.optional(
+      v.array(
+        v.object({
+          name: v.string(),
+          url: v.string(),
+          storageKey: v.string(),
+          size: v.number(),
+          contentType: v.string(),
+        }),
+      ),
+    ),
+    /**
+     * A short-lived capability generated by the web Server Action. It lets the
+     * action add uploaded files without making arbitrary inbox edits public,
+     * and is removed as soon as the upload succeeds or fails.
+     */
+    attachmentSecret: v.optional(v.string()),
     /**
      * `archived` is the "dealt with, keep it" state and is distinct from `spam`:
      * the admin inbox needs somewhere to put a finished conversation that is not
@@ -1225,7 +1245,8 @@ export default defineSchema({
     createdAt: isoDateTime,
   })
     // The admin inbox, filtered to one triage state and newest-first within it.
-    .index('by_status_createdAt', ['status', 'createdAt'])
+    .index("by_status_createdAt", ["status", "createdAt"])
+    .index("by_attachmentSecret", ["attachmentSecret"])
     // ── Added in build phase 2 (backend core) ─────────────────────────────
     // The index above cannot serve the inbox's default view. A Convex index is
     // usable only from its leading field, so `by_status_createdAt` orders by
@@ -1235,7 +1256,7 @@ export default defineSchema({
     // happen to look right (rows are inserted in `createdAt` order) and would
     // silently stop being right the first time a message is backfilled or
     // imported with a `createdAt` the insert order does not match.
-    .index('by_createdAt', ['createdAt']),
+    .index("by_createdAt", ["createdAt"]),
 
   /**
    * Rate-limit counters for the public surfaces (build phase 6). Mirrors
@@ -1289,11 +1310,11 @@ export default defineSchema({
     // THE lookup, on every metered request: one indexed read, then one patch.
     // The pair is the identity of a counter, so this index is also what makes
     // "at most one row per (bucket, identifier)" cheap to maintain.
-    .index('by_bucket_identifierHash', ['bucket', 'identifierHash'])
+    .index("by_bucket_identifierHash", ["bucket", "identifierHash"])
     // The prune sweep's range read: every row whose window started before a
     // cutoff, across all buckets. Leading field is `windowStart` precisely
     // because the sweep does not care which bucket a stale row belongs to.
-    .index('by_windowStart', ['windowStart']),
+    .index("by_windowStart", ["windowStart"]),
 
   /**
    * Site settings — singleton. Mirrors `SiteSettingsSchema`. The editable chrome

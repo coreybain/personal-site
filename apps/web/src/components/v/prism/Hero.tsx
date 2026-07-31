@@ -59,9 +59,9 @@ export function Hero() {
       </div>
 
       <p className="pri-lede pri-rise mt-6 max-w-[52ch] text-pretty" style={delay(250)}>
-        I build the platforms other teams depend on — document automation,
-        compliance, real-time auctions — and I ship them with agents in the loop,
-        every single day.
+        I build the platforms teams depend on — document automation,
+        compliance, real-time infrastructure — and I ship them with agents in the
+        loop, every single day.
       </p>
 
       <div className="pri-rise mt-9 flex flex-wrap items-center gap-3" style={delay(310)}>

@@ -259,7 +259,9 @@
   font-size: 13px;
   text-decoration: none;
   white-space: nowrap;
-  transition: background 140ms var(--hor-ease), color 140ms var(--hor-ease);
+  transition:
+    background 140ms var(--hor-ease),
+    color 140ms var(--hor-ease);
 }
 
 .adm .adm-navlink:hover {
@@ -350,6 +352,28 @@
 
 .adm .adm-status dd[data-ok="true"] {
   color: var(--hor-accent);
+}
+
+.adm .adm-contact-attachments {
+  margin-top: var(--adm-snug);
+  padding-top: var(--adm-snug);
+  border-top: 1px solid var(--hor-line-soft);
+}
+
+.adm .adm-contact-attachments ul {
+  display: grid;
+  gap: 0.65rem;
+  margin: 0.65rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.adm .adm-contact-attachments li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.35rem 1rem;
 }
 
 /* ── Topbar ──────────────────────────────────────────────────────── */
@@ -587,7 +611,9 @@
   background: transparent;
   color: var(--hor-ink-4);
   cursor: help;
-  transition: color 140ms var(--hor-ease), background 140ms var(--hor-ease);
+  transition:
+    color 140ms var(--hor-ease),
+    background 140ms var(--hor-ease);
 }
 
 .adm .adm-tip-trigger:hover,
@@ -654,7 +680,9 @@
      visible on the way out; on the way in it flips immediately. Transform is
      translate-only — a scale would change the box and invalidate the
      measurement the component just took. */
-  transition: opacity 120ms var(--hor-ease), transform 120ms var(--hor-ease),
+  transition:
+    opacity 120ms var(--hor-ease),
+    transform 120ms var(--hor-ease),
     visibility 0s linear 120ms;
 }
 
@@ -897,7 +925,9 @@
   background: var(--hor-panel);
   text-decoration: none;
   color: inherit;
-  transition: border-color 140ms var(--hor-ease), background 140ms var(--hor-ease);
+  transition:
+    border-color 140ms var(--hor-ease),
+    background 140ms var(--hor-ease);
 }
 
 .adm .adm-card:hover {
@@ -1036,7 +1066,9 @@
   color: var(--hor-ink);
   font: inherit;
   font-size: 13px;
-  transition: border-color 140ms var(--hor-ease), box-shadow 140ms var(--hor-ease);
+  transition:
+    border-color 140ms var(--hor-ease),
+    box-shadow 140ms var(--hor-ease);
 }
 
 .adm .adm-input::placeholder,
@@ -1047,7 +1079,11 @@
 .adm .adm-input:hover,
 .adm .adm-textarea:hover,
 .adm .adm-select:hover {
-  border-color: color-mix(in oklab, var(--hor-accent) 35%, var(--hor-line-strong));
+  border-color: color-mix(
+    in oklab,
+    var(--hor-accent) 35%,
+    var(--hor-line-strong)
+  );
 }
 
 .adm .adm-input:focus-visible,
@@ -1086,10 +1122,15 @@
   appearance: none;
   padding-right: 1.8rem;
   /* Chevron, drawn in CSS so it inherits the ink colour and needs no asset. */
-  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%),
+  background-image:
+    linear-gradient(45deg, transparent 50%, currentColor 50%),
     linear-gradient(135deg, currentColor 50%, transparent 50%);
-  background-position: calc(100% - 1.05rem) 55%, calc(100% - 0.75rem) 55%;
-  background-size: 5px 5px, 5px 5px;
+  background-position:
+    calc(100% - 1.05rem) 55%,
+    calc(100% - 0.75rem) 55%;
+  background-size:
+    5px 5px,
+    5px 5px;
   background-repeat: no-repeat;
 }
 
@@ -1123,7 +1164,9 @@
   border-radius: 999px;
   border: 1px solid var(--hor-line-strong);
   background: var(--hor-chip);
-  transition: background 160ms var(--hor-ease), border-color 160ms var(--hor-ease);
+  transition:
+    background 160ms var(--hor-ease),
+    border-color 160ms var(--hor-ease);
 }
 
 .adm .adm-toggle-thumb {
@@ -1134,7 +1177,9 @@
   height: 14px;
   border-radius: 999px;
   background: var(--hor-ink-3);
-  transition: transform 180ms var(--hor-spring), background 160ms var(--hor-ease);
+  transition:
+    transform 180ms var(--hor-spring),
+    background 160ms var(--hor-ease);
 }
 
 .adm .adm-toggle input {
@@ -1181,7 +1226,9 @@
   border-radius: var(--adm-radius);
   background: color-mix(in oklab, var(--hor-bg) 60%, var(--hor-panel));
   overflow: hidden;
-  transition: border-color 140ms var(--hor-ease), box-shadow 140ms var(--hor-ease);
+  transition:
+    border-color 140ms var(--hor-ease),
+    box-shadow 140ms var(--hor-ease);
 }
 
 .adm .adm-slug:focus-within {
@@ -1264,13 +1311,19 @@
   font-weight: 500;
   white-space: nowrap;
   cursor: pointer;
-  transition: background 140ms var(--hor-ease), border-color 140ms var(--hor-ease),
+  transition:
+    background 140ms var(--hor-ease),
+    border-color 140ms var(--hor-ease),
     opacity 140ms var(--hor-ease);
 }
 
 .adm .adm-btn:hover:not(:disabled) {
   background: color-mix(in oklab, var(--hor-chip) 55%, var(--hor-accent-wash));
-  border-color: color-mix(in oklab, var(--hor-accent) 40%, var(--hor-line-strong));
+  border-color: color-mix(
+    in oklab,
+    var(--hor-accent) 40%,
+    var(--hor-line-strong)
+  );
 }
 
 .adm .adm-btn:disabled {
@@ -1590,7 +1643,9 @@
   background: color-mix(in oklab, var(--hor-bg) 55%, var(--hor-panel));
   text-align: center;
   cursor: pointer;
-  transition: border-color 140ms var(--hor-ease), background 140ms var(--hor-ease);
+  transition:
+    border-color 140ms var(--hor-ease),
+    background 140ms var(--hor-ease);
 }
 
 .adm .adm-drop:hover,
@@ -1746,11 +1801,17 @@
   border: 1px solid var(--hor-line-strong);
   border-radius: var(--adm-radius);
   background: color-mix(in oklab, var(--hor-bg) 60%, var(--hor-panel));
-  transition: border-color 140ms var(--hor-ease), box-shadow 140ms var(--hor-ease);
+  transition:
+    border-color 140ms var(--hor-ease),
+    box-shadow 140ms var(--hor-ease);
 }
 
 .adm .adm-rte:hover {
-  border-color: color-mix(in oklab, var(--hor-accent) 35%, var(--hor-line-strong));
+  border-color: color-mix(
+    in oklab,
+    var(--hor-accent) 35%,
+    var(--hor-line-strong)
+  );
 }
 
 .adm .adm-rte:focus-within {
@@ -1820,7 +1881,9 @@
   font-size: 11px;
   line-height: 1;
   cursor: pointer;
-  transition: background 120ms var(--hor-ease), color 120ms var(--hor-ease);
+  transition:
+    background 120ms var(--hor-ease),
+    color 120ms var(--hor-ease);
 }
 
 .adm .adm-rte-btn:hover:not(:disabled) {

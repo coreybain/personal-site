@@ -3,8 +3,10 @@ import type { ReactNode } from "react";
 import { IBM_Plex_Mono, Inter } from "next/font/google";
 
 import { MotionProvider } from "@/components/motion";
+import { submitContactMessage } from "@/app/(site)/contact/actions";
 import { AskLauncher } from "@/components/site/ask-widget/AskLauncher";
 import { Footer, NavPill } from "@/components/site/Chrome";
+import { ContactSheetProvider } from "@/components/site/contact/ContactSheet";
 import { num } from "@/components/site/format";
 import { ThemeScope } from "@/components/theme/ThemeScope";
 import { getSiteData, showBlogInNav } from "@/lib/data";
@@ -15,6 +17,8 @@ import "./horizon.css";
    lazily-fetched chunk — neither can wait for CSS that ships with the chunk.
    See the header of `ask-widget.css` for the layer stack it documents. */
 import "@/components/site/ask-widget/ask-widget.css";
+import "@/components/site/contact/contact-sheet.css";
+import "@/app/(site)/contact/contact.css";
 
 /**
  * Fonts are loaded here and nowhere else. They are exposed as CSS variables
@@ -252,15 +256,22 @@ export default async function SiteLayout({
   return (
     <div className={`hor-fonts ${horSans.variable} ${horMono.variable}`}>
       <ThemeScope className="hor" defaultTheme="dark">
-        <MotionProvider>
-          <NavPill showBlog={showBlog} />
-          {children}
-          <Footer identity={identity} computedAt={computedAt} />
-          <AskLauncher
-            starters={starterQuestions(projects, showBlog)}
-            answeringConfigured={answeringConfigured()}
-          />
-        </MotionProvider>
+        <ContactSheetProvider
+          email={identity.email}
+          action={
+            process.env.NEXT_PUBLIC_CONVEX_URL ? submitContactMessage : null
+          }
+        >
+          <MotionProvider>
+            <NavPill showBlog={showBlog} />
+            {children}
+            <Footer identity={identity} computedAt={computedAt} />
+            <AskLauncher
+              starters={starterQuestions(projects, showBlog)}
+              answeringConfigured={answeringConfigured()}
+            />
+          </MotionProvider>
+        </ContactSheetProvider>
       </ThemeScope>
     </div>
   );

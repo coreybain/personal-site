@@ -10,8 +10,6 @@ import { getSiteData } from "@/lib/data";
 
 import { submitContactMessage } from "./actions";
 
-import "./contact.css";
-
 /**
  * ISR, five minutes — the literal, not an import. See the ISR section of
  * `@/lib/data`'s header. It matters more here than elsewhere: the availability

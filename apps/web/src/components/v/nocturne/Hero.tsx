@@ -70,9 +70,9 @@ export function Hero() {
         className="noc-lede noc-rise mt-6 max-w-[52ch] text-pretty"
         style={delay(260)}
       >
-        I build the platforms other teams depend on — document automation,
-        compliance, real-time auctions — and I ship them with agents in the
-        loop, every day.
+        I build the platforms teams depend on — document automation,
+        compliance, real-time infrastructure — and I ship them with agents in
+        the loop, every day.
       </p>
 
       <div

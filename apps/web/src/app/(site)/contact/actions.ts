@@ -70,12 +70,18 @@
  * the server's own sentence, unmodified, under the composer.
  */
 
+import { randomBytes } from "node:crypto";
+
 import { fetchMutation } from "convex/nextjs";
 import { ConvexError } from "convex/values";
+import { UTApi } from "uploadthing/server";
 
 import { api } from "@home/convex/api";
 
-import type { ContactField, ContactState } from "@/components/site/contact/transport";
+import type {
+  ContactField,
+  ContactState,
+} from "@/components/site/contact/transport";
 import { requestIdentifierHash } from "@/lib/requestIdentity";
 
 /* ------------------------------------------------------------------ *
@@ -91,6 +97,26 @@ import { requestIdentifierHash } from "@/lib/requestIdentity";
 const MAX_NAME = 120;
 const MAX_EMAIL = 254;
 const MAX_MESSAGE = 5000;
+const MAX_ATTACHMENT_COUNT = 3;
+const MAX_ATTACHMENT_BYTES = 4 * 1024 * 1024;
+const MAX_ATTACHMENT_NAME = 180;
+
+const ACCEPTED_ATTACHMENTS = new Map<string, ReadonlySet<string>>([
+  ["pdf", new Set(["application/pdf"])],
+  ["doc", new Set(["application/msword"])],
+  [
+    "docx",
+    new Set([
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ]),
+  ],
+  ["txt", new Set(["text/plain"])],
+  ["rtf", new Set(["application/rtf", "text/rtf"])],
+  ["png", new Set(["image/png"])],
+  ["jpg", new Set(["image/jpeg"])],
+  ["jpeg", new Set(["image/jpeg"])],
+  ["webp", new Set(["image/webp"])],
+]);
 
 /** The pattern `assertEmail` in `packages/convex/convex/lib/validate.ts` uses. */
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+$/;
@@ -110,6 +136,46 @@ function field(form: FormData, key: string): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function files(form: FormData): File[] {
+  if (typeof form?.getAll !== "function") return [];
+  return form
+    .getAll("attachments")
+    .filter((value): value is File => value instanceof File && value.size > 0);
+}
+
+function attachmentRefusal(attachments: File[]): ContactState | null {
+  if (attachments.length > MAX_ATTACHMENT_COUNT) {
+    return refuse(
+      "attachments",
+      `Attach up to ${MAX_ATTACHMENT_COUNT} files to one message.`,
+    );
+  }
+
+  let total = 0;
+  for (const attachment of attachments) {
+    total += attachment.size;
+    const extension = attachment.name.split(".").pop()?.toLowerCase() ?? "";
+    const acceptedTypes = ACCEPTED_ATTACHMENTS.get(extension);
+    if (
+      attachment.name.length === 0 ||
+      attachment.name.length > MAX_ATTACHMENT_NAME ||
+      acceptedTypes === undefined ||
+      !acceptedTypes.has(attachment.type)
+    ) {
+      return refuse(
+        "attachments",
+        `${attachment.name || "That file"} is not a supported PDF, Word, text, or image file.`,
+      );
+    }
+  }
+
+  if (total > MAX_ATTACHMENT_BYTES) {
+    return refuse("attachments", "Attachments are capped at 4 MB combined.");
+  }
+
+  return null;
+}
+
 /** A refusal the status line can render, optionally pinned to one input. */
 function refuse(at: ContactField | null, message: string): ContactState {
   return { status: "error", field: at, message };
@@ -122,7 +188,10 @@ function refuse(at: ContactField | null, message: string): ContactState {
  * becomes a form-level message rather than a highlight on nothing.
  */
 function asContactField(value: unknown): ContactField | null {
-  return value === "name" || value === "email" || value === "message"
+  return value === "name" ||
+    value === "email" ||
+    value === "message" ||
+    value === "attachments"
     ? value
     : null;
 }
@@ -146,6 +215,7 @@ export async function submitContactMessage(
   const name = field(form, "name");
   const email = field(form, "email");
   const message = field(form, "message");
+  const attachments = files(form);
 
   if (name.length === 0) {
     return refuse("name", "A name, so a reply knows who it is addressed to.");
@@ -165,6 +235,15 @@ export async function submitContactMessage(
       `Messages are capped at ${MAX_MESSAGE.toLocaleString("en-US")} characters — this one is ${message.length.toLocaleString("en-US")}.`,
     );
   }
+  const attachmentError = attachmentRefusal(attachments);
+  if (attachmentError !== null) return attachmentError;
+
+  if (attachments.length > 0 && !process.env.UPLOADTHING_TOKEN) {
+    return refuse(
+      "attachments",
+      "Attachments are unavailable on this deployment. Remove them to send the message.",
+    );
+  }
 
   /* Zero-env. The page renders the mailto composer in this case and never wires
      this action up, so reaching here means someone POSTed to it directly. Say
@@ -176,6 +255,9 @@ export async function submitContactMessage(
     );
   }
 
+  let messageStored = false;
+  let attachmentSecret: string | undefined;
+
   try {
     /* Computed after the field checks, so a blank form does not read headers —
        and, more usefully, so a malformed submission never reaches the limiter
@@ -184,18 +266,110 @@ export async function submitContactMessage(
 
     // `company` is omitted, not sent empty: the mutation normalises a blank
     // company away, and this form does not ask for one.
+    attachmentSecret =
+      attachments.length > 0 ? randomBytes(32).toString("hex") : undefined;
+
     await fetchMutation(api.contactMessages.submit, {
       name,
       email,
       message,
       identifierHash,
+      ...(attachmentSecret === undefined ? {} : { attachmentSecret }),
     });
+    messageStored = true;
+
+    if (attachmentSecret !== undefined) {
+      const uploadApi = new UTApi({ token: process.env.UPLOADTHING_TOKEN! });
+      const results = await uploadApi.uploadFiles(attachments);
+      const successful = results.flatMap((result) =>
+        result.data === null ? [] : [result.data],
+      );
+      const failed = results.find((result) => result.error !== null);
+
+      if (failed !== undefined) {
+        console.error("[contact] attachment upload failed.", {
+          code: failed.error?.code,
+          message: failed.error?.message,
+        });
+        if (successful.length > 0) {
+          await uploadApi.deleteFiles(successful.map((file) => file.key));
+        }
+        await fetchMutation(api.contactMessages.finishAttachments, {
+          attachmentSecret,
+          attachments: [],
+        });
+        return {
+          status: "partial",
+          message:
+            "Your message arrived, but its attachments did not. Please reply by email with the files.",
+        };
+      }
+
+      try {
+        await fetchMutation(api.contactMessages.finishAttachments, {
+          attachmentSecret,
+          attachments: successful.map((file) => ({
+            name: file.name,
+            url: file.ufsUrl,
+            storageKey: file.key,
+            size: file.size,
+            contentType: file.type,
+          })),
+        });
+      } catch (error) {
+        await uploadApi.deleteFiles(successful.map((file) => file.key));
+        try {
+          await fetchMutation(api.contactMessages.finishAttachments, {
+            attachmentSecret,
+            attachments: [],
+          });
+        } catch (cleanupError) {
+          console.error(
+            "[contact] attachment capability cleanup failed.",
+            cleanupError,
+          );
+        }
+        console.error("[contact] attachment record failed.", error);
+        return {
+          status: "partial",
+          message:
+            "Your message arrived, but its attachments did not. Please reply by email with the files.",
+        };
+      }
+    }
+
     return { status: "sent" };
   } catch (error) {
     // Loud on the server. The reader gets a sentence; the operator gets the
     // stack, because a silently failing contact form is the worst version of
     // this page.
-    console.error("[contact] contactMessages.submit failed.", error);
+    console.error(
+      messageStored
+        ? "[contact] attachment phase failed."
+        : "[contact] contactMessages.submit failed.",
+      error,
+    );
+
+    if (messageStored) {
+      if (attachmentSecret !== undefined) {
+        try {
+          await fetchMutation(api.contactMessages.finishAttachments, {
+            attachmentSecret,
+            attachments: [],
+          });
+        } catch (cleanupError) {
+          console.error(
+            "[contact] attachment capability cleanup failed.",
+            cleanupError,
+          );
+        }
+      }
+      return {
+        status: "partial",
+        message:
+          "Your message arrived, but its attachments did not. Please reply by email with the files.",
+      };
+    }
 
     /* The convention across packages/convex: `ConvexError` carrying
        `{ code, field, message }`. Read defensively — `ConvexError` accepts any

@@ -4,6 +4,7 @@ import Image from "next/image";
 import type { Identity } from "@/lib/snapshot";
 
 import { CopyAddress } from "./CopyAddress";
+import { ContactSheetTrigger } from "./ContactSheet";
 
 function delay(ms: number): CSSProperties {
   return { "--hor-delay": `${ms}ms` } as CSSProperties;
@@ -23,11 +24,6 @@ function delay(ms: number): CSSProperties {
  * commitment.
  */
 export function ContactHero({ identity }: { identity: Identity }) {
-  /** The mailto behind the button: same address, a subject already filled in. */
-  const writeHref = `mailto:${identity.email}?subject=${encodeURIComponent(
-    "Enquiry via coreybaines.com",
-  )}`;
-
   return (
     <header className="pt-24 pb-14 sm:pt-28 sm:pb-16 lg:pt-36 lg:pb-20">
       <div className="hor-rise" style={delay(40)}>
@@ -37,19 +33,28 @@ export function ContactHero({ identity }: { identity: Identity }) {
         </span>
       </div>
 
-      <h1 className="contact-display hor-rise mt-8 text-balance sm:mt-10" style={delay(110)}>
+      <h1
+        className="contact-display hor-rise mt-8 text-balance sm:mt-10"
+        style={delay(110)}
+      >
         Start a conversation.
       </h1>
 
-      <p className="hor-lede hor-rise mt-6 max-w-[56ch] text-pretty" style={delay(180)}>
+      <p
+        className="hor-lede hor-rise mt-6 max-w-[56ch] text-pretty"
+        style={delay(180)}
+      >
         Two kinds of message always get a reply. Principal and staff-plus roles,
         where the architecture and the people around it are the same job. And
-        hard platform problems — real-time systems that disagree with themselves,
-        rendering pipelines, compliance models that have outgrown the
-        spreadsheet holding them together.
+        hard platform problems — real-time systems that disagree with
+        themselves, rendering pipelines, compliance models that have outgrown
+        the spreadsheet holding them together.
       </p>
 
-      <p className="hor-body hor-rise mt-4 max-w-[56ch] text-pretty" style={delay(210)}>
+      <p
+        className="hor-body hor-rise mt-4 max-w-[56ch] text-pretty"
+        style={delay(210)}
+      >
         Short is fine. One paragraph and a link tells me more than a brief.
       </p>
 
@@ -70,9 +75,15 @@ export function ContactHero({ identity }: { identity: Identity }) {
         </div>
 
         <div className="mt-7 flex flex-wrap items-center gap-3">
-          <a className="hor-btn" href={writeHref}>
+          <ContactSheetTrigger className="hor-btn">
             Write an email
-            <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true">
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 13 13"
+              fill="none"
+              aria-hidden="true"
+            >
               <path
                 d="M2.6 6.5h7.8M7.2 3.3l3.2 3.2-3.2 3.2"
                 stroke="currentColor"
@@ -81,7 +92,7 @@ export function ContactHero({ identity }: { identity: Identity }) {
                 strokeLinejoin="round"
               />
             </svg>
-          </a>
+          </ContactSheetTrigger>
           <CopyAddress value={identity.email} />
         </div>
 

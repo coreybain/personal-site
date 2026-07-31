@@ -52,9 +52,9 @@ export function Hero() {
             className={`${styles.lede} ${styles.rise} mt-6 max-w-[46ch] text-pretty`}
             style={{ "--aur-delay": "240ms" } as React.CSSProperties}
           >
-            I build the platforms other teams depend on — document automation,
-            compliance, real-time auctions — and I ship them with agents in the
-            loop, every day.
+            I build the platforms teams depend on — document automation,
+            compliance, real-time infrastructure — and I ship them with agents in
+            the loop, every day.
           </p>
 
           <div
