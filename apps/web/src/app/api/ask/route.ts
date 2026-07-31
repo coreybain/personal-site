@@ -1,4 +1,7 @@
-import { createAnthropic } from "@ai-sdk/anthropic";
+import {
+  createOpenAI,
+  type OpenAILanguageModelResponsesOptions,
+} from "@ai-sdk/openai";
 import type { ModelMessage } from "ai";
 import {
   createUIMessageStream,
@@ -35,28 +38,39 @@ import { requestIdentifierHash } from "@/lib/requestIdentity";
  *
  *  Each step can refuse, and each refusal is an HTTP status with a
  *  machine-readable body (`AskErrorBody`) rather than a stream that says
- *  something went wrong. Nothing reaches Anthropic until the first four have
+ *  something went wrong. Nothing reaches OpenAI until the first four have
  *  passed.
  * ═══════════════════════════════════════════════════════════════════════════
  *
+ * ── One key, two runtimes ──────────────────────────────────────────────────
+ *
+ * Ask Corey used to need two provider keys: OpenAI for embeddings, Anthropic
+ * for the answer. It needs **one** now — `OPENAI_API_KEY` — because the
+ * answering model moved to OpenAI too. The key is still set in two places, but
+ * it is the same key, and the two places are two runtimes rather than two
+ * vendors:
+ *
+ *   • the **Convex deployment**, read by `knowledge.ts` and `ask.ts` for
+ *     embeddings. Convex functions never see this repo's `.env` files.
+ *   • the **web app** (root `.env` + Vercel), read right here for the answer.
+ *
  * ── This route may fail. It may not fake. ──────────────────────────────────
  *
- * The deployment this ships to has **no `ANTHROPIC_API_KEY` and no
- * `OPENAI_API_KEY`**. Both absences are handled, and neither is papered over:
+ * Both absences are handled, and neither is papered over:
  *
- *   • no answering key  → `503` with `{ configured: false, missing: [...] }`
+ *   • no key *here*     → `503` with `{ configured: false, missing: [...] }`
  *                          before a single token is generated. The ask widget's
  *                          unconfigured panel renders that state (seeded by the
  *                          layout's server-side probe, confirmed by this body).
- *   • no embedding key  → the route answers normally, and the streamed
- *                          `data-retrieval` part carries `mode:
- *                          'lexical'` with `degraded: true` and
- *                          `reason: 'no-key'`. ADR 015 exists because v2's
- *                          lexical matcher was presented as AI; a UI that hides
- *                          this flag reintroduces exactly that.
+ *   • no key *on Convex*, or a corpus that was never backfilled → the route
+ *                          answers normally, and the streamed `data-retrieval`
+ *                          part carries `mode: 'lexical'` with
+ *                          `degraded: true` and a `reason`. ADR 015 exists
+ *                          because v2's lexical matcher was presented as AI; a
+ *                          UI that hides this flag reintroduces exactly that.
  *
- * Set either key on the deployment and the corresponding path lights up on the
- * next request — nothing is read at module scope, so neither needs a redeploy.
+ * Set the key on either side and the corresponding path lights up on the next
+ * request — nothing is read at module scope, so neither needs a redeploy.
  *
  * ── Metering: two buckets, counted once each ───────────────────────────────
  *
@@ -83,7 +97,7 @@ import { requestIdentifierHash } from "@/lib/requestIdentity";
  *
  * ── Bundle cost ────────────────────────────────────────────────────────────
  *
- * Zero. A Route Handler has no client graph, so `ai`, `@ai-sdk/anthropic` and
+ * Zero. A Route Handler has no client graph, so `ai`, `@ai-sdk/openai` and
  * `convex/nextjs` stay on the server however large they are. The `/ask` budget
  * in `tooling/perf/budgets.ts` covers the *page's* chat JS, which is the UI's
  * to spend — nothing in this file appears in it.
@@ -118,10 +132,16 @@ export const maxDuration = 30;
  * UI can say the answer was cut rather than presenting a sentence that stops
  * mid-word as though it were finished.
  *
- * ⚠️ Read with the `thinking: 'disabled'` setting below. `maxOutputTokens` caps
- * thinking *plus* visible text on models where thinking is on by default —
- * Sonnet 5 is one — so a value this small with thinking enabled would truncate
- * real answers. The two settings are a pair; change them together.
+ * ⚠️ Read with `reasoningEffort: 'none'` below. On the OpenAI Responses API
+ * this ceiling covers reasoning tokens *plus* visible text, and GPT-5.6
+ * reasons by default — so a cap this small with reasoning left on would spend
+ * the whole budget thinking and truncate the answer the reader came for. The
+ * two settings are a pair; change them together.
+ *
+ * 1024 is roughly seven times what a five-sentence cited answer costs. It is
+ * sized as a runaway stop, not a target: the prompt does the shortening (see
+ * `ASK_RULES`), `textVerbosity: 'low'` reinforces it, and this catches the case
+ * where both are ignored.
  */
 const MAX_ANSWER_TOKENS = 1024;
 
@@ -331,11 +351,14 @@ export async function POST(request: Request): Promise<Response> {
   /* ---- 6. the answer --------------------------------------------- */
 
   // The provider is constructed per request, not at module scope, so the key is
-  // read at call time — set `ANTHROPIC_API_KEY` on a running deployment and the
-  // next question uses it. (`createAnthropic()` with no `apiKey` reads the
+  // read at call time — set `OPENAI_API_KEY` on a running deployment and the
+  // next question uses it. (`createOpenAI()` with no `apiKey` reads the
   // environment itself, but doing it explicitly keeps the read in one place and
   // makes the dependency obvious to anyone auditing where the key is touched.)
-  const anthropic = createAnthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  //
+  // The *same* variable the Convex deployment holds for embeddings. One key
+  // now covers both halves of Ask Corey; see this file's header.
+  const openai = createOpenAI({ apiKey: process.env.OPENAI_API_KEY });
   const model = configuration.model;
 
   // Already flattened to `{ role, text }` by `parseAskRequest`, so no data part,
@@ -349,7 +372,11 @@ export async function POST(request: Request): Promise<Response> {
   }));
 
   const result = streamText({
-    model: anthropic(model),
+    // `openai(id)` is the Responses API — the provider's default factory since
+    // AI SDK 5, and what `openai.responses(id)` spells out. Nothing here needs
+    // the older Chat Completions shape (`openai.chat(id)`): no logit bias, no
+    // completion-only setting, and the model id resolves under both.
+    model: openai(model),
     instructions: groundingInstructions(citations),
     messages,
     maxOutputTokens: MAX_ANSWER_TOKENS,
@@ -357,17 +384,57 @@ export async function POST(request: Request): Promise<Response> {
     // (and billing for) an answer no one is reading.
     abortSignal: request.signal,
     providerOptions: {
-      anthropic: {
-        // Thinking off, effort low. This is a short extractive answer over five
-        // snippets that are already in the prompt — there is nothing to reason
-        // about, and on Sonnet 5 thinking is *on by default*, where it would
-        // both add latency and eat the `MAX_ANSWER_TOKENS` ceiling the visible
-        // answer needs. If `ASK_MODEL` is ever pointed at a model where a
-        // grounded answer benefits from deliberation, raise the ceiling in the
-        // same change.
-        thinking: { type: "disabled" },
-        effort: "low",
-      },
+      openai: {
+        // ── Reasoning: off. ────────────────────────────────────────────────
+        // The direct successor to the Anthropic `thinking: { type: 'disabled' }`
+        // this route carried before. Same argument, same model behaviour: this
+        // is a short extractive answer over five snippets that are *already in
+        // the prompt*, so there is nothing to deliberate about — and GPT-5.6
+        // reasons by default, where it would add latency and eat the
+        // `MAX_ANSWER_TOKENS` ceiling the visible answer needs.
+        //
+        // `'none'` is one of the efforts GPT-5.6 accepts (the family also takes
+        // 'low' … 'max'). It also keeps reasoning summaries out of the stream:
+        // the provider defaults `reasoningSummary` to 'detailed' whenever the
+        // effort is anything *other* than 'none', which would push `reasoning`
+        // parts at a UI that renders text and citations and nothing else.
+        //
+        // ⚠️ If `ASK_MODEL` is ever pointed at a model that needs to think,
+        // raise `MAX_ANSWER_TOKENS` and teach the widget to render reasoning
+        // parts in the same change — or it will silently truncate.
+        reasoningEffort: "none",
+
+        // ── Verbosity: low. ────────────────────────────────────────────────
+        // The knob version of ground rule 4 ("two to five sentences"). It
+        // scales output length without touching the prompt, so the instructions
+        // stay about *honesty* and this stays about *length*. Belt and braces
+        // with the token cap: the cap truncates, this one asks.
+        textVerbosity: "low",
+
+        // ── Retention: none. ───────────────────────────────────────────────
+        // The Responses API stores generations for 30 days by default. This
+        // route already refuses to send a raw IP address anywhere (see
+        // `requestIdentity.ts`); keeping a stranger's question sitting in an
+        // OpenAI dashboard would be the same class of thing by a different
+        // door. Stateless request, nothing to leak later.
+        store: false,
+
+        // Deliberately NOT set:
+        //
+        //   serviceTier  'flex' is half price but explicitly higher latency,
+        //                and this is an interactive widget behind a 30-second
+        //                `maxDuration` with somebody watching a caret blink.
+        //                The default ('auto') is the right trade here; the
+        //                savings are already taken by a small model, a low
+        //                verbosity and a 1024-token ceiling.
+        //   user /
+        //   safetyIdentifier
+        //                the salted digest from `requestIdentifierHash()` would
+        //                fit the field, but sending it would open a new flow of
+        //                visitor-derived data to a third party for no benefit
+        //                this route can name. It goes to Convex to be counted
+        //                and nowhere else.
+      } satisfies OpenAILanguageModelResponsesOptions,
     },
     onError: ({ error }) => {
       // `streamText` does not throw for mid-stream provider failures; it emits

@@ -18,7 +18,7 @@
  *      next/dynamic    the trigger that fetches the chat
  *
  *  and nothing else. No `ai`, no `@ai-sdk/react`, no `@/lib/ask-contract`, no
- *  `next/link`. The chat — `AskPanel`, which is ~123 KB gzipped of AI SDK
+ *  `next/link`. The chat — `AskPanel`, which is ~124 KB gzipped of AI SDK
  *  client runtime plus the thread — is behind `next/dynamic({ ssr: false })`
  *  and is fetched on the **first open**, once per session, never on load.
  *

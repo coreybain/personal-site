@@ -1233,8 +1233,8 @@ export default defineSchema({
    * limiting "belongs to build phase 6, because doing it properly needs a store
    * for counters keyed on something the client cannot forge". This is that
    * store, and it serves Ask Corey (ADR 015) as well — one question is an
-   * OpenAI embedding plus an Anthropic completion, and an unmetered public
-   * endpoint that spends money is a bill waiting to happen.
+   * OpenAI embedding plus an OpenAI completion (one key, both halves), and an
+   * unmetered public endpoint that spends money is a bill waiting to happen.
    *
    * ── The key the client cannot forge ───────────────────────────────────────
    *

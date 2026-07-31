@@ -116,7 +116,7 @@ export const RATE_LIMITS: Record<RateLimitBucket, Policy> = {
     limit: 10,
     windowSeconds: 3600,
     rationale:
-      'One question = one OpenAI embedding + one Anthropic completion. Ten an ' +
+      'One question = one OpenAI embedding + one OpenAI completion. Ten an ' +
       'hour is more than a genuine reader asks and caps a scripted caller at ' +
       'roughly a cent per hour.',
   },

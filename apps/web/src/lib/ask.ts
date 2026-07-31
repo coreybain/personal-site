@@ -5,7 +5,7 @@ import "server-only";
  *
  * ═══════════════════════════════════════════════════════════════════════════
  *  SERVER ONLY. The `import "server-only"` above is load-bearing: this module
- *  reads `ANTHROPIC_API_KEY` and builds the system prompt. Neither may reach a
+ *  reads `OPENAI_API_KEY` and builds the system prompt. Neither may reach a
  *  bundle. The *types* the UI needs live in `@/lib/ask-contract`, which is
  *  deliberately free of anything server-shaped — import from there instead.
  * ═══════════════════════════════════════════════════════════════════════════
@@ -26,10 +26,14 @@ import "server-only";
  * merely discouraged: the model is given numbered sources and nothing else, and
  * is told in as many words that anything outside them is an "I don't know".
  *
- * There is no key on this deployment yet. Every path in this module works
- * without one — `askConfiguration()` reports the gap, `parseAskRequest()` never
- * touches a provider, and `groundingInstructions()` is a pure function. Nothing
- * here fabricates an answer to make a demo pass.
+ * Every path in this module must keep working **without** a key, and that is an
+ * invariant to preserve rather than a description of today — the key is set here
+ * and on Convex, and the deployment answers on vectors. What the invariant buys:
+ * `askConfiguration()` reports the gap instead of throwing, `parseAskRequest()`
+ * never touches a provider, and `groundingInstructions()` is a pure function.
+ * A keyless checkout still type-checks, builds, lints and renders an honest
+ * "not configured" widget. Nothing here fabricates an answer to make a demo
+ * pass, and nothing may start requiring a key to reach a refusal.
  */
 
 import type {
@@ -46,13 +50,22 @@ import { ASK_LIMITS } from "@/lib/ask-contract";
 /**
  * The answering model, when `ASK_MODEL` says nothing.
  *
- * Settled in the phase brief: Anthropic Sonnet 5 via the AI SDK. It is a typed
- * literal in `@ai-sdk/anthropic@4`'s `AnthropicModelId`, so a typo here is a
- * compile error rather than a 404 at the first question — which is the reason
- * the constant is typed as a plain `string` only at the point it becomes
- * overridable, and not before.
+ * **An OpenAI id**, not an Anthropic one. Ask Corey answered on
+ * `claude-sonnet-5` until the provider swap; it answers on OpenAI's cheapest
+ * GPT-5.6 tier now, which is the whole reason this feature needs exactly one
+ * key (`OPENAI_API_KEY`) instead of two — the same key already embeds the
+ * corpus inside Convex.
+ *
+ * Cheap is the *specification* here, not a compromise: this is a concierge
+ * answering two-to-five sentences from five snippets that are already in the
+ * prompt. There is no long-horizon reasoning to buy.
+ *
+ * It is a typed literal in the installed `@ai-sdk/openai`'s
+ * `OpenAIResponsesModelId` union, so a typo here is a compile error rather than
+ * a 404 at the first question — which is why the constant is only widened to a
+ * plain `string` at the point it becomes overridable, and not before.
  */
-export const ASK_MODEL_DEFAULT = "claude-sonnet-5";
+export const ASK_MODEL_DEFAULT = "gpt-5.6-luna";
 
 /**
  * The model id to answer with.
@@ -61,10 +74,19 @@ export const ASK_MODEL_DEFAULT = "claude-sonnet-5";
  * takes effect on the next request rather than the next deploy — the same
  * posture `requestIdentity.ts` takes with its salt, and for the same reason.
  *
- * An override is not validated against `AnthropicModelId`: the union in the
- * provider is a snapshot of what existed when that package was published, and
- * it ends in `(string & {})` precisely so a newer model can be named before the
- * types catch up. A bad id fails at the provider with the provider's own error.
+ * ⚠️ `ASK_MODEL` is an **OpenAI** model id now (`gpt-5.6-sol`, `gpt-5.6-terra`,
+ * `gpt-5.4-mini`, …). An Anthropic id left over from the old configuration will
+ * not be caught here — it will 404 at OpenAI on the first question.
+ *
+ * An override is not validated against `OpenAIResponsesModelId`: the union in
+ * the provider is a snapshot of what existed when that package was published,
+ * and it ends in `(string & {})` precisely so a newer model can be named before
+ * the types catch up. A bad id fails at the provider with the provider's own
+ * error, which is the honest failure.
+ *
+ * ⚠️ The route pairs the model with `reasoningEffort: 'none'` and a 1024-token
+ * ceiling. Point this at a model that must think and both need revisiting in
+ * the same change — see `MAX_ANSWER_TOKENS` in the route.
  */
 export function askModelId(): string {
   const configured = process.env.ASK_MODEL;
@@ -82,21 +104,30 @@ export type AskConfiguration = {
   configured: boolean;
   /** Which required variables are unset. Empty when `configured` is true. */
   missing: AskRequiredEnvVar[];
-  /**
-   * Set when the route can answer but retrieval will be lexical — i.e.
-   * `OPENAI_API_KEY` is unset on the *Convex deployment*.
-   *
-   * ⚠️ Best-effort only, and deliberately not treated as authoritative. The
-   * embedding key lives on Convex, not here, so this reflects the web app's
-   * environment and can be wrong in both directions. The authoritative answer
-   * is `mode` on the streamed `data-retrieval` part, which comes back
-   * from the action that actually ran. Use this for a first-paint hint; use
-   * that for what you tell the reader.
-   */
-  degradedWithout: "OPENAI_API_KEY" | null;
   /** The model that would answer. Safe to print — it is a name, not a key. */
   model: string;
 };
+
+/*
+ * ── What used to be here: `degradedWithout` ────────────────────────────────
+ *
+ * This type carried a `degradedWithout: 'OPENAI_API_KEY' | null` field, a
+ * first-paint hint that answering would work but retrieval would be lexical.
+ * It made sense while the two halves used two different vendors' keys: a web
+ * app holding only `ANTHROPIC_API_KEY` could look at its own environment, see
+ * no OpenAI key, and guess that embeddings were probably off too.
+ *
+ * With one key that guess is dead. `OPENAI_API_KEY` present here means the
+ * route can answer and says nothing whatsoever about the *Convex deployment's*
+ * copy or about whether `knowledge:backfill` has run — a field that is `null`
+ * exactly when the route is configured is not a hint, it is a tautology.
+ *
+ * Nothing consumed it. The authoritative answer was always the streamed
+ * `data-retrieval` part (`mode`, `degraded`, `reason`, `corpus`), which comes
+ * back from the action that actually ran and is rendered by `AskRetrievalStrip`.
+ * That is still the only place retrieval quality is reported, and it is the
+ * only place it can honestly be reported from.
+ */
 
 /**
  * Probe the environment, without touching a provider or Convex.
@@ -114,12 +145,21 @@ export type AskConfiguration = {
  * nothing to retrieve from. This is the zero-env rule `@/lib/data` states — no
  * deployment URL means no Convex — applied to a route that cannot fall back to
  * a mock, because a fabricated citation is the one thing ADR 015 forbids.
+ *
+ * ── Two variables, and that is the whole list ──────────────────────────────
+ *
+ * `OPENAI_API_KEY` is the answering key *and* the embedding key — one
+ * credential, read by two runtimes. This function only sees the web app's copy,
+ * which is the one that decides whether a question can be answered at all. The
+ * Convex deployment's copy decides whether retrieval runs on vectors or on
+ * words, and that outcome is reported by the action itself on the streamed
+ * `data-retrieval` part rather than guessed at from here.
  */
 export function askConfiguration(): AskConfiguration {
   const missing: AskRequiredEnvVar[] = [];
 
-  if ((process.env.ANTHROPIC_API_KEY ?? "").length === 0) {
-    missing.push("ANTHROPIC_API_KEY");
+  if ((process.env.OPENAI_API_KEY ?? "").length === 0) {
+    missing.push("OPENAI_API_KEY");
   }
   if ((process.env.NEXT_PUBLIC_CONVEX_URL ?? "").length === 0) {
     missing.push("NEXT_PUBLIC_CONVEX_URL");
@@ -128,8 +168,6 @@ export function askConfiguration(): AskConfiguration {
   return {
     configured: missing.length === 0,
     missing,
-    degradedWithout:
-      (process.env.OPENAI_API_KEY ?? "").length === 0 ? "OPENAI_API_KEY" : null,
     model: askModelId(),
   };
 }
@@ -376,9 +414,12 @@ export async function parseAskRequest(request: Request): Promise<AskParseResult>
   }
 
   // Both trims cut from the front, so either can leave the history opening on an
-  // assistant turn — a shape the Anthropic Messages API rejects outright. Drop
-  // the orphans rather than let the provider 400 on a request the reader made
-  // correctly. The question is the last turn, so this can never empty the array.
+  // assistant turn — a reply to a question the model can no longer see. OpenAI
+  // accepts that shape where the Anthropic Messages API rejected it outright,
+  // which makes dropping the orphans a *quality* decision now rather than a
+  // compatibility one: an opening assistant turn is a dangling answer, and it
+  // costs input tokens to confuse the model with. The question is the last
+  // turn, so this can never empty the array.
   while (history.length > 0 && history[0]!.role === "assistant") {
     history = history.slice(1);
   }

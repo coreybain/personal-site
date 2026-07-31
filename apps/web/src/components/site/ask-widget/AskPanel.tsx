@@ -20,6 +20,12 @@
  *  client runtime. Now the same bytes are fetched by the people who ask, at the
  *  moment they ask, and by nobody else.
  *
+ *  Re-measured 2026-07-31, after the answering model moved to OpenAI: this
+ *  module's chunk is **123.8 KB gzipped** (516.2 KB raw) and is referenced by
+ *  0 of the 22 prerendered pages. The provider swap is not visible in that
+ *  number and must not be — it happened entirely inside the route handler, and
+ *  the chunk contains no provider SDK at all (see the import note below).
+ *
  *  Consequences worth keeping in mind before adding an import: this file and
  *  its graph are the entire weight of the exception. `useChat` +
  *  `DefaultChatTransport` are the whole SDK surface used; no provider SDK, no

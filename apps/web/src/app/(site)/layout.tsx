@@ -72,13 +72,20 @@ export const revalidate = 300;
  *
  *   • the shell was prerendered before the key was set (ISR: five minutes)
  *   • the route reads a key or a config this layout does not
- *   • the answering key is set but the retrieval side is not, or vice versa
+ *     (`NEXT_PUBLIC_CONVEX_URL` is required there and not checked here)
+ *   • the key is set here but not on the Convex deployment, so the route can
+ *     answer while retrieval quietly runs on words instead of vectors
+ *
+ * `OPENAI_API_KEY` is the whole check because it is the whole feature now: one
+ * credential answers *and* embeds, so there is no second provider key to probe.
+ * It is a server-side variable with no `NEXT_PUBLIC_` prefix, so it does not
+ * exist in a browser bundle at all — only this boolean crosses.
  *
  * Read per render rather than at module scope so setting the variable takes
  * effect on the next revalidation rather than the next deploy.
  */
 function answeringConfigured(): boolean {
-  const key = process.env.ANTHROPIC_API_KEY;
+  const key = process.env.OPENAI_API_KEY;
   return key !== undefined && key.length > 0;
 }
 

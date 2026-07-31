@@ -7,12 +7,12 @@
  * ══════════════════════════════════════════════════════════════════════════
  *  THE RULE THESE PANELS EXIST TO KEEP
  *
- *  This deployment has no `ANTHROPIC_API_KEY` and no `OPENAI_API_KEY`. Ask
- *  Corey therefore **cannot answer anything today**, and the honest response
- *  to that is a panel that says so in plain words and points at the pages
- *  that do hold the content — not a canned reply, not a demo transcript, not
- *  a "sorry, something went wrong" that implies a bug where there is a
- *  missing key.
+ *  Ask Corey needs exactly one provider key — `OPENAI_API_KEY`, which both
+ *  answers and embeds — and a deployment without it **cannot answer anything
+ *  at all**. The honest response to that is a panel that says so in plain
+ *  words and points at the pages that do hold the content — not a canned
+ *  reply, not a demo transcript, not a "sorry, something went wrong" that
+ *  implies a bug where there is a missing key.
  *
  *  Nothing in this folder ever fabricates an answer. If the route cannot
  *  answer, the widget says what is missing and what to do instead.
@@ -88,8 +88,8 @@ function NoticeShell({
  * disappear because this map had not been updated.
  */
 const MISSING_EXPLAINS: Record<string, string> = {
-  ANTHROPIC_API_KEY:
-    "The answer itself. Unset, so no completion is requested and none is invented.",
+  OPENAI_API_KEY:
+    "The answer itself, and the embeddings behind it — one key does both. Unset, so no completion is requested and none is invented.",
   NEXT_PUBLIC_CONVEX_URL:
     "The deployment holding the indexed corpus. Unset, so there is nothing to retrieve from.",
 };
@@ -104,10 +104,12 @@ const MISSING_EXPLAINS: Record<string, string> = {
  * learns the thing that matters more: nothing is broken, and here is where the
  * content actually lives.
  *
- * ⚠️ `OPENAI_API_KEY` is deliberately **not** treated as required. Without it
- * the route still answers — on the lexical path, and it says so. A missing
- * embedding key is a downgrade, not an outage, and the two are not conflated
- * anywhere in this feature.
+ * ⚠️ This panel is about the **web app's** key. The Convex deployment holds its
+ * own copy of the same variable for embeddings, and a missing one *there* is a
+ * downgrade rather than an outage: retrieval falls back to keyword search, the
+ * route still answers, and `AskRetrievalStrip` says so under the answer. The
+ * two states are never conflated anywhere in this feature — one panel means
+ * "cannot answer", one strip means "answered, matched on words".
  */
 export function AskUnconfiguredPanel({
   detail,

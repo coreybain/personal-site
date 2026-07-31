@@ -140,9 +140,34 @@ export const BUDGETS: Budget[] = [
    * So the row is deleted rather than moved, because the surface it measured no
    * longer exists. ⚠️ **The old note's warning still stands**: deferring did not
    * make the chat smaller. A reader who opens the widget still downloads
-   * ~122.6 KB gzipped of AI SDK, just at a moment when they have asked for it.
-   * What changed is who pays: every visitor to `/ask` before, only the people
-   * who click now, and nobody at all on a cold load of any page.
+   * **123.8 KB gzipped** of AI SDK, just at a moment when they have asked for
+   * it. What changed is who pays: every visitor to `/ask` before, only the
+   * people who click now, and nobody at all on a cold load of any page.
+   *
+   * That 123.8 KB is a **re-measurement**, taken 2026-07-31 on the build that
+   * moved the answering model from Anthropic to OpenAI (`gpt-5.6-luna`), with
+   * this directory's own method — `gzipSync(bytes, { level: 9 })`, the same
+   * call `budget.ts` makes, because a figure produced by a different gzip is
+   * not comparable to the table above. The chunk is
+   * `static/chunks/1pbcm_55dw63p.js`: 516.2 KB raw, referenced by **0 of 22**
+   * prerendered pages, which is the property that matters and is asserted
+   * rather than assumed.
+   *
+   * ⚠️ Do NOT read the +1.2 KB against the old 122.6 as the cost of the
+   * provider swap. It cannot be: the swap is server-only, and the chunk
+   * carries no provider SDK at all. Grepped, case-sensitively, on the build
+   * this figure came from: `anthropic`, `Anthropic`, `ANTHROPIC`, `openai`,
+   * `OpenAI`, `createOpenAI` and `@ai-sdk/openai` are each **0 hits**. The
+   * client graph is `useChat` + `DefaultChatTransport` and stops there.
+   *
+   * The one hit is `OPENAI_API_KEY`, exactly once, and it is not provider
+   * code — it is the variable *name* in `AskNotice`'s unconfigured copy, which
+   * has to reach the reader to be useful. A name is not a key; see
+   * `lib/ask.ts`, which is careful about the same distinction.
+   *
+   * So the delta is ordinary drift in the `ai` package's client runtime
+   * between two installs. The honest claim is that the swap moved this number
+   * by nothing measurable, and the number itself is now 123.8.
    *
    * ── The launcher's cost, which every `(site)` route now carries ───────────
    *

@@ -24,7 +24,65 @@
     "CLERK_SECRET_KEY",
     "CONVEX_DEPLOYMENT",
     "CONVEX_DEPLOY_KEY",
-    "UPLOADTHING_TOKEN"
+    "UPLOADTHING_TOKEN",
+    // Ask Corey's answering half. `OPENAI_API_KEY` is the one provider key the
+    // feature needs — the same credential the Convex deployment holds for
+    // embeddings, read here by `/api/ask` at request time. Strict environment
+    // mode is Turbo 2's default, so a variable that is in the root .env but not
+    // named anywhere in this file never reaches `next dev`, `next build` or
+    // `next start`: the route would read `undefined` and answer 503
+    // "OPENAI_API_KEY is unset" on a machine where the key is plainly set.
+    //
+    // Pass-through rather than `globalEnv` so that rotating the key does not
+    // invalidate every cached build.
+    //
+    // ⚠️ CAVEAT, measured 2026-07-31 — the usual justification for pass-through
+    // ("a runtime secret is never baked into generated output") is NOT fully
+    // true here, and the difference is worth knowing before trusting a cache.
+    // `(site)/layout.tsx` calls `answeringConfigured()`, a `process.env
+    // .OPENAI_API_KEY` read, and passes the boolean to `<AskLauncher>`. Every
+    // `(site)` route is statically prerendered, so that boolean IS baked into
+    // build output. Demonstrated both ways on this tree:
+    //
+    //   build WITH the key     → .next/server/app/index.html
+    //                            carries `answeringConfigured":true`
+    //   build with NO env      → same file carries `false`
+    //   build with full env
+    //     MINUS only this key  → **turbo cache hit** → restores the `true`
+    //                            output, because a pass-through variable is
+    //                            excluded from the hash by definition.
+    //
+    // So a build produced on a keyed machine and replayed on a keyless one
+    // ships a widget seeded "configured" that then 503s on the first question.
+    // Three things keep that from being a live bug, and they are the reason
+    // this is a caveat and not a fix:
+    //
+    //   1. the route's `503 { configured: false }` is authoritative and
+    //      overrides the seeded state the moment anyone asks (see `AskPanel`);
+    //   2. `/` is ISR at 300s, so a running server re-renders the boolean off
+    //      the real environment within five minutes of a deploy;
+    //   3. in practice the key is set in both places or neither.
+    //
+    // Promote this to `globalEnv` if (1)–(3) ever stop holding — the cost is
+    // exactly the cache invalidation-on-rotation this line was written to
+    // avoid, so it is a trade, not an oversight.
+    "OPENAI_API_KEY",
+    // Optional override for the answering model id (an OpenAI id). Same
+    // reasoning: read per request, so it has to survive strict mode.
+    "ASK_MODEL",
+    // Salt for the rate-limit identifier digest (`requestIdentity.ts`). Listed
+    // for exactly the reason above and documented in packages/convex/README.md
+    // as a root-`.env` variable: without this line, strict mode meant the
+    // documented setup did nothing on a local `bun dev`/`bun build`, and the
+    // keyed run still logged "[rate-limit] RATE_LIMIT_SALT is not set".
+    //
+    // Pass-through, not `globalEnv`: the salt is read per request inside the
+    // route handler and never reaches generated output, so it neither belongs
+    // in the build hash nor should rotating it invalidate every cached build.
+    // (Contrast the OPENAI_API_KEY caveat above, where a *derived boolean* does
+    // get prerendered — no equivalent leak exists for the salt, which is read
+    // only on the request path.)
+    "RATE_LIMIT_SALT"
   ],
   "tasks": {
     "build": {

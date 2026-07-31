@@ -4,9 +4,9 @@
  * Phase 6 owns this. Two surfaces on this site can be driven by a stranger and
  * both cost money or storage when they are:
  *
- *   • **Ask Corey** (`/ask`, ADR 015) — one question is one OpenAI embedding
- *     plus one Anthropic completion. Unmetered, a script turns a portfolio into
- *     a bill.
+ *   • **Ask Corey** (the floating widget, ADR 015) — one question is one OpenAI
+ *     embedding plus one OpenAI completion, on a single key. Unmetered, a
+ *     script turns a portfolio into a bill.
  *   • **The contact form** — `contactMessages.submit` is the one deliberately
  *     public mutation in `packages/convex`, and its docblock has said since
  *     phase 2 that rate limiting "belongs to build phase 6". This is that.

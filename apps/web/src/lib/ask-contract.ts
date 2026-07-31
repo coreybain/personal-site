@@ -32,10 +32,19 @@
  *
  * `AskRetrieval.mode` and `.degraded` are not diagnostics. They are the
  * ADR's honesty requirement in the payload: real retrieval is vector search over
- * embeddings, this deployment has no `OPENAI_API_KEY`, and the lexical path that
- * answers instead is *the same class of thing ADR 015 exists to replace*. A UI
- * that renders a lexical answer as though it were a vector one would be the v2
- * matcher wearing the new label. Render the flag.
+ * embeddings, and the lexical path that answers when vectors cannot is *the same
+ * class of thing ADR 015 exists to replace*. A UI that renders a lexical answer
+ * as though it were a vector one would be the v2 matcher wearing the new label.
+ * Render the flag.
+ *
+ * The live deployment retrieves on **vectors** — one `OPENAI_API_KEY` powers
+ * embeddings and answering both, and `knowledge:backfill` has been run against
+ * the corpus (all 8 published rows embedded, 2026-07-31). The lexical path is
+ * therefore the *fallback*, not the status quo, and it is reached in exactly two
+ * situations: a fresh deployment whose rows still carry `embedding: []` (expect
+ * `reason: 'empty-vector-index'` until backfill runs), or a Convex deployment
+ * with no key at all (`reason: 'no-key'`). Both remain reachable, so both are
+ * still the UI's job to render — do not assume the vector path.
  */
 
 import type { UIMessage } from "ai";
@@ -56,10 +65,15 @@ export type AskRetrievalMode = RetrieveResult["retrievalMode"];
 /**
  * Why retrieval is not running on vectors, or `null` when it is.
  *
- * `'no-key'` is today's expected value on the live deployment and is **not** an
- * error — it means `OPENAI_API_KEY` has not been set. `'empty-vector-index'`
- * means it *has* been set but nothing has been backfilled yet. The two want
- * different sentences from the UI.
+ * `null` is the live deployment's value: retrieval runs on vectors. The two
+ * non-null variants are the fallback paths, and neither is an error.
+ *
+ * `'empty-vector-index'` means the key is set on the Convex deployment but
+ * `knowledge:backfill` has not run there, so nothing is embedded — the state a
+ * *fresh* deployment starts in. `'no-key'` means that deployment's
+ * `OPENAI_API_KEY` is missing entirely. The two want different sentences from
+ * the UI: one is a command somebody has not run, the other is a variable
+ * somebody has not set.
  */
 export type AskRetrievalReason = RetrieveResult["reason"];
 
@@ -91,9 +105,12 @@ export type AskCitation = RetrieveResult["results"][number] & { index: number };
  * was grounded*, the other is *what it was grounded in*, and a UI renders them
  * in different places — a notice above the answer, a list of chips below it.
  *
- * `mode: 'lexical'` means the deployment has no `OPENAI_API_KEY`, the vector
- * index is empty, and retrieval fell back to Convex's text search: the same
- * class of matcher the rebuild exists to replace. Say so in words.
+ * `mode: 'lexical'` means the vector index could not answer — no embedding key
+ * on the Convex deployment, or a corpus nobody has backfilled — and retrieval
+ * fell back to Convex's text search: the same class of matcher the rebuild
+ * exists to replace. Say so in words. The live deployment sends
+ * `mode: 'vector'`, so this is the branch that is easy to leave untested and
+ * exactly the branch worth rendering carefully.
  */
 export type AskRetrieval = {
   /** ⚠️ Surface this. `'lexical'` means degraded — see the file header. */
@@ -105,9 +122,10 @@ export type AskRetrieval = {
   /** Embedding model used, or `null` when the query was never embedded. */
   embeddingModel: string | null;
   /**
-   * The state of the index. `{ published: 8, embedded: 0 }` on the live
-   * deployment today — which lets the UI say "nothing is embedded yet" rather
-   * than the much less useful "no match".
+   * The state of the index. `{ published: 8, embedded: 8 }` on the live
+   * deployment (backfilled 2026-07-31) — a fully embedded corpus. The field
+   * earns its place in the degraded case: `embedded: 0` lets the UI say
+   * "nothing is embedded yet" rather than the much less useful "no match".
    */
   corpus: { published: number; embedded: number } | null;
 };
@@ -173,12 +191,19 @@ export type AskUIMessage = UIMessage<AskMetadata, AskDataParts>;
 /**
  * Which environment variables a fully-configured Ask Corey needs.
  *
- * `OPENAI_API_KEY` is deliberately **not** in the required set: without it the
- * route still answers, on the lexical path, and says so. It appears only in
- * `AskConfiguration.degradedWithout` — a missing embedding key is a downgrade,
- * not an outage.
+ * Two, and only two — because `OPENAI_API_KEY` is now both halves of the
+ * feature. It answers (read by the route, from the web app's environment) and
+ * it embeds (read by `knowledge.ts` and `ask.ts`, from the *Convex
+ * deployment's* environment). Same credential, two runtimes.
+ *
+ * ⚠️ This list is what the **web app** requires, so `OPENAI_API_KEY` here means
+ * the answering copy. A deployment can be fully `configured` by this measure
+ * and still retrieve lexically, because Convex's copy is unset or the corpus
+ * was never backfilled — a downgrade, not an outage, and reported separately on
+ * `AskRetrieval`. Never collapse the two: an unanswerable question and a
+ * keyword-matched one are different facts and get different panels.
  */
-export type AskRequiredEnvVar = "ANTHROPIC_API_KEY" | "NEXT_PUBLIC_CONVEX_URL";
+export type AskRequiredEnvVar = "OPENAI_API_KEY" | "NEXT_PUBLIC_CONVEX_URL";
 
 /**
  * Why the route refused. Stable strings — branch on these, not on `message`.

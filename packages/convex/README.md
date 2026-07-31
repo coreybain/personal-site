@@ -199,9 +199,8 @@ can read the Clerk session. Convex refuses the token otherwise.
 | `NEXT_PUBLIC_CONVEX_URL`            | `apps/web/.env.local` + Vercel            | The browser client's endpoint. Public by design. |
 | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | `apps/web/.env.local` + Vercel            | Clerk's browser SDK. Public by design. |
 | `CLERK_SECRET_KEY`                  | `apps/web/.env.local` + Vercel            | Server-side Clerk calls in Next. Never `NEXT_PUBLIC_`. |
-| `OPENAI_API_KEY`                    | **Convex dashboard**, per deployment      | Embeddings for Ask Corey. Read by `knowledge.ts` (indexing) and `ask.ts` (the query vector). See below. |
-| `ANTHROPIC_API_KEY`                 | root `.env` + Vercel                      | Answering. Read by the `/ask` route in `apps/web`, **not** by any Convex function. See below. |
-| `ASK_MODEL`                         | root `.env` + Vercel (optional)           | Overrides the answering model id. Defaults to `claude-sonnet-5`. |
+| `OPENAI_API_KEY`                    | **Convex dashboard**, per deployment — *and* root `.env` + Vercel | The only provider key Ask Corey needs, held by two runtimes. Convex's copy embeds (`knowledge.ts`, `ask.ts`); the web app's copy answers (`/api/ask`). Same key, two environments. See below. |
+| `ASK_MODEL`                         | root `.env` + Vercel (optional)           | Overrides the answering model id — an **OpenAI** id. Defaults to `gpt-5.6-luna`. |
 | `RATE_LIMIT_SALT`                   | root `.env` + Vercel                      | Salts the identifier digest in `apps/web/src/lib/requestIdentity.ts`. Never reaches Convex. |
 
 No secret belongs in `packages/convex/.env.local` other than what the CLI puts
@@ -210,26 +209,35 @@ dashboard, because functions do not see this repo's `.env` files at all.
 
 ## Ask Corey keys (ADR 015 — build phase 6)
 
-Ask Corey needs **two** keys, and they live in **two different places** because
-two different runtimes read them.
+Ask Corey needs **one** provider key: `OPENAI_API_KEY`. It embeds the corpus and
+it writes the answer.
+
+It used to need two — OpenAI for embeddings, Anthropic for the completion. The
+answering model moved to OpenAI (`gpt-5.6-luna` by default), so there is no
+second vendor, no second dashboard and no second rotation. `ANTHROPIC_API_KEY`
+is not read anywhere in this repository; delete it if you still have one set.
+
+**One key, two runtimes.** The split that remains is not vendors, it is
+environments — and it is unavoidable, because Convex functions never see this
+repo's `.env` files and the Next app never sees Convex's:
 
 | Key | Set on | Read by | Without it |
 | --- | --- | --- | --- |
-| `OPENAI_API_KEY` | the **Convex deployment** | `knowledge.ts` (indexing) and `ask.ts` (embedding the query) | Rows are indexed with `embedding: []`; retrieval falls back to the lexical index and reports `retrievalMode: 'lexical'`, `reason: 'no-key'` |
-| `ANTHROPIC_API_KEY` | the **web app** (root `.env` + Vercel) | the `/ask` route in `apps/web` | The route cannot answer. It must say so — retrieval still works and can still show citations |
-| `ASK_MODEL` | the **web app**, optional | the `/ask` route | Defaults to `claude-sonnet-5` |
+| `OPENAI_API_KEY` | the **Convex deployment** | `knowledge.ts` (indexing) and `ask.ts` (embedding the query) | Rows are indexed with `embedding: []`; retrieval falls back to the lexical index and reports `retrievalMode: 'lexical'`, `reason: 'no-key'`. A downgrade, not an outage |
+| `OPENAI_API_KEY` | the **web app** (root `.env` + Vercel) | `/api/ask` in `apps/web` | The route cannot answer: `503 { configured: false, missing: ['OPENAI_API_KEY'] }`, before it spends anything. The widget renders that state and names the variable |
+| `ASK_MODEL` | the **web app**, optional | `/api/ask` | Defaults to `gpt-5.6-luna`. An **OpenAI** id — a leftover `claude-…` value 404s at the provider on the first question |
 | `RATE_LIMIT_SALT` | the **web app** | `apps/web/src/lib/requestIdentity.ts` | Counters still work and no raw address is ever stored, but bucket keys become computable by anyone who knows a visitor's IP. A warning is logged once per process |
 
-No Convex function reads `ANTHROPIC_API_KEY`, and the web app never reads
-`OPENAI_API_KEY`. That split is the whole point of retrieval living in Convex
-and answering living in the route: the deployment holds the corpus and the
-embedding key, the route holds the model key and streams tokens.
+Set it in one place only and the feature half-works, loudly: Convex-only
+retrieves but cannot answer; web-only answers from keyword search and says so on
+the `data-retrieval` part under every reply. Neither state is faked and neither
+is silent.
 
 ### Exact commands
 
 ```sh
 # Embeddings — set on the Convex deployment. Functions do not read this repo's
-# .env files, so this is the ONLY place that works.
+# .env files, so this is the ONLY place that works for the retrieval half.
 cd packages/convex
 bunx convex env set OPENAI_API_KEY sk-proj-…
 bunx convex env set OPENAI_API_KEY sk-proj-… --prod
@@ -241,15 +249,25 @@ bunx convex env list --names-only
 ```sh
 # Answering + the rate-limit salt — the web side. Root .env for local runs
 # (the root scripts already pass --env-file=.env), Vercel for deployed ones.
-ANTHROPIC_API_KEY=sk-ant-…
-ASK_MODEL=claude-sonnet-5          # optional override
+# The same sk-proj-… value as above.
+OPENAI_API_KEY=sk-proj-…
+ASK_MODEL=gpt-5.6-luna             # optional override, OpenAI ids only
 RATE_LIMIT_SALT=$(openssl rand -hex 32)
 ```
 
+> Turbo runs tasks in strict environment mode, so a variable in the root `.env`
+> only reaches `next dev` / `next build` if it is named in `turbo.json`. All
+> three of the variables in the block above — `OPENAI_API_KEY`, `ASK_MODEL` and
+> `RATE_LIMIT_SALT` — are listed under `globalPassThroughEnv` there. Add any new
+> runtime variable to that list in the same commit, or it will be set on the
+> machine and invisible to the app: the failure is silent for the salt in
+> particular, which merely logs `[rate-limit] RATE_LIMIT_SALT is not set` and
+> carries on with an unsalted digest.
+
 ```sh
-# …and the same three on Vercel, for preview and production:
+# …and the same on Vercel, for preview and production:
 cd apps/web
-bunx vercel env add ANTHROPIC_API_KEY production
+bunx vercel env add OPENAI_API_KEY production
 bunx vercel env add RATE_LIMIT_SALT production
 ```
 
@@ -270,11 +288,13 @@ and nothing had to be made public. Sequential by design, and it reports
 honestly:
 
 ```jsonc
-// today, with no key — this is the expected output, not a failure
+// on a deployment with no key — this is the expected output, not a failure
 { "total": 8, "indexed": 8, "embedded": 0, "notEmbedded": 8,
   "reasons": { "no-key": 8 } }
 
-// with the key set
+// with the key set — the state to aim for. Until this command is run, the key
+// being present changes nothing: the corpus is still all `embedding: []` and
+// retrieval still reports `mode: 'lexical'`, `reason: 'empty-vector-index'`.
 { "total": 8, "indexed": 8, "embedded": 8, "notEmbedded": 0, "reasons": {} }
 ```
 
