@@ -16,6 +16,8 @@ import {
   TextField,
   ToggleField,
   formatInstant,
+  usePendingAction,
+  type PendingAction,
 } from "@/components/admin";
 import { linesToList, listToLines } from "@/components/admin/profile/lines";
 
@@ -50,9 +52,9 @@ import { linesToList, listToLines } from "@/components/admin/profile/lines";
  * Convex subscription pushes changes live, and re-seeding on every push would
  * delete whatever was being typed the moment the iOS app changed the availability
  * line. The cost is that an edit made elsewhere while this form is open is not
- * visible here until a reload, and saving would overwrite it — stated in the panel
- * footer rather than hidden, because a singleton edited from two places has no
- * merge story and pretending otherwise is worse than saying so.
+ * visible here until a reload. The form retains the revision it loaded, so a save
+ * after that change is rejected as stale instead of overwriting it; the existing
+ * Save button error is the prompt to reload and reconcile.
  */
 
 /* ------------------------------------------------------------------ *
@@ -227,9 +229,10 @@ export function SettingsEditor() {
 
 function SettingsForm({ initial }: { initial: Doc<"siteSettings"> | null }) {
   const upsert = useMutation(api.siteSettings.upsert);
+  const write = usePendingAction();
 
   /**
-   * The draft, plus the serialised copy of it as last saved — which is what makes
+   * The draft, plus the copy of it as last saved — which is what makes
    * the Save button's `dirty` honest. A field-by-field comparison against the
    * document would need one branch per field and would still miss the two shape
    * conversions; comparing the draft to a snapshot of itself needs neither.
@@ -239,14 +242,18 @@ function SettingsForm({ initial }: { initial: Doc<"siteSettings"> | null }) {
    */
   const [state, setState] = useState(() => {
     const draft = draftFrom(initial);
-    return { draft, savedKey: JSON.stringify(draft) };
+    return {
+      draft,
+      savedDraft: draft,
+      expectedRevision: initial?.revision ?? 0,
+    };
   });
 
-  const { draft, savedKey } = state;
+  const { draft, savedDraft, expectedRevision } = state;
   const setDraft = (next: Draft) =>
     setState((current) => ({ ...current, draft: next }));
 
-  const dirty = savedKey !== JSON.stringify(draft);
+  const dirty = JSON.stringify(savedDraft) !== JSON.stringify(draft);
 
   /** Narrow, typed field updaters. Each one replaces its nested object. */
   const setIdentity = <K extends keyof Draft["identity"]>(
@@ -266,7 +273,8 @@ function SettingsForm({ initial }: { initial: Doc<"siteSettings"> | null }) {
        as a social link to nowhere. */
     const { x, ...identity } = draft.identity;
 
-    await upsert({
+    const result = await upsert({
+      expectedRevision,
       headline: draft.headline,
       identity: {
         ...identity,
@@ -283,7 +291,11 @@ function SettingsForm({ initial }: { initial: Doc<"siteSettings"> | null }) {
     /* The draft is now what is stored, so the button goes clean. Snapshotting the
        draft rather than re-reading the document keeps this correct even though the
        subscription has not pushed yet. */
-    setState({ draft, savedKey: JSON.stringify(draft) });
+    setState((current) => ({
+      ...current,
+      savedDraft: draft,
+      expectedRevision: result.revision,
+    }));
   };
 
   return (
@@ -299,6 +311,28 @@ function SettingsForm({ initial }: { initial: Doc<"siteSettings"> | null }) {
         value={draft.identity.availability}
         onValueChange={(value) => setIdentity("availability", value)}
         settingsExist={initial !== null}
+        expectedRevision={expectedRevision}
+        action={write}
+        onSaved={(submitted, availability, revision) =>
+          setState((current) => {
+            const draftStillMatches =
+              current.draft.identity.availability === submitted;
+            return {
+              ...current,
+              draft: draftStillMatches
+                ? {
+                    ...current.draft,
+                    identity: { ...current.draft.identity, availability },
+                  }
+                : current.draft,
+              savedDraft: {
+                ...current.savedDraft,
+                identity: { ...current.savedDraft.identity, availability },
+              },
+              expectedRevision: revision,
+            };
+          })
+        }
       />
 
       {/*
@@ -519,6 +553,7 @@ function SettingsForm({ initial }: { initial: Doc<"siteSettings"> | null }) {
         footer={
           <AdminButtonRow>
             <SaveButton
+              action={write}
               label={initial === null ? "Create site settings" : "Save settings"}
               dirty={dirty}
               onAction={save}
@@ -545,9 +580,8 @@ function SettingsForm({ initial }: { initial: Doc<"siteSettings"> | null }) {
             screen, and a way to lose data cannot be behind a hover. Two sentences
             rather than three. */}
         <p className="adm-micro" style={{ marginTop: "0.7rem" }}>
-          This form does not follow live changes. If the availability line was
-          edited from the phone since it loaded, saving here overwrites it — reload
-          first.
+          This form does not follow live changes. If it was edited from the phone
+          since loading, Save refuses the stale draft — reload before trying again.
         </p>
       </AdminPanel>
     </>
@@ -579,10 +613,16 @@ function AvailabilityPanel({
   value,
   onValueChange,
   settingsExist,
+  expectedRevision,
+  action,
+  onSaved,
 }: {
   value: string;
   onValueChange: (value: string) => void;
   settingsExist: boolean;
+  expectedRevision: number;
+  action: PendingAction;
+  onSaved: (submitted: string, availability: string, revision: number) => void;
 }) {
   const setAvailability = useMutation(api.siteSettings.setAvailability);
 
@@ -612,6 +652,7 @@ function AvailabilityPanel({
 
         <AdminButtonRow>
           <SaveButton
+            action={action}
             label="Save availability only"
             size="sm"
             disabled={!settingsExist}
@@ -620,7 +661,14 @@ function AvailabilityPanel({
                 ? undefined
                 : "There is no settings row yet — use “Create site settings” at the bottom first."
             }
-            onAction={() => setAvailability({ availability: value })}
+            onAction={async () => {
+              const result = await setAvailability({
+                availability: value,
+                expectedRevision,
+              });
+              onSaved(value, result.availability, result.revision);
+              return result;
+            }}
           />
           {/* Why the button is dead, said out loud rather than only in a `title`.
               `setAvailability` refuses when there is no row to patch, and a

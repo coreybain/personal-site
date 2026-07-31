@@ -331,7 +331,7 @@ export type AiUsageDay = z.infer<typeof AiUsageDaySchema>;
  * stronger guarantee than a policy that says we won't ask for it.
  */
 export const HealthDayIngestSchema = z.strictObject({
-  /** The calendar day being reported, UTC. The upsert key. */
+  /** The user's local HealthKit calendar day. The upsert key. */
   day: IsoDateSchema,
   steps: CountSchema,
   distanceKm: NonNegativeNumberSchema,

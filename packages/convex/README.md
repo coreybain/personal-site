@@ -139,6 +139,9 @@ In the [Clerk dashboard](https://dashboard.clerk.com):
 3. From **API keys**, copy:
    - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` (`pk_test_…` / `pk_live_…`)
    - `CLERK_SECRET_KEY` (`sk_test_…` / `sk_live_…`)
+4. Open your user in **Users** and copy its stable `user_…` id. This is the
+   `ADMIN_CLERK_USER_ID`; it is the authorization allowlist, independent of
+   whether public sign-up is enabled.
 
 ### 3. Add the `convex` JWT template in Clerk
 
@@ -165,6 +168,8 @@ under **Settings → Environment Variables**, or from the CLI:
 cd packages/convex
 bunx convex env set CLERK_JWT_ISSUER_DOMAIN https://verb-noun-00.clerk.accounts.dev
 bunx convex env set CLERK_JWT_ISSUER_DOMAIN https://clerk.coreybaines.com --prod
+bunx convex env set ADMIN_CLERK_USER_ID user_your_dev_admin_subject
+bunx convex env set ADMIN_CLERK_USER_ID user_your_prod_admin_subject --prod
 ```
 
 Dev and production are separate Clerk instances with separate issuer URLs. Set
@@ -183,6 +188,7 @@ at.
 NEXT_PUBLIC_CONVEX_URL=https://<name>.convex.cloud
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_…
 CLERK_SECRET_KEY=sk_test_…
+ADMIN_CLERK_USER_ID=user_…
 ```
 
 Then `ClerkProvider` must wrap `ConvexProviderWithClerk` (from
@@ -199,6 +205,7 @@ can read the Clerk session. Convex refuses the token otherwise.
 | `NEXT_PUBLIC_CONVEX_URL`            | `apps/web/.env.local` + Vercel            | The browser client's endpoint. Public by design. |
 | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | `apps/web/.env.local` + Vercel            | Clerk's browser SDK. Public by design. |
 | `CLERK_SECRET_KEY`                  | `apps/web/.env.local` + Vercel            | Server-side Clerk calls in Next. Never `NEXT_PUBLIC_`. |
+| `ADMIN_CLERK_USER_ID`               | **Convex dashboard** + `apps/web/.env.local` + Vercel | Stable Clerk subject for the sole admin. Both runtimes deny all admin access when absent. |
 | `OPENAI_API_KEY`                    | **Convex dashboard**, per deployment — *and* root `.env` + Vercel | The only provider key Ask Corey needs, held by two runtimes. Convex's copy embeds (`knowledge.ts`, `ask.ts`); the web app's copy answers (`/api/ask`). Same key, two environments. See below. |
 | `ASK_MODEL`                         | root `.env` + Vercel (optional)           | Overrides the answering model id — an **OpenAI** id. Defaults to `gpt-5.6-luna`. |
 | `RATE_LIMIT_SALT`                   | root `.env` + Vercel                      | Salts the identifier digest in `apps/web/src/lib/requestIdentity.ts`. Never reaches Convex. |

@@ -152,24 +152,6 @@ export function funLocationFrom(draft: FunDraft): FunLocation | null {
   };
 }
 
-/** Have any of the values changed? Drives `SaveButton`'s `dirty`. */
-export function funDraftsEqual(a: FunDraft, b: FunDraft): boolean {
-  return (
-    a.type === b.type &&
-    a.title === b.title &&
-    a.note === b.note &&
-    a.rating === b.rating &&
-    a.locationName === b.locationName &&
-    a.locationSuburb === b.locationSuburb &&
-    a.latitude === b.latitude &&
-    a.longitude === b.longitude &&
-    a.steps === b.steps &&
-    a.km === b.km &&
-    a.occurredAt === b.occurredAt &&
-    JSON.stringify(a.photo) === JSON.stringify(b.photo)
-  );
-}
-
 /**
  * The arguments `funEntries.update` should be called with. **Absent ⇒ unchanged,
  * `null` ⇒ cleared** — the mutation's own contract, mirrored here.
@@ -209,8 +191,7 @@ export type FunPatch = {
  * because a Fun Entry without a photo is a hole in the /fun grid, so the editor
  * holds the save instead of trying to clear it.
  */
-export function funPatch(row: Doc<"funEntries">, draft: FunDraft): FunPatch {
-  const initial = funDraftFromRow(row);
+export function funPatch(initial: FunDraft, draft: FunDraft): FunPatch {
   const patch: FunPatch = {};
 
   if (draft.type !== initial.type) patch.type = draft.type;
@@ -241,7 +222,7 @@ export function funPatch(row: Doc<"funEntries">, draft: FunDraft): FunPatch {
   }
 
   if (draft.type === "walk") {
-    const becomingAWalk = row.type !== "walk";
+    const becomingAWalk = initial.type !== "walk";
     if (becomingAWalk || draft.steps !== initial.steps) {
       patch.steps = draft.steps;
     }

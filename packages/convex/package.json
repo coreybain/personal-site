@@ -14,6 +14,7 @@
   "scripts": {
     "dev": "convex dev",
     "codegen": "convex codegen",
+    "test": "bun test tests",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

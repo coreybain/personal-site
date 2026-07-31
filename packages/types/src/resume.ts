@@ -21,6 +21,7 @@
 
 import * as z from 'zod';
 import {
+  CountSchema,
   IsoDateSchema,
   NonEmptyStringSchema,
   SlugSchema,
@@ -32,6 +33,8 @@ import {
  * ------------------------------------------------------------------ */
 
 export const ExperienceEntrySchema = z.object({
+  /** Optimistic-concurrency token on persisted admin documents. */
+  revision: CountSchema.optional(),
   company: NonEmptyStringSchema,
   title: NonEmptyStringSchema,
   startDate: IsoDateSchema,
@@ -84,6 +87,8 @@ export const ResumeEducationSchema = z.object({
 export type ResumeEducation = z.infer<typeof ResumeEducationSchema>;
 
 export const ResumeDocumentSchema = z.object({
+  /** Optimistic-concurrency token on the persisted singleton. */
+  revision: CountSchema.optional(),
   /** The opening paragraph. Written once, rendered by page and PDF alike. */
   summary: NonEmptyStringSchema,
   /** Newest role first. The projection of `experienceEntries` — see file header. */

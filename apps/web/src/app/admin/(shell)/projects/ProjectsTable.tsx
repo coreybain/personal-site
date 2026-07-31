@@ -130,7 +130,15 @@ export function ProjectsTable() {
 
     [ids[from], ids[to]] = [ids[to], ids[from]];
 
-    void write.run(() => setSortOrder({ projectIds: ids }));
+    const revisionById = new Map(
+      rows.map((row) => [row._id, row.revision ?? 0] as const),
+    );
+    void write.run(() =>
+      setSortOrder({
+        projectIds: ids,
+        expectedRevisions: ids.map((id) => revisionById.get(id) ?? 0),
+      }),
+    );
   }
 
   return (
@@ -281,7 +289,11 @@ export function ProjectsTable() {
                   size="sm"
                   quiet
                   onAction={() =>
-                    setFeatured({ projectId: row._id, featured: !row.featured })
+                    setFeatured({
+                      projectId: row._id,
+                      featured: !row.featured,
+                      expectedRevision: row.revision ?? 0,
+                    })
                   }
                   title={
                     row.featured
@@ -297,7 +309,12 @@ export function ProjectsTable() {
                     action={write}
                     size="sm"
                     quiet
-                    onAction={() => unpublish({ projectId: row._id })}
+                    onAction={() =>
+                      unpublish({
+                        projectId: row._id,
+                        expectedRevision: row.revision ?? 0,
+                      })
+                    }
                   >
                     Unpublish
                   </ActionButton>
@@ -306,7 +323,12 @@ export function ProjectsTable() {
                     action={write}
                     size="sm"
                     quiet
-                    onAction={() => publish({ projectId: row._id })}
+                    onAction={() =>
+                      publish({
+                        projectId: row._id,
+                        expectedRevision: row.revision ?? 0,
+                      })
+                    }
                     disabled={unsanitised > 0}
                     title={
                       unsanitised > 0

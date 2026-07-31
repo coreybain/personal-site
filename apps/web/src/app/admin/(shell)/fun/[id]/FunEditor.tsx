@@ -21,7 +21,6 @@ import {
 import {
   FunFields,
   funDraftFromRow,
-  funDraftsEqual,
   funPatch,
   funTypeLabel,
   type FunDraft,
@@ -98,9 +97,19 @@ function FunEditorForm({ row }: { row: Doc<"funEntries"> }) {
    * The cost: a change made by the iOS app while this form is open is not visible
    * until a reload.
    */
-  const [draft, setDraft] = useState<FunDraft>(() => funDraftFromRow(row));
-  const initial = funDraftFromRow(row);
-  const dirty = !funDraftsEqual(draft, initial);
+  const [form, setForm] = useState(() => {
+    const draft = funDraftFromRow(row);
+    return {
+      draft,
+      savedDraft: draft,
+      expectedRevision: row.revision ?? 0,
+    };
+  });
+  const { draft, savedDraft, expectedRevision } = form;
+  const setDraft = (next: FunDraft) =>
+    setForm((current) => ({ ...current, draft: next }));
+  const pendingPatch = funPatch(savedDraft, draft);
+  const dirty = Object.keys(pendingPatch).length > 0;
 
   /* `photo` has no `null` in `funEntries.update`'s validator — a Fun Entry without
      a photo is a hole in the /fun grid — so removing the image holds the save
@@ -110,7 +119,7 @@ function FunEditorForm({ row }: { row: Doc<"funEntries"> }) {
   const missingDate = draft.occurredAt === null;
   const blocked = missingPhoto || missingDate;
 
-  const kindChanged = draft.type !== row.type;
+  const kindChanged = draft.type !== savedDraft.type;
 
   return (
     <>
@@ -137,7 +146,10 @@ function FunEditorForm({ row }: { row: Doc<"funEntries"> }) {
               name={row.title}
               disabled={save.pending}
               onAction={async () => {
-                const result = await remove({ entryId: row._id });
+                const result = await remove({
+                  entryId: row._id,
+                  expectedRevision,
+                });
                 /* The id has just stopped resolving; `replace` keeps a dead
                    editor out of the history. */
                 router.replace("/admin/fun");
@@ -179,9 +191,25 @@ function FunEditorForm({ row }: { row: Doc<"funEntries"> }) {
                 /* `funPatch` holds the only kind-awareness a client needs: which
                    of `steps`/`km` to send, given where the kind is going. Its
                    docblock has the reasoning. */
-                const patch = funPatch(row, draft);
+                if (Object.keys(pendingPatch).length === 0) {
+                  return;
+                }
 
-                return await update({ entryId: row._id, ...patch });
+                const result = await update({
+                  entryId: row._id,
+                  expectedRevision,
+                  ...pendingPatch,
+                });
+
+                if (result.changed) {
+                  setForm((current) => ({
+                    ...current,
+                    savedDraft: draft,
+                    expectedRevision: result.revision,
+                  }));
+                }
+
+                return result;
               }}
             />
           </AdminButtonRow>
@@ -198,7 +226,7 @@ function FunEditorForm({ row }: { row: Doc<"funEntries"> }) {
           {kindChanged ? (
             <AdminNotice
               tone="warn"
-              title={`Changing ${funTypeLabel(row.type).toLowerCase()} → ${funTypeLabel(draft.type).toLowerCase()}`}
+              title={`Changing ${funTypeLabel(savedDraft.type).toLowerCase()} → ${funTypeLabel(draft.type).toLowerCase()}`}
             >
               {draft.type === "walk" ? (
                 <>

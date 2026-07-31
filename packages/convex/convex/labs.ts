@@ -24,15 +24,10 @@
  * the hourly cron overwrites from the GitHub API. Everything else on the row is
  * hand-written and must survive the refresh."
  *
- * The cron does not exist yet, so both write paths below accept the block:
- * `create` takes an optional initial value (a Lab curated in today should be able
- * to show real numbers before the next tick) and `update` can patch it (a wrong
- * star count should be fixable by hand). Once phase 4 lands, **the cron is the
- * owner**: an admin edit to `liveStats` survives only until the next hour, and
- * the admin UI should present these fields as read-only-ish rather than as
- * content. The cron's own writer belongs in this file as an `internalMutation`
- * (`refreshLiveStats`, keyed on `repoFullName` via `by_repoFullName`) so that the
- * GitHub-shaped write and the hand-shaped write share one validator.
+ * The cron now exists and is the sole writer. Admin create/update arguments do
+ * not expose this block: a new row starts at unsynchronised zeroes, and the next
+ * successful GitHub refresh replaces them. Repair collector data at its source
+ * or through an explicit internal migration, never through an editorial client.
  *
  * `repoFullName` uniqueness is enforced here for the cron's benefit: two rows
  * naming one repo would both be refreshed from it, and the second would look like
@@ -46,6 +41,11 @@ import type { DataModel, Doc, Id } from './_generated/dataModel';
 import { mutation, query } from './_generated/server';
 import { requireAdmin } from './lib/auth';
 import {
+  assertExpectedRevision,
+  currentRevision,
+  nextRevision,
+} from './lib/revision';
+import {
   assertRange,
   assertSlugUnique,
   assertText,
@@ -57,10 +57,8 @@ import { mediaAsset } from './schema';
 /* ------------------------------------------------------------------ *
  * Validators the schema does not export
  *
- * `labs.links` and `labs.liveStats` are declared inline in schema.ts
- * and have no exported names, and this file may not edit schema.ts.
- * They are mirrored here field for field — a field added there and not
- * here is a field no client can write.
+ * `labs.links` is declared inline in schema.ts and has no exported name.
+ * It is mirrored here field for field.
  * ------------------------------------------------------------------ */
 
 /** Mirrors `labs.links` / `LabLinksSchema`. `repo` is required — see the header. */
@@ -68,16 +66,6 @@ const labLinks = v.object({
   repo: v.string(),
   live: v.optional(v.string()),
   docs: v.optional(v.string()),
-});
-
-/** Mirrors `labs.liveStats` / `LabLiveStatsSchema`. The cron's slice. */
-const labLiveStats = v.object({
-  stars: v.number(),
-  forks: v.number(),
-  commitsYear: v.number(),
-  lastPushDaysAgo: v.number(),
-  lastPushedAt: v.optional(v.string()),
-  syncedAt: v.optional(v.string()),
 });
 
 /* ------------------------------------------------------------------ *
@@ -275,6 +263,16 @@ function assertLabFields(fields: Partial<LabFields>): void {
       message: `sortOrder must be a whole number (got ${fields.sortOrder}).`,
     });
   }
+  if (fields.sortOrder !== undefined) {
+    assertRange(fields.sortOrder, 'sortOrder', 0, 1_000_000_000);
+    if (!Number.isSafeInteger(fields.sortOrder)) {
+      invalid({
+        code: 'invalid-format',
+        field: 'sortOrder',
+        message: 'sortOrder must be a whole number.',
+      });
+    }
+  }
 }
 
 /**
@@ -387,6 +385,15 @@ export const list = query({
   },
 });
 
+/** Every Lab in display order for native administrative CRUD. */
+export const listAdmin = query({
+  args: {},
+  handler: async (ctx) => {
+    await requireAdmin(ctx);
+    return await ctx.db.query('labs').withIndex('by_sortOrder').collect();
+  },
+});
+
 /**
  * Published + featured Labs, in display order. Public.
  *
@@ -454,15 +461,12 @@ export const getBySlug = query({
  * the single path onto the public site, so it stays the single place a
  * precondition could ever be enforced.
  *
- * @param liveStats - optional initial GitHub numbers. Omitted, the block is
- *   written as zeros **with no `syncedAt`**, and that absence is the signal: a
- *   reader showing `0 stars` next to a missing `syncedAt` is reporting "the cron
- *   has not run yet", not "this repo has no stars". Phase 4's cron overwrites the
- *   whole block on its next tick and sets `syncedAt` — see the file header.
+ * `liveStats` starts as zeroes **with no `syncedAt`**. That absence means the
+ * collector has not run yet; it is not a claim that the repository has no stars.
  * @param sortOrder - omitted, the Lab goes last.
  * @param featured - omitted, `false`.
  *
- * @returns `{ labId, slug, sortOrder }`
+ * @returns `{ labId, slug, sortOrder, revision, created }`
  */
 export const create = mutation({
   args: {
@@ -473,8 +477,6 @@ export const create = mutation({
     language: v.string(),
     coverImage: mediaAsset,
     links: labLinks,
-
-    liveStats: v.optional(labLiveStats),
 
     featured: v.optional(v.boolean()),
     sortOrder: v.optional(v.number()),
@@ -492,6 +494,7 @@ export const create = mutation({
       .first();
 
     const fields: LabFields = {
+      revision: 1,
       published: false,
       featured: args.featured ?? false,
       sortOrder: args.sortOrder ?? (last === null ? 0 : last.sortOrder + 1),
@@ -505,7 +508,7 @@ export const create = mutation({
       links: args.links,
 
       // Zeros with no `syncedAt` — see the `liveStats` note above.
-      liveStats: args.liveStats ?? {
+      liveStats: {
         stars: 0,
         forks: 0,
         commitsYear: 0,
@@ -519,7 +522,13 @@ export const create = mutation({
 
     const labId = await ctx.db.insert('labs', fields);
 
-    return { labId, slug: fields.slug, sortOrder: fields.sortOrder };
+    return {
+      labId,
+      slug: fields.slug,
+      sortOrder: fields.sortOrder,
+      revision: 1 as const,
+      created: true,
+    };
   },
 });
 
@@ -527,26 +536,19 @@ export const create = mutation({
  * Edit a Lab. Admin-only. Patch semantics.
  *
  * Only the fields present in the arguments are written. As in `projects.update`:
- * objects are replaced whole rather than merged (passing `coverImage` or
- * `liveStats` replaces the entire block), and `published` is not an argument.
- *
- * There is nothing to clear with `null` here — every field on a Lab except the
- * two optional timestamps inside `liveStats` is required by `LabSchema`, and
- * those are cleared by passing a `liveStats` block that omits them.
- *
- * ⚠️ `liveStats` is the cron's field from phase 4 onwards. A hand-written value
- * survives until the next hourly tick and no longer — see the file header. It is
- * writable here so that a wrong number is fixable today, not so that it is
- * maintained by hand.
+ * objects are replaced whole rather than merged, and `published`/`liveStats`
+ * are not arguments. Publication has dedicated mutations; GitHub owns stats.
  *
  * ⚠️ Renaming `slug` orphans inbound links and any `knowledgeDocs.sourceSlug` /
  * `siteSettings.featured.labSlugs` entry naming it. Treat it as destructive.
  *
- * @returns `{ labId, slug }` — the slug as stored, which may be the new one.
+ * @returns `{ labId, slug, changed, revision }` — the authoritative revision is
+ *   unchanged for a no-op and advances exactly once for a write.
  */
 export const update = mutation({
   args: {
     labId: v.id('labs'),
+    expectedRevision: v.optional(v.number()),
 
     slug: v.optional(v.string()),
     title: v.optional(v.string()),
@@ -555,9 +557,6 @@ export const update = mutation({
     language: v.optional(v.string()),
     coverImage: v.optional(mediaAsset),
     links: v.optional(labLinks),
-
-    /** Phase 4's cron is the eventual owner of this block. See the file header. */
-    liveStats: v.optional(labLiveStats),
 
     featured: v.optional(v.boolean()),
     sortOrder: v.optional(v.number()),
@@ -574,6 +573,8 @@ export const update = mutation({
       });
     }
 
+    assertExpectedRevision(row.revision, args.expectedRevision);
+
     const patch: LabPatch = {};
 
     if (args.slug !== undefined && args.slug !== row.slug) {
@@ -587,8 +588,6 @@ export const update = mutation({
     if (args.language !== undefined) patch.language = args.language.trim();
     if (args.coverImage !== undefined) patch.coverImage = args.coverImage;
     if (args.links !== undefined) patch.links = args.links;
-    if (args.liveStats !== undefined) patch.liveStats = args.liveStats;
-
     if (args.featured !== undefined) patch.featured = args.featured;
     if (args.sortOrder !== undefined) patch.sortOrder = args.sortOrder;
 
@@ -604,7 +603,10 @@ export const update = mutation({
     }
 
     // A form that submits no changes should not produce a write.
-    if (Object.keys(patch).length > 0) {
+    const changed = Object.keys(patch).length > 0;
+    const revision = changed ? nextRevision(row.revision) : currentRevision(row.revision);
+    if (changed) {
+      patch.revision = revision;
       await ctx.db.patch(row._id, patch);
     }
 
@@ -633,7 +635,12 @@ export const update = mutation({
       });
     }
 
-    return { labId: row._id, slug: patch.slug ?? row.slug };
+    return {
+      labId: row._id,
+      slug: patch.slug ?? row.slug,
+      revision,
+      changed,
+    };
   },
 });
 
@@ -646,10 +653,13 @@ export const update = mutation({
  * Idempotent, reporting `alreadyPublished`. Schedules the knowledge re-index,
  * the same hook `projects.publish` describes.
  *
- * @returns `{ labId, slug, published: true, alreadyPublished }`
+ * @returns `{ labId, slug, published: true, alreadyPublished, changed, revision }`
  */
 export const publish = mutation({
-  args: { labId: v.id('labs') },
+  args: {
+    labId: v.id('labs'),
+    expectedRevision: v.optional(v.number()),
+  },
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
 
@@ -662,16 +672,20 @@ export const publish = mutation({
       });
     }
 
+    assertExpectedRevision(row.revision, args.expectedRevision);
     if (row.published) {
       return {
         labId: row._id,
         slug: row.slug,
         published: true as const,
         alreadyPublished: true,
+        changed: false,
+        revision: currentRevision(row.revision),
       };
     }
 
-    await ctx.db.patch(row._id, { published: true });
+    const revision = nextRevision(row.revision);
+    await ctx.db.patch(row._id, { published: true, revision });
 
     // PHASE 4 — knowledge indexing (ADR 015). Scheduled, not inline: embedding
     // needs `fetch` and a mutation cannot, so a provider outage delays the index
@@ -687,6 +701,8 @@ export const publish = mutation({
       slug: row.slug,
       published: true as const,
       alreadyPublished: false,
+      changed: true,
+      revision,
     };
   },
 });
@@ -698,10 +714,13 @@ export const publish = mutation({
  * `listFeatured` filters on `published`, so it leaves the dashboard in the same
  * tick.
  *
- * @returns `{ labId, slug, published: false, alreadyUnpublished }`
+ * @returns `{ labId, slug, published: false, alreadyUnpublished, changed, revision }`
  */
 export const unpublish = mutation({
-  args: { labId: v.id('labs') },
+  args: {
+    labId: v.id('labs'),
+    expectedRevision: v.optional(v.number()),
+  },
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
 
@@ -714,16 +733,20 @@ export const unpublish = mutation({
       });
     }
 
+    assertExpectedRevision(row.revision, args.expectedRevision);
     if (!row.published) {
       return {
         labId: row._id,
         slug: row.slug,
         published: false as const,
         alreadyUnpublished: true,
+        changed: false,
+        revision: currentRevision(row.revision),
       };
     }
 
-    await ctx.db.patch(row._id, { published: false });
+    const revision = nextRevision(row.revision);
+    await ctx.db.patch(row._id, { published: false, revision });
 
     // PHASE 4 — knowledge indexing (ADR 015). A flag patch, not a delete: the
     // text and its vector stay put for the moment this is published again, and
@@ -740,6 +763,8 @@ export const unpublish = mutation({
       slug: row.slug,
       published: false as const,
       alreadyUnpublished: false,
+      changed: true,
+      revision,
     };
   },
 });
@@ -766,6 +791,7 @@ export const setFeatured = mutation({
   args: {
     labId: v.id('labs'),
     featured: v.boolean(),
+    expectedRevision: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
@@ -779,11 +805,18 @@ export const setFeatured = mutation({
       });
     }
 
-    if (row.featured !== args.featured) {
-      await ctx.db.patch(row._id, { featured: args.featured });
+    assertExpectedRevision(row.revision, args.expectedRevision);
+
+    const changed = row.featured !== args.featured;
+    const revision = changed ? nextRevision(row.revision) : currentRevision(row.revision);
+    if (changed) {
+      await ctx.db.patch(row._id, {
+        featured: args.featured,
+        revision,
+      });
     }
 
-    return { labId: row._id, featured: args.featured };
+    return { labId: row._id, featured: args.featured, changed, revision };
   },
 });
 
@@ -797,12 +830,24 @@ export const setFeatured = mutation({
  * skipped, so reordering two items is two writes.
  *
  * @param labIds - every Lab `_id`, in display order.
- * @returns `{ count, changed }`
+ * @param expectedRevisions - each id's captured revision in the same order.
+ * @returns `{ count, changed, revisions }`
  */
 export const setSortOrder = mutation({
-  args: { labIds: v.array(v.id('labs')) },
+  args: {
+    labIds: v.array(v.id('labs')),
+    expectedRevisions: v.array(v.number()),
+  },
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
+
+    if (args.expectedRevisions.length !== args.labIds.length) {
+      invalid({
+        code: 'precondition-failed',
+        field: 'expectedRevisions',
+        message: 'Every Lab in a reorder needs its captured revision.',
+      });
+    }
 
     const requested = new Set<Id<'labs'>>(args.labIds);
     if (requested.size !== args.labIds.length) {
@@ -830,7 +875,14 @@ export const setSortOrder = mutation({
     }
 
     const byId = new Map(rows.map((row) => [row._id, row]));
+    for (const [index, labId] of args.labIds.entries()) {
+      const row = byId.get(labId);
+      if (row !== undefined) {
+        assertExpectedRevision(row.revision, args.expectedRevisions[index]);
+      }
+    }
     let changed = 0;
+    const revisions: Array<{ labId: Id<'labs'>; revision: number }> = [];
 
     for (const [index, labId] of args.labIds.entries()) {
       const row = byId.get(labId);
@@ -838,13 +890,16 @@ export const setSortOrder = mutation({
       // than asserted, because a non-null assertion here would be the one line
       // hiding a real bug.
       if (row === undefined) continue;
-      if (row.sortOrder === index) continue;
-
-      await ctx.db.patch(row._id, { sortOrder: index });
-      changed += 1;
+      let revision = currentRevision(row.revision);
+      if (row.sortOrder !== index) {
+        revision = nextRevision(row.revision);
+        await ctx.db.patch(row._id, { sortOrder: index, revision });
+        changed += 1;
+      }
+      revisions.push({ labId: row._id, revision });
     }
 
-    return { count: rows.length, changed };
+    return { count: rows.length, changed, revisions };
   },
 });
 
@@ -861,18 +916,24 @@ export const setSortOrder = mutation({
  * still name it — which readers already treat as "not featured yet". The
  * `knowledgeDocs` rows are no longer a loose end; see the hook below.
  *
- * @returns `{ labId, deleted }`
+ * @returns `{ labId, deleted, revision }` — `revision` is the last stored
+ *   revision, or `null` when the row was already absent.
  */
 export const remove = mutation({
-  args: { labId: v.id('labs') },
+  args: {
+    labId: v.id('labs'),
+    expectedRevision: v.optional(v.number()),
+  },
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
 
     const row = await ctx.db.get(args.labId);
     if (row === null) {
-      return { labId: args.labId, deleted: false };
+      return { labId: args.labId, deleted: false, revision: null };
     }
 
+    assertExpectedRevision(row.revision, args.expectedRevision);
+    const revision = currentRevision(row.revision);
     await ctx.db.delete(row._id);
 
     // PHASE 4 — knowledge indexing (ADR 015). An orphaned `knowledgeDocs` row is
@@ -883,6 +944,6 @@ export const remove = mutation({
       sourceSlug: row.slug,
     });
 
-    return { labId: args.labId, deleted: true };
+    return { labId: args.labId, deleted: true, revision };
   },
 });

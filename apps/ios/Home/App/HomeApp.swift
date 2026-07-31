@@ -2,38 +2,72 @@
 //  HomeApp.swift
 //  Home — the pocket admin for coreybaines.com
 //
-//  The entry point. Deliberately almost empty.
-//
-//  ── What belongs here, and what does not ───────────────────────────────────
-//
-//  This file owns exactly one thing: the `Scene`. It does NOT own the Convex
-//  client, the Clerk configuration call, or any session state — those land in
-//  `Home/Backend/`, which the auth agent owns, because ADR 007's Clerk
-//  `AuthProvider` adapter is the risky part of this phase and it needs to be
-//  reviewable in one place rather than smeared across the app entry point.
-//
-//  The seam the auth agent should use is an `.environment(…)` injection here
-//  plus a root-level "signed out" branch inside `RootView`. It is written that
-//  way rather than pre-stubbed because a stub of an object whose shape is not
-//  yet known is just a merge conflict with extra steps.
-//
-//  ── Why there is no `init()` doing setup ───────────────────────────────────
-//
-//  `Clerk.configure(publishableKey:)` is `@MainActor` and must run once before
-//  anything reads `Clerk.shared`. The obvious home for it is a `App.init()`,
-//  and that is the wrong home: `init()` runs before the first frame, so a
-//  configuration failure there is a launch crash with no UI to explain itself.
-//  `Config.status` is checked inside `RootView` instead, where "you have not
-//  run seed-config.sh" can be rendered as a sentence.
-//
 
+import ClerkKit
 import SwiftUI
+import UIKit
+
+final class HomeAppDelegate: NSObject, UIApplicationDelegate {
+    func application(
+        _ application: UIApplication,
+        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
+    ) -> Bool {
+        // HealthKit relaunches a terminated app specifically so it can recreate
+        // observer queries. Install them from process launch, independently of
+        // Clerk/network startup and before any SwiftUI scene task is scheduled.
+        Task { @MainActor in
+            await HealthSyncService.shared.startBackgroundMonitoring()
+            await HealthSyncService.shared.syncOnLaunchIfEligible()
+        }
+        return true
+    }
+}
 
 @main
 struct HomeApp: App {
+    @UIApplicationDelegateAdaptor(HomeAppDelegate.self) private var appDelegate
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var model: HomeAppModel
+    private let clerk: Clerk?
+
+    init() {
+        #if DEBUG && targetEnvironment(simulator)
+        let previewMode = ProcessInfo.processInfo.arguments.contains("-HomePreviewMode")
+        #else
+        let previewMode = false
+        #endif
+
+        if !previewMode, let publishableKey = Config.clerkPublishableKey {
+            let configuredClerk = Clerk.configure(publishableKey: publishableKey)
+            clerk = configuredClerk
+        } else {
+            clerk = nil
+        }
+        _model = State(initialValue: HomeAppModel(preview: previewMode))
+    }
+
     var body: some Scene {
         WindowGroup {
-            RootView()
+            Group {
+                if let clerk {
+                    RootView()
+                        .environment(clerk)
+                } else {
+                    RootView()
+                }
+            }
+            .environment(model)
+            .task {
+                await model.start()
+            }
+            .onOpenURL { url in
+                guard let clerk else { return }
+                Task { _ = try? await clerk.handle(url) }
+            }
+            .onChange(of: scenePhase) { _, phase in
+                guard phase == .active else { return }
+                Task { await model.retryAuthenticationOnForeground() }
+            }
         }
     }
 }

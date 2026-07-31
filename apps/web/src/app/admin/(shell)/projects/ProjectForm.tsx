@@ -5,7 +5,7 @@ import type { Doc } from "@home/convex/dataModel";
 import type { MediaAsset } from "@home/types";
 import { useMutation } from "convex/react";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
 import {
   ActionButton,
@@ -288,13 +288,23 @@ export function ProjectForm({
    * documents remounts rather than mutating state — and a live update to the row
    * from another tab (or the iOS app) does *not* overwrite what is being typed.
    */
-  const [draft, setDraft] = useState<ProjectDraft>(() =>
-    row === null ? blankDraft() : draftFromRow(row),
-  );
+  const [form, setForm] = useState(() => {
+    const draft = row === null ? blankDraft() : draftFromRow(row);
+    return {
+      draft,
+      savedKey: JSON.stringify(draft),
+      savedBuildStatsKey: JSON.stringify(aiBuildStatsFrom(draft)),
+      expectedRevision: row?.revision ?? 0,
+    };
+  });
+  const { draft, savedKey, savedBuildStatsKey, expectedRevision } = form;
 
   /** Patch one field. Every control below is `patch({ … })`. */
   const patch = (fields: Partial<ProjectDraft>) =>
-    setDraft((current) => ({ ...current, ...fields }));
+    setForm((current) => ({
+      ...current,
+      draft: { ...current.draft, ...fields },
+    }));
 
   /**
    * Whether this body can be edited as rich text, decided **once** from the
@@ -319,16 +329,13 @@ export function ProjectForm({
   /**
    * Has anything changed?
    *
-   * Compared against the *live* row rather than a snapshot taken at mount, which
-   * gives the behaviour for free: after a successful save the subscription pushes
-   * the new document, the comparison matches, and the Save button disables
-   * itself. `JSON.stringify` is honest enough for the job — both sides are built
-   * by `draftFromRow`, so key order agrees, and the only way to get a false
-   * positive is an asset whose keys were reordered by an edit, which would
-   * merely leave Save enabled.
+   * Compared against the snapshot that supplied `expectedRevision`, rather than
+   * the live subscription. A phone save must not silently move the browser's
+   * baseline forward while this draft still contains the older values. The
+   * mutation will reject that stale revision and `usePendingAction` will show its
+   * conflict message beside Save.
    */
-  const stored = useMemo(() => (row === null ? null : draftFromRow(row)), [row]);
-  const dirty = stored === null || JSON.stringify(draft) !== JSON.stringify(stored);
+  const dirty = row === null || JSON.stringify(draft) !== savedKey;
 
   /* The gate, mirrored twice over. The draft's count is immediate feedback while
      editing (MediaListEditor shows it too); the stored row's count is what
@@ -344,6 +351,8 @@ export function ProjectForm({
     const outcomes = textToLines(draft.outcomes);
     const stack = textToLines(draft.stack);
     const aiBuildStats = aiBuildStatsFrom(draft);
+    const buildStatsWereEdited =
+      JSON.stringify(aiBuildStats) !== savedBuildStatsKey;
 
     /* `links` is replaced whole by both mutations, so an empty string means the
        key is simply not sent — there is no `null` to clear a nested field with. */
@@ -387,7 +396,7 @@ export function ProjectForm({
     }
 
     /**
-     * Every field, every time.
+     * Every editorial field, every time.
      *
      * `update` is a patch API, so sending only what changed would be smaller —
      * and would need a diff, which is a second source of truth for "what is in
@@ -396,6 +405,10 @@ export function ProjectForm({
      * when empty, which is how the API distinguishes "clear this" from "leave it
      * alone" (omission).
      *
+     * `aiBuildStats` is the deliberate exception. The hourly collector owns
+     * that derived block, so an editor left open must not write an old snapshot
+     * over a fresh collection. Manual changes are still sent as overrides.
+     *
      * ⚠️ Because `media` is always sent, saving an already-published row runs the
      * ADR-009 assertion in `update` as well. That is the point of it being there —
      * publishing clean and then editing dirty screenshots in would otherwise
@@ -403,6 +416,7 @@ export function ProjectForm({
      */
     const saved = await update({
       projectId: row._id,
+      expectedRevision,
       slug: draft.slug,
       title: draft.title,
       client: draft.client,
@@ -419,16 +433,41 @@ export function ProjectForm({
       links,
       accent: draft.accent,
       accentHue: draft.accentHue,
-      aiBuildStats,
+      ...(buildStatsWereEdited ? { aiBuildStats } : {}),
       featured: draft.featured,
       ...(draft.sortOrder !== null ? { sortOrder: draft.sortOrder } : {}),
     });
+
+    /* Every edit-form update sends at least one field, so a successful write
+       advances the revision exactly once. Keep the submitted snapshot even if
+       another keystroke landed while the request was in flight. */
+    setForm((current) => ({
+      ...current,
+      savedKey: JSON.stringify(draft),
+      savedBuildStatsKey: JSON.stringify(aiBuildStats),
+      expectedRevision: saved.revision,
+    }));
 
     /* A slug rename moves the page it is being edited on. `replace` keeps the
        history sane and the subscription re-resolves against the new slug. */
     if (saved.slug !== row.slug) {
       router.replace(`/admin/projects/${saved.slug}`);
     }
+  }
+
+  async function setPublished(next: boolean): Promise<unknown> {
+    if (row === null) return;
+
+    const result = next
+      ? await publish({ projectId: row._id, expectedRevision })
+      : await unpublish({ projectId: row._id, expectedRevision });
+
+    setForm((current) => ({
+      ...current,
+      expectedRevision: result.revision,
+    }));
+
+    return result;
   }
 
   /* ---- render ---- */
@@ -915,7 +954,7 @@ export function ProjectForm({
                 {row.published ? (
                   <ActionButton
                     action={write}
-                    onAction={() => unpublish({ projectId: row._id })}
+                    onAction={() => setPublished(false)}
                     pendingLabel="Withdrawing…"
                   >
                     Unpublish
@@ -924,7 +963,7 @@ export function ProjectForm({
                   <ActionButton
                     action={write}
                     variant="primary"
-                    onAction={() => publish({ projectId: row._id })}
+                    onAction={() => setPublished(true)}
                     pendingLabel="Publishing…"
                     disabled={publishBlocked}
                     title={
@@ -977,7 +1016,10 @@ export function ProjectForm({
                   name={row.title}
                   size="md"
                   onAction={async () => {
-                    await remove({ projectId: row._id });
+                    await remove({
+                      projectId: row._id,
+                      expectedRevision,
+                    });
                     router.replace("/admin/projects");
                   }}
                 />

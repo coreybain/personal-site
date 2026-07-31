@@ -5,7 +5,7 @@ import type { Doc } from "@home/convex/dataModel";
 import type { MediaAsset } from "@home/types";
 import { useMutation } from "convex/react";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
 import {
   ActionButton,
@@ -180,17 +180,25 @@ export function LabForm({
   const write = usePendingAction();
   const destroy = usePendingAction();
 
-  const [draft, setDraft] = useState<LabDraft>(() =>
-    row === null ? blankDraft() : draftFromRow(row),
-  );
+  const [form, setForm] = useState(() => {
+    const draft = row === null ? blankDraft() : draftFromRow(row);
+    return {
+      draft,
+      savedKey: JSON.stringify(draft),
+      expectedRevision: row?.revision ?? 0,
+    };
+  });
+  const { draft, savedKey, expectedRevision } = form;
 
   const patch = (fields: Partial<LabDraft>) =>
-    setDraft((current) => ({ ...current, ...fields }));
+    setForm((current) => ({
+      ...current,
+      draft: { ...current.draft, ...fields },
+    }));
 
-  /* Compared against the live row, so a successful save disables Save by itself
-     when the subscription pushes the new document. See `ProjectForm`. */
-  const stored = useMemo(() => (row === null ? null : draftFromRow(row)), [row]);
-  const dirty = stored === null || JSON.stringify(draft) !== JSON.stringify(stored);
+  /* Keep the draft tied to the revision it actually loaded. A newer live row is
+     not a safe baseline for fields that still contain the older values. */
+  const dirty = row === null || JSON.stringify(draft) !== savedKey;
 
   /**
    * A Lab must have a cover image.
@@ -244,6 +252,7 @@ export function LabForm({
        optional timestamps inside `liveStats` is required by `LabSchema`. */
     const saved = await update({
       labId: row._id,
+      expectedRevision,
       slug: draft.slug,
       title: draft.title,
       summary: draft.summary,
@@ -255,9 +264,30 @@ export function LabForm({
       ...(draft.sortOrder !== null ? { sortOrder: draft.sortOrder } : {}),
     });
 
+    setForm((current) => ({
+      ...current,
+      savedKey: JSON.stringify(draft),
+      expectedRevision: saved.revision,
+    }));
+
     if (saved.slug !== row.slug) {
       router.replace(`/admin/labs/${saved.slug}`);
     }
+  }
+
+  async function setPublished(next: boolean): Promise<unknown> {
+    if (row === null) return;
+
+    const result = next
+      ? await publish({ labId: row._id, expectedRevision })
+      : await unpublish({ labId: row._id, expectedRevision });
+
+    setForm((current) => ({
+      ...current,
+      expectedRevision: result.revision,
+    }));
+
+    return result;
   }
 
   return (
@@ -609,7 +639,7 @@ export function LabForm({
                 {row.published ? (
                   <ActionButton
                     action={write}
-                    onAction={() => unpublish({ labId: row._id })}
+                    onAction={() => setPublished(false)}
                     pendingLabel="Withdrawing…"
                   >
                     Unpublish
@@ -618,7 +648,7 @@ export function LabForm({
                   <ActionButton
                     action={write}
                     variant="primary"
-                    onAction={() => publish({ labId: row._id })}
+                    onAction={() => setPublished(true)}
                     pendingLabel="Publishing…"
                   >
                     Publish
@@ -664,7 +694,10 @@ export function LabForm({
                   name={row.title}
                   size="md"
                   onAction={async () => {
-                    await remove({ labId: row._id });
+                    await remove({
+                      labId: row._id,
+                      expectedRevision,
+                    });
                     router.replace("/admin/labs");
                   }}
                 />

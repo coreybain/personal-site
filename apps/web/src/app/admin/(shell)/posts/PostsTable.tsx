@@ -233,9 +233,18 @@ function PostRow({
   remove,
 }: {
   row: Doc<"posts">;
-  publish: (args: { postId: Id<"posts"> }) => Promise<unknown>;
-  unpublish: (args: { postId: Id<"posts"> }) => Promise<unknown>;
-  remove: (args: { postId: Id<"posts"> }) => Promise<unknown>;
+  publish: (args: {
+    postId: Id<"posts">;
+    expectedRevision?: number;
+  }) => Promise<unknown>;
+  unpublish: (args: {
+    postId: Id<"posts">;
+    expectedRevision?: number;
+  }) => Promise<unknown>;
+  remove: (args: {
+    postId: Id<"posts">;
+    expectedRevision?: number;
+  }) => Promise<unknown>;
 }) {
   const action = usePendingAction();
 
@@ -273,7 +282,12 @@ function PostRow({
             <ActionButton
               action={action}
               size="sm"
-              onAction={() => unpublish({ postId: row._id })}
+              onAction={() =>
+                unpublish({
+                  postId: row._id,
+                  expectedRevision: row.revision ?? 0,
+                })
+              }
               pendingLabel="Hiding…"
               title="Hide from the public site. Keeps the publication date."
             >
@@ -284,7 +298,12 @@ function PostRow({
               action={action}
               size="sm"
               variant="primary"
-              onAction={() => publish({ postId: row._id })}
+              onAction={() =>
+                publish({
+                  postId: row._id,
+                  expectedRevision: row.revision ?? 0,
+                })
+              }
               pendingLabel="Publishing…"
             >
               Publish
@@ -294,7 +313,12 @@ function PostRow({
           <DeleteButton
             action={action}
             name={row.title}
-            onAction={() => remove({ postId: row._id })}
+            onAction={() =>
+              remove({
+                postId: row._id,
+                expectedRevision: row.revision ?? 0,
+              })
+            }
           />
         </RowActions>
       </td>

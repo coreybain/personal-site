@@ -104,7 +104,15 @@ export function LabsTable() {
 
     [ids[from], ids[to]] = [ids[to], ids[from]];
 
-    void write.run(() => setSortOrder({ labIds: ids }));
+    const revisionById = new Map(
+      rows.map((row) => [row._id, row.revision ?? 0] as const),
+    );
+    void write.run(() =>
+      setSortOrder({
+        labIds: ids,
+        expectedRevisions: ids.map((id) => revisionById.get(id) ?? 0),
+      }),
+    );
   }
 
   return (
@@ -241,7 +249,11 @@ export function LabsTable() {
                 size="sm"
                 quiet
                 onAction={() =>
-                  setFeatured({ labId: row._id, featured: !row.featured })
+                  setFeatured({
+                    labId: row._id,
+                    featured: !row.featured,
+                    expectedRevision: row.revision ?? 0,
+                  })
                 }
                 title={
                   row.featured
@@ -257,7 +269,12 @@ export function LabsTable() {
                   action={write}
                   size="sm"
                   quiet
-                  onAction={() => unpublish({ labId: row._id })}
+                  onAction={() =>
+                    unpublish({
+                      labId: row._id,
+                      expectedRevision: row.revision ?? 0,
+                    })
+                  }
                 >
                   Unpublish
                 </ActionButton>
@@ -266,7 +283,12 @@ export function LabsTable() {
                   action={write}
                   size="sm"
                   quiet
-                  onAction={() => publish({ labId: row._id })}
+                  onAction={() =>
+                    publish({
+                      labId: row._id,
+                      expectedRevision: row.revision ?? 0,
+                    })
+                  }
                 >
                   Publish
                 </ActionButton>

@@ -21,6 +21,9 @@
   // Server and CLI credentials still need to reach the app processes, but they
   // are runtime inputs rather than public values baked into client bundles.
   "globalPassThroughEnv": [
+    // Runtime authorization input for the native upload and Convex admin
+    // boundaries. It is never bundled into client output.
+    "ADMIN_CLERK_USER_ID",
     "CLERK_SECRET_KEY",
     "CONVEX_DEPLOYMENT",
     "CONVEX_DEPLOY_KEY",
@@ -113,6 +116,9 @@
     },
     "lint": {
       "dependsOn": ["^lint"]
+    },
+    "test": {
+      "dependsOn": ["^test"]
     },
     "typecheck": {
       "dependsOn": ["^typecheck"]

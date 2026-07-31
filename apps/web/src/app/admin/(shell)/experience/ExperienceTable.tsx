@@ -29,16 +29,11 @@ import {
  * negative over time and why the column below shows gaps. That is healthy: the
  * numbers are only ever compared to each other.
  *
- * ── Reorder is two mutations, not one ───────────────────────────────────────
+ * ── Reorder is one transaction ──────────────────────────────────────────────
  *
- * `setSortOrder({ entryId, sortOrder })` moves one row. Moving a row up therefore
- * means swapping its value with its neighbour's: two calls, and they are not one
- * transaction. If the second fails, both rows hold the same value — which is legal,
- * leaves the résumé in whatever order the index happens to return, and is repaired
- * by the next move (see the equal-values branch in `move`). The alternative would be
- * a backend mutation that takes the whole ordering, which is what `projects`/`labs`
- * do; this table is small enough that two round trips are cheaper than a third
- * function.
+ * `swapSortOrder` exchanges a row with its neighbour atomically and rebuilds the
+ * résumé once. The single-row mutation remains only for repairing historical
+ * duplicate weights, where there is no meaningful value to swap.
  *
  * Up/down buttons rather than drag-and-drop, per the kit: the keyboard
  * implementation of drag-and-drop *is* a pair of move buttons.
@@ -50,12 +45,13 @@ type ResumeEcho = { synced: boolean; roles: number };
 export function ExperienceTable() {
   const rows = useQuery(api.experienceEntries.list, {});
   const setSortOrder = useMutation(api.experienceEntries.setSortOrder);
+  const swapSortOrder = useMutation(api.experienceEntries.swapSortOrder);
   const remove = useMutation(api.experienceEntries.remove);
 
   /**
    * One pending state for all the move buttons, so a second click while a swap is
-   * in flight is dropped — the two `setSortOrder` calls a swap makes are not one
-   * transaction, and interleaving two swaps is how rows end up sharing a value.
+   * in flight is dropped. The backend swap is atomic, but accepting two gestures
+   * against the same stale list would make the second one an avoidable conflict.
    *
    * The delete buttons deliberately do **not** share it: `DeleteButton` renders the
    * failure of whatever action it is given inline, and a shared one would print a
@@ -92,13 +88,18 @@ export function ExperienceTable() {
       const answer = await setSortOrder({
         entryId: from._id,
         sortOrder: delta < 0 ? from.sortOrder - 1 : from.sortOrder + 1,
+        expectedRevision: from.revision ?? 0,
       });
       setEcho(answer.resume);
       return;
     }
 
-    await setSortOrder({ entryId: from._id, sortOrder: to.sortOrder });
-    const answer = await setSortOrder({ entryId: to._id, sortOrder: from.sortOrder });
+    const answer = await swapSortOrder({
+      firstEntryId: from._id,
+      secondEntryId: to._id,
+      firstExpectedRevision: from.revision ?? 0,
+      secondExpectedRevision: to.revision ?? 0,
+    });
     setEcho(answer.resume);
   };
 
@@ -221,7 +222,10 @@ export function ExperienceTable() {
                 <DeleteButton
                   name={row.title}
                   onAction={async () => {
-                    const answer = await remove({ entryId: row._id });
+                    const answer = await remove({
+                      entryId: row._id,
+                      expectedRevision: row.revision ?? 0,
+                    });
                     setEcho(answer.resume);
                   }}
                 />

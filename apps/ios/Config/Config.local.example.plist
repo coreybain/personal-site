@@ -78,5 +78,11 @@
 	     why no separate domain key is needed. -->
 	<key>ClerkPublishableKey</key>
 	<string>pk_test_REPLACE-ME</string>
+
+	<!-- The web origin with the same Clerk environment. The seed script uses
+	     NEXT_PUBLIC_SITE_URL when present, localhost for pk_test_ keys, and the
+	     canonical production site for pk_live_ keys. -->
+	<key>WebOrigin</key>
+	<string>http://localhost:3000</string>
 </dict>
 </plist>

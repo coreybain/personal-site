@@ -2,6 +2,11 @@ import { auth } from "@clerk/nextjs/server";
 import { createUploadthing, type FileRouter } from "uploadthing/next";
 import { UploadThingError } from "uploadthing/server";
 
+import {
+  configuredAdminClerkUserId,
+  isConfiguredAdminClerkUser,
+} from "@/lib/adminAuthorization";
+
 /**
  * The UploadThing file router (ADR 010).
  *
@@ -9,9 +14,9 @@ import { UploadThingError } from "uploadthing/server";
  *
  * Convex stores URLs, not blobs. Screenshots for the case studies are uploaded
  * from a Mac through this admin; Fun Entry photos are captured on a phone and
- * uploaded straight from the iOS app against a presigned URL. Both paths need
- * durable storage plus a CDN in front of it, and the native client must never
- * hold storage credentials. That is exactly UploadThing's shape (ADR 010).
+ * sent through the authenticated native upload route. Both paths need durable
+ * storage plus a CDN in front of it, and the native client must never hold
+ * storage credentials. That is exactly UploadThing's shape (ADR 010).
  *
  * ── Server file, permanently ───────────────────────────────────────────────
  *
@@ -67,11 +72,9 @@ export const adminFileRouter = {
    *
    * `.middleware()` runs on *our* server before UploadThing issues a presigned
    * URL, which makes it the only place an upload can be refused. This is a
-   * single-user admin (ADR 006): any authenticated Clerk identity is the admin,
-   * so the check is "is there a session", not "which session". The same rule is
-   * enforced a second time at the point the URL is written into a document —
-   * every Convex mutation calls `requireAdmin` — because an upload is not a
-   * publish and the two gates guard different things.
+   * single-user admin (ADR 006), but identity and authorization remain separate:
+   * Clerk proves the session and `ADMIN_CLERK_USER_ID` names the one account
+   * allowed to write. The same rule is enforced again by every Convex mutation.
    *
    * Throwing `UploadThingError` is not decoration: UploadThing serialises it
    * into the client's `onUploadError` with the message intact, where a plain
@@ -93,10 +96,20 @@ export const adminFileRouter = {
         );
       }
 
+      if (configuredAdminClerkUserId() === null) {
+        throw new UploadThingError(
+          "Uploads are unavailable: the administrator allowlist is not configured.",
+        );
+      }
+
       const { userId } = await auth();
 
       if (!userId) {
         throw new UploadThingError("Sign in to upload.");
+      }
+
+      if (!isConfiguredAdminClerkUser(userId)) {
+        throw new UploadThingError("This account is not authorized to upload.");
       }
 
       // Whatever is returned here is handed to `onUploadComplete` as

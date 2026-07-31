@@ -27,11 +27,13 @@
 #
 #   Home/App/              app entry point + the tab shell.        (foundation)
 #   Home/Support/          Config, design language, shared helpers.(foundation)
-#   Home/Backend/          Convex client + the Clerk AuthProvider. (auth agent)
-#   Home/Features/Content/ posts / projects / labs CRUD.           (content agent)
-#   Home/Features/Fun/     fun entries + camera capture.           (fun agent)
-#   Home/Features/Health/  HealthKit read + /ingest/health push.   (health agent)
-#   Home/Features/Settings/availability, sign-out, diagnostics.    (content agent)
+#   Home/Backend/          Clerk/Convex sessions, models, uploads. (foundation)
+#   Home/Features/Content/ posts / projects / labs CRUD.           (content)
+#   Home/Features/Fun/     fun entries + camera capture.           (fun)
+#   Home/Features/Profile/ experience, resume and site settings.   (profile)
+#   Home/Features/Settings/inbox, ingest tokens and diagnostics.   (operations)
+#   Home/Features/Health/  HealthKit read + /ingest/health push.   (health)
+#   Home/Features/Card/    QR, website sharing and vCard export.   (card)
 #   Home/Generated/        Swift Codable structs from packages/types. DO NOT EDIT
 #
 # Adding a directory under `Home/` needs no change to this file. Adding a new
@@ -207,6 +209,15 @@ targets:
         CFBundleShortVersionString: "$(MARKETING_VERSION)"
         CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
 
+        # Clerk magic-link callbacks use the bundle identifier as their custom
+        # scheme. Hosted OAuth uses ASWebAuthenticationSession directly, but
+        # registering the same scheme also makes emailed links resumable.
+        CFBundleURLTypes:
+          - CFBundleTypeRole: Editor
+            CFBundleURLName: com.coreybaines.home
+            CFBundleURLSchemes:
+              - com.coreybaines.home
+
         # Portrait only. This is a form-and-list admin app used one-handed; a
         # landscape layout would be three agents' worth of work that nobody
         # will ever look at.
@@ -251,6 +262,19 @@ targets:
           Home lets you attach a photo you have already taken to a fun entry or
           a project. It reads only the images you pick.
 
+        # The seeded pk_test configuration points native uploads at the Mac's
+        # local web app on Simulator. Production and preview/device builds use
+        # HTTPS origins. Keep the ATS exception constrained to loopback; the
+        # upload client independently requires HTTPS on a physical device.
+        NSAppTransportSecurity:
+          NSExceptionDomains:
+            localhost:
+              NSExceptionAllowsInsecureHTTPLoads: true
+              NSIncludesSubdomains: false
+            "127.0.0.1":
+              NSExceptionAllowsInsecureHTTPLoads: true
+              NSIncludesSubdomains: false
+
     # ══════════════════════════════════════════════════════════════════════
     #  Entitlements
     # ══════════════════════════════════════════════════════════════════════
@@ -276,6 +300,11 @@ targets:
         # adding `UIBackgroundModes: [processing]` instead; that does nothing
         # for HealthKit and invites an App Review question.
         com.apple.developer.healthkit.background-delivery: true
+
+        # Clerk's native quickstart requires this exact frontend API domain so
+        # iOS can associate the app with its persisted Clerk credentials.
+        com.apple.developer.associated-domains:
+          - webcredentials:model-crow-82.clerk.accounts.dev
 
     settings:
       base:
@@ -347,6 +376,21 @@ targets:
         CODE_SIGN_STYLE: Automatic
         DEVELOPMENT_TEAM: ""
 
+  HomeTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: HomeTests
+    dependencies:
+      - target: Home
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.coreybaines.home.tests
+        GENERATE_INFOPLIST_FILE: true
+        SWIFT_VERSION: "6.0"
+        SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor
+        SWIFT_APPROACHABLE_CONCURRENCY: true
+
 # ══════════════════════════════════════════════════════════════════════════
 #  Schemes
 # ══════════════════════════════════════════════════════════════════════════
@@ -364,6 +408,8 @@ schemes:
       config: Debug
     test:
       config: Debug
+      targets:
+        - HomeTests
     profile:
       config: Release
     analyze:

@@ -41,11 +41,10 @@ import Link from "next/link";
  *
  * ── No sign-up, ever ────────────────────────────────────────────────────────
  *
- * ADR 006: this is a single-user admin, and any authenticated identity is the
- * admin. So there is no `<SignUp />` route and no link to one — a sign-up form
- * would be a public endpoint for minting administrators. The one account is created
- * by hand in the Clerk dashboard, and sign-ups should be disabled there as well;
- * this file cannot enforce that, which is why it is written down here.
+ * ADR 006: this is a single-user admin. So there is no `<SignUp />` route and no
+ * link to one. The one account is created by hand in the Clerk dashboard, and
+ * `ADMIN_CLERK_USER_ID` independently authorizes that stable subject. Public
+ * sign-up should still be disabled there as defense in depth.
  */
 export const metadata: Metadata = {
   title: "Sign in — admin",

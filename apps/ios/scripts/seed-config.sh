@@ -7,8 +7,8 @@
 #  What this is for
 # ═══════════════════════════════════════════════════════════════════════════
 #
-# The iOS app needs exactly two values that already exist in the monorepo's
-# root `.env`: the Convex deployment URL and the Clerk publishable key. Xcode
+# The iOS app needs the Convex deployment URL, Clerk publishable key, and the
+# web origin that shares that Clerk environment. Xcode
 # cannot read a `.env`, and `apps/ios` is deliberately outside the Bun
 # workspace, so something has to carry them across. This is that something.
 #
@@ -102,6 +102,7 @@ read_env() {
 
 CONVEX_URL="$(read_env NEXT_PUBLIC_CONVEX_URL)"
 CLERK_KEY="$(read_env NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY)"
+WEB_ORIGIN="$(read_env NEXT_PUBLIC_SITE_URL)"
 
 missing=()
 [ -n "$CONVEX_URL" ] || missing+=("NEXT_PUBLIC_CONVEX_URL")
@@ -159,6 +160,26 @@ esac
 
 [ "$fail" -eq 0 ] || exit 1
 
+# Keep the upload route in the same Clerk environment as its bearer token. A
+# development checkout defaults to the local web app; live builds default to
+# the canonical site. Preview/tunnel deployments opt in with
+# NEXT_PUBLIC_SITE_URL in the same .env used by apps/web.
+if [ -z "$WEB_ORIGIN" ]; then
+  case "$CLERK_KEY" in
+    pk_test_*) WEB_ORIGIN="http://localhost:3000" ;;
+    *) WEB_ORIGIN="https://coreybaines.com" ;;
+  esac
+fi
+WEB_ORIGIN="${WEB_ORIGIN%/}"
+
+case "$WEB_ORIGIN" in
+  https://* | http://localhost:* | http://127.0.0.1:*) ;;
+  *)
+    echo "seed-config: NEXT_PUBLIC_SITE_URL must use https (localhost may use http)." >&2
+    exit 1
+    ;;
+esac
+
 # ---------------------------------------------------------------------------
 # Write
 # ---------------------------------------------------------------------------
@@ -172,6 +193,7 @@ rm -f "$OUT_FILE"
 plutil -create xml1 "$OUT_FILE"
 plutil -replace ConvexURL -string "$CONVEX_URL" "$OUT_FILE"
 plutil -replace ClerkPublishableKey -string "$CLERK_KEY" "$OUT_FILE"
+plutil -replace WebOrigin -string "$WEB_ORIGIN" "$OUT_FILE"
 plutil -lint "$OUT_FILE" >/dev/null
 
 # ---------------------------------------------------------------------------
@@ -193,3 +215,4 @@ esac
 echo "seed-config: wrote Config/Config.local.plist"
 echo "             ConvexURL            $CONVEX_URL"
 echo "             ClerkPublishableKey  $clerk_env, ${#CLERK_KEY} chars"
+echo "             WebOrigin            $WEB_ORIGIN"

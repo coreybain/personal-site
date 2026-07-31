@@ -19,6 +19,7 @@ import {
   TextField,
   ToggleField,
   usePendingAction,
+  type PendingAction,
 } from "@/components/admin";
 import { linesToList, listToLines } from "@/components/admin/profile/lines";
 
@@ -143,6 +144,7 @@ function ResumeForm({
   entries: Doc<"experienceEntries">[] | undefined;
 }) {
   const upsert = useMutation(api.resume.upsert);
+  const write = usePendingAction();
 
   /**
    * The draft plus a serialised snapshot of it as last saved, which is what makes
@@ -151,10 +153,14 @@ function ResumeForm({
    */
   const [state, setState] = useState(() => {
     const draft = draftFrom(initial);
-    return { draft, savedKey: JSON.stringify(draft) };
+    return {
+      draft,
+      savedKey: JSON.stringify(draft),
+      expectedRevision: initial?.revision ?? 0,
+    };
   });
 
-  const { draft, savedKey } = state;
+  const { draft, savedKey, expectedRevision } = state;
   const setDraft = (next: Draft) =>
     setState((current) => ({ ...current, draft: next }));
 
@@ -169,7 +175,8 @@ function ResumeForm({
     );
 
   const save = async () => {
-    await upsert({
+    const result = await upsert({
+      expectedRevision,
       summary: draft.summary,
       capabilities: linesToList(draft.capabilities),
       /* Sent verbatim; `resume.upsert` trims and refuses blanks with a message
@@ -178,7 +185,11 @@ function ResumeForm({
       embedGitStats: draft.embedGitStats,
     });
 
-    setState({ draft, savedKey: JSON.stringify(draft) });
+    setState((current) => ({
+      ...current,
+      savedKey: JSON.stringify(draft),
+      expectedRevision: result.revision,
+    }));
   };
 
   return (
@@ -193,7 +204,15 @@ function ResumeForm({
         </AdminNotice>
       ) : null}
 
-      <ProjectionPanel resumeDoc={initial} entries={entries} />
+      <ProjectionPanel
+        resumeDoc={initial}
+        entries={entries}
+        action={write}
+        expectedRevision={expectedRevision}
+        onRevisionChange={(revision) =>
+          setState((current) => ({ ...current, expectedRevision: revision }))
+        }
+      />
 
       {/* One tooltip for the panel rather than a hint under each field. Both
           hints were explaining *what the field is for*, which the label already
@@ -265,6 +284,7 @@ function ResumeForm({
         footer={
           <AdminButtonRow>
             <SaveButton
+              action={write}
               label={initial === null ? "Create résumé" : "Save résumé"}
               dirty={dirty}
               onAction={save}
@@ -307,12 +327,17 @@ function ResumeForm({
 function ProjectionPanel({
   resumeDoc,
   entries,
+  action,
+  expectedRevision,
+  onRevisionChange,
 }: {
   resumeDoc: Doc<"resumeDocument"> | null;
   entries: Doc<"experienceEntries">[] | undefined;
+  action: PendingAction;
+  expectedRevision: number;
+  onRevisionChange: (revision: number) => void;
 }) {
   const syncFromEntries = useMutation(api.resume.syncFromEntries);
-  const action = usePendingAction();
 
   /** The last rebuild's answer, so `synced: false` can be explained. */
   const [result, setResult] = useState<{ roles: number; synced: boolean } | null>(
@@ -339,8 +364,12 @@ function ProjectionPanel({
             action={action}
             pendingLabel="Rebuilding…"
             onAction={async () => {
-              const answer = await syncFromEntries({});
+              const answer = await syncFromEntries({ expectedRevision });
               setResult({ roles: answer.roles, synced: answer.synced });
+              if (answer.revision !== null) {
+                onRevisionChange(answer.revision);
+              }
+              return answer;
             }}
           >
             Rebuild from entries

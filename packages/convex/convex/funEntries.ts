@@ -42,8 +42,13 @@
 import type { WithoutSystemFields } from 'convex/server';
 import { type Infer, v } from 'convex/values';
 import type { Doc } from './_generated/dataModel';
-import { mutation, query } from './_generated/server';
+import { mutation, query, type MutationCtx } from './_generated/server';
 import { requireAdmin } from './lib/auth';
+import {
+  assertExpectedRevision,
+  currentRevision,
+  nextRevision,
+} from './lib/revision';
 import { assertRange, assertText, assertUrl, invalid } from './lib/validate';
 import { funEntryType, mediaAsset } from './schema';
 
@@ -117,6 +122,25 @@ type MediaAsset = Infer<typeof mediaAsset>;
 type FunLocation = Infer<typeof funLocation>;
 /** A whole entry as the table stores it, minus `_id` / `_creationTime`. */
 type StoredFunEntry = WithoutSystemFields<Doc<'funEntries'>>;
+
+/** Keep the homepage's denormalised life signal in the same transaction. */
+async function refreshLatestFunEntry(ctx: MutationCtx): Promise<void> {
+  const latest = await ctx.db
+    .query('funEntries')
+    .withIndex('by_occurredAt')
+    .order('desc')
+    .first();
+  const latestValue: StoredFunEntry | null = (() => {
+    if (latest === null) return null;
+    const { _id: _id, _creationTime: _creationTime, ...entry } = latest;
+    return entry;
+  })();
+  const snapshots = await ctx.db.query('snapshot').collect();
+
+  for (const snapshot of snapshots) {
+    await ctx.db.patch(snapshot._id, { latestFunEntry: latestValue });
+  }
+}
 
 /**
  * Assert an uploaded asset is renderable. Mirrors `MediaAssetSchema`.
@@ -410,6 +434,19 @@ export const list = query({
   },
 });
 
+/** Every entry, newest first, for native administrative CRUD. */
+export const listAdmin = query({
+  args: {},
+  handler: async (ctx) => {
+    await requireAdmin(ctx);
+    return await ctx.db
+      .query('funEntries')
+      .withIndex('by_occurredAt')
+      .order('desc')
+      .collect();
+  },
+});
+
 /**
  * One entry by id, or `null`. **Public.**
  *
@@ -443,7 +480,7 @@ export const get = query({
  * it happened" and not `_creationTime`. It is normalised to UTC on the way in;
  * see `normaliseInstant`.
  *
- * @returns `{ entryId, type, occurredAt }` — `occurredAt` as *stored*, i.e. after
+ * @returns `{ entryId, type, occurredAt, revision, created }` — `occurredAt` as *stored*, i.e. after
  *   UTC normalisation, so the client renders the same instant the index sorted on
  *   rather than the offset string it sent.
  */
@@ -470,6 +507,7 @@ export const create = mutation({
     // typecheck failure here rather than a rejected write at runtime. This is
     // also what keeps the local `funLocation` copy above honest.
     const row: StoredFunEntry = {
+      revision: 1,
       type: args.type,
       title: args.title.trim(),
       photo: args.photo,
@@ -485,17 +523,18 @@ export const create = mutation({
     assertKind(row);
 
     const entryId = await ctx.db.insert('funEntries', row);
+    await refreshLatestFunEntry(ctx);
 
-    // PHASE 4 — the Snapshot (ADR 004). `snapshot.latestFunEntry` is a whole copy
-    // of the newest entry, denormalised by the hourly cron so the homepage costs
-    // one document read. Creating an entry therefore does NOT update the
-    // dashboard's life signal strip until the next tick. That lag is accepted
-    // (the same trade-off `siteSettings` documents); if it ever needs closing,
-    // the fix is to schedule the cron's rebuild from here —
-    //   await ctx.scheduler.runAfter(0, internal.snapshot.rebuildLatestFunEntry, {});
-    // — and never for this mutation to write another table's row.
+    // The same transaction refreshes the Snapshot copy so the homepage never
+    // advertises a stale or deleted latest entry between hourly rebuilds.
 
-    return { entryId, type: row.type, occurredAt: row.occurredAt };
+    return {
+      entryId,
+      type: row.type,
+      occurredAt: row.occurredAt,
+      revision: 1 as const,
+      created: true,
+    };
   },
 });
 
@@ -523,13 +562,14 @@ export const create = mutation({
  * `photo` can be replaced but not cleared (no `null` in its validator) — see the
  * file header for why the photo is the table.
  *
- * @returns `{ entryId, type, occurredAt, changed }` — `changed` is false when the
+ * @returns `{ entryId, type, occurredAt, changed, revision }` — `changed` is false when the
  *   call passed nothing but an id, which is a successful no-op rather than an
  *   error.
  */
 export const update = mutation({
   args: {
     entryId: v.id('funEntries'),
+    expectedRevision: v.optional(v.number()),
     type: v.optional(funEntryType),
     title: v.optional(v.string()),
     photo: v.optional(mediaAsset),
@@ -552,7 +592,13 @@ export const update = mutation({
       });
     }
 
-    const { entryId: _entryId, ...fields } = args;
+    assertExpectedRevision(row.revision, args.expectedRevision);
+
+    const {
+      entryId: _entryId,
+      expectedRevision: _expectedRevision,
+      ...fields
+    } = args;
     const passedNothing = Object.values(fields).every((value) => value === undefined);
     if (passedNothing) {
       return {
@@ -560,6 +606,7 @@ export const update = mutation({
         type: row.type,
         occurredAt: row.occurredAt,
         changed: false,
+        revision: currentRevision(row.revision),
       };
     }
 
@@ -572,6 +619,7 @@ export const update = mutation({
     const isWalk = type === 'walk';
 
     const merged: StoredFunEntry = {
+      revision: nextRevision(row.revision),
       type,
       title: args.title !== undefined ? args.title.trim() : row.title,
       photo: args.photo ?? row.photo,
@@ -595,16 +643,16 @@ export const update = mutation({
     assertKind(merged);
 
     await ctx.db.replace(row._id, merged);
+    await refreshLatestFunEntry(ctx);
 
-    // PHASE 4 — the Snapshot (ADR 004). Editing the newest entry leaves a stale
-    // copy in `snapshot.latestFunEntry` until the next cron tick. Same note as
-    // `create`.
+    // Snapshot refresh is transactional with the source edit; see `create`.
 
     return {
       entryId: row._id,
       type: merged.type,
       occurredAt: merged.occurredAt,
       changed: true,
+      revision: currentRevision(merged.revision),
     };
   },
 });
@@ -621,33 +669,34 @@ export const update = mutation({
  * for instead: an entry has no URL of its own to break (see `get`), so removing
  * one costs nothing but the row.
  *
- * @returns `{ entryId, deleted }`
+ * @returns `{ entryId, deleted, revision }` — `revision` is the last stored
+ *   revision, or `null` when the row was already absent.
  */
 export const remove = mutation({
-  args: { entryId: v.id('funEntries') },
+  args: {
+    entryId: v.id('funEntries'),
+    expectedRevision: v.optional(v.number()),
+  },
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
 
     const row = await ctx.db.get(args.entryId);
     if (row === null) {
-      return { entryId: args.entryId, deleted: false };
+      return { entryId: args.entryId, deleted: false, revision: null };
     }
 
+    assertExpectedRevision(row.revision, args.expectedRevision);
+    const revision = currentRevision(row.revision);
     await ctx.db.delete(row._id);
+    await refreshLatestFunEntry(ctx);
 
-    // PHASE 4 — the Snapshot (ADR 004). Deleting the newest entry is the one case
-    // where the stale `snapshot.latestFunEntry` copy is user-visible as a
-    // *wrong* fact rather than a late one: the dashboard keeps showing an entry
-    // that no longer exists until the next cron tick. The strip links to /fun
-    // rather than to the entry, so nothing 404s — but this is the strongest
-    // argument for scheduling the rebuild from these three mutations. See
-    // `create`.
+    // Snapshot refresh is transactional with the source delete; see `create`.
     //
     // UploadThing (ADR 010) is separate: the CDN object outlives the row, and
     // reaping it needs `photo.storageKey` and an action that can call
     // UploadThing's delete API. Phase 2's UploadThing work owns that decision;
     // nothing here should assume the file is gone.
 
-    return { entryId: args.entryId, deleted: true };
+    return { entryId: args.entryId, deleted: true, revision };
   },
 });

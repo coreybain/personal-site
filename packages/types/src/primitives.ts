@@ -19,11 +19,12 @@ import * as z from 'zod';
  * ------------------------------------------------------------------ */
 
 /**
- * Calendar date, `YYYY-MM-DD`, always UTC.
+ * Calendar date, `YYYY-MM-DD`, represented as a timezone-free label.
  *
- * Used where the *day* is the fact and the time of day is noise — the
- * contribution calendar, a daily health summary. Matches
- * `ContributionDay.date` in apps/web/src/lib/snapshot.ts.
+ * Used where the *day* is the fact and the time of day is noise. The producing
+ * edge defines the calendar: Git/AI labels use UTC, while HealthKit labels use
+ * the user's local calendar day. Matches `ContributionDay.date` in
+ * apps/web/src/lib/snapshot.ts.
  */
 export const IsoDateSchema = z.iso.date();
 export type IsoDate = z.infer<typeof IsoDateSchema>;

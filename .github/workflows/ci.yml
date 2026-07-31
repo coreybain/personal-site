@@ -90,6 +90,9 @@ jobs:
       - name: Lint
         run: bunx turbo run lint
 
+      - name: Application tests
+        run: bunx turbo run test
+
       # Pipeline 2's privacy unit tests: "assert the payload contains only
       # numeric aggregates and repo slugs; assert no prompt or file content can
       # reach it". `--no-env-file` so a stray `.env` can never change what the

@@ -37,10 +37,11 @@ const clerkConfigured = Boolean(
 );
 
 /**
- * Two paths the matcher below has to let through but `protect()` must not touch.
+ * Three paths the matcher below has to let through but `protect()` must not
+ * touch.
  *
- * Both are exemptions from "everything the matcher sees is protected", and both
- * are load-bearing rather than convenient:
+ * All three are exemptions from "everything the matcher sees is protected",
+ * and all are load-bearing rather than convenient:
  *
  *   /admin/sign-in     Clerk's own <SignIn /> lives here (app/admin/sign-in).
  *                      Protecting it is a redirect loop: an unauthenticated hit
@@ -59,10 +60,21 @@ const clerkConfigured = Boolean(
  *                      middleware is the gate for the browser-facing half, and
  *                      it rejects a signed-out caller with `UploadThingError`.
  *
+ *   /api/native/upload The iOS client sends a Clerk session JWT in the
+ *                      Authorization header. Matching the route lets Clerk
+ *                      populate `auth()` from that bearer token; the route
+ *                      performs its own check so it can return stable JSON 401
+ *                      and 503 responses instead of Proxy's redirect/404
+ *                      semantics.
+ *
  * Compared as an exact match or a `/`-delimited prefix, never `startsWith` on
  * its own: a bare prefix test would also exempt `/admin/sign-inbox`.
  */
-const UNPROTECTED_PATHS = ["/admin/sign-in", "/api/uploadthing"] as const;
+const UNPROTECTED_PATHS = [
+  "/admin/sign-in",
+  "/api/uploadthing",
+  "/api/native/upload",
+] as const;
 
 function isUnprotected(pathname: string): boolean {
   return UNPROTECTED_PATHS.some(
@@ -78,7 +90,7 @@ function isUnprotected(pathname: string): boolean {
  * changed. `config.matcher` is the only thing that decides which requests reach
  * this function, so a *second, redundant* matcher inside the handler is pure
  * drift risk (which is why Clerk deprecated `createRouteMatcher` in v7). The
- * test below is not redundant: the matcher now covers two path families whose
+ * test below is not redundant: the matcher now covers three path families whose
  * handling genuinely differs, and Next's matcher syntax cannot express "match
  * this so Clerk populates the request, but do not protect it". The list above is
  * therefore the *only* place the exemptions live, not a copy of something else.
@@ -118,9 +130,9 @@ export const proxy: NextMiddleware = clerkConfigured
  * Without a `matcher` a proxy runs on *everything* — `_next/static`, image
  * optimisation, `public/` assets — so the usual Clerk recipe is a long negative
  * pattern that excludes them. That recipe exists so `auth()` works in arbitrary
- * server components. Only two path families here call `auth()`, so the positive
- * form is both shorter and strictly better: the public site never enters this
- * code path, which is precisely the independence ADR 006 asks for.
+ * server components. Only three path families here call `auth()`, so the
+ * positive form is both shorter and strictly better: the public site never
+ * enters this code path, which is precisely the independence ADR 006 asks for.
  *
  * `/api/uploadthing(.*)` is the second entry, and it is here for exactly the
  * trap named below: the route's file router calls `auth()` in its
@@ -130,6 +142,12 @@ export const proxy: NextMiddleware = clerkConfigured
  * that points at the upload route. Matching it does **not** protect it — see
  * `UNPROTECTED_PATHS` above for why it must not be.
  *
+ * `/api/native/upload(.*)` is equally narrow but serves a different protocol:
+ * Clerk derives context from the iOS bearer token, then the route handler's
+ * `auth()` check returns the API's stable JSON response. It must not widen to
+ * all `/api` routes; `/api/ask` is intentionally public and UploadThing has its
+ * own callback authentication.
+ *
  * The corollary still holds: **the day something else needs `auth()` or
  * `currentUser()`, this matcher has to widen first.**
  *
@@ -137,5 +155,9 @@ export const proxy: NextMiddleware = clerkConfigured
  * anything computed.
  */
 export const config = {
-  matcher: ["/admin(.*)", "/api/uploadthing(.*)"],
+  matcher: [
+    "/admin(.*)",
+    "/api/uploadthing(.*)",
+    "/api/native/upload(.*)",
+  ],
 };

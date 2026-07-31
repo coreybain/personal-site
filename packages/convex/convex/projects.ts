@@ -55,6 +55,11 @@ import type { Doc, Id } from './_generated/dataModel';
 import { mutation, query } from './_generated/server';
 import { requireAdmin } from './lib/auth';
 import {
+  assertExpectedRevision,
+  currentRevision,
+  nextRevision,
+} from './lib/revision';
+import {
   assertRange,
   assertSlugUnique,
   assertText,
@@ -302,6 +307,16 @@ function assertProjectFields(fields: Partial<ProjectFields>): void {
       message: `sortOrder must be a whole number (got ${fields.sortOrder}).`,
     });
   }
+  if (fields.sortOrder !== undefined) {
+    assertRange(fields.sortOrder, 'sortOrder', 0, 1_000_000_000);
+    if (!Number.isSafeInteger(fields.sortOrder)) {
+      invalid({
+        code: 'invalid-format',
+        field: 'sortOrder',
+        message: 'sortOrder must be a whole number.',
+      });
+    }
+  }
 }
 
 /**
@@ -385,6 +400,15 @@ export const list = query({
       .query('projects')
       .withIndex('by_published_sortOrder', (q) => q.eq('published', true))
       .take(limit);
+  },
+});
+
+/** Every case study in display order for native administrative CRUD. */
+export const listAdmin = query({
+  args: {},
+  handler: async (ctx) => {
+    await requireAdmin(ctx);
+    return await ctx.db.query('projects').withIndex('by_sortOrder').collect();
   },
 });
 
@@ -476,7 +500,7 @@ export const getBySlug = query({
  * @param featured - omitted, `false`. Marking a draft featured is allowed and
  *   does nothing until it is published — `listFeatured` filters on both.
  *
- * @returns `{ projectId, slug, sortOrder }` — enough for the admin UI to
+ * @returns `{ projectId, slug, sortOrder, revision, created }` — enough for the admin UI to
  *   navigate straight to the row it just made.
  */
 export const create = mutation({
@@ -522,6 +546,7 @@ export const create = mutation({
       .first();
 
     const fields: ProjectFields = {
+      revision: 1,
       published: false,
       featured: args.featured ?? false,
       sortOrder: args.sortOrder ?? (last === null ? 0 : last.sortOrder + 1),
@@ -555,7 +580,13 @@ export const create = mutation({
 
     const projectId = await ctx.db.insert('projects', fields);
 
-    return { projectId, slug: fields.slug, sortOrder: fields.sortOrder };
+    return {
+      projectId,
+      slug: fields.slug,
+      sortOrder: fields.sortOrder,
+      revision: 1 as const,
+      created: true,
+    };
   },
 });
 
@@ -583,11 +614,13 @@ export const create = mutation({
  * `siteSettings.featured.projectSlugs` entry naming it. The admin UI should
  * treat it as a destructive action.
  *
- * @returns `{ projectId, slug }` — the slug as stored, which may be the new one.
+ * @returns `{ projectId, slug, changed, revision }` — the authoritative revision
+ *   is unchanged for a no-op and advances exactly once for a write.
  */
 export const update = mutation({
   args: {
     projectId: v.id('projects'),
+    expectedRevision: v.optional(v.number()),
 
     slug: v.optional(v.string()),
     title: v.optional(v.string()),
@@ -631,6 +664,8 @@ export const update = mutation({
         message: 'That case study no longer exists.',
       });
     }
+
+    assertExpectedRevision(row.revision, args.expectedRevision);
 
     const patch: ProjectPatch = {};
 
@@ -688,7 +723,10 @@ export const update = mutation({
     }
 
     // A form that submits no changes should not produce a write.
-    if (Object.keys(patch).length > 0) {
+    const changed = Object.keys(patch).length > 0;
+    const revision = changed ? nextRevision(row.revision) : currentRevision(row.revision);
+    if (changed) {
+      patch.revision = revision;
       await ctx.db.patch(row._id, patch);
     }
 
@@ -730,7 +768,12 @@ export const update = mutation({
       });
     }
 
-    return { projectId: row._id, slug: patch.slug ?? row.slug };
+    return {
+      projectId: row._id,
+      slug: patch.slug ?? row.slug,
+      revision,
+      changed,
+    };
   },
 });
 
@@ -747,10 +790,13 @@ export const update = mutation({
  *
  * Schedules the knowledge re-index — see the file header.
  *
- * @returns `{ projectId, slug, published: true, alreadyPublished }`
+ * @returns `{ projectId, slug, published: true, alreadyPublished, changed, revision }`
  */
 export const publish = mutation({
-  args: { projectId: v.id('projects') },
+  args: {
+    projectId: v.id('projects'),
+    expectedRevision: v.optional(v.number()),
+  },
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
 
@@ -763,6 +809,7 @@ export const publish = mutation({
       });
     }
 
+    assertExpectedRevision(row.revision, args.expectedRevision);
     assertSanitisedMedia(row.slug, row.media);
 
     if (row.published) {
@@ -771,10 +818,13 @@ export const publish = mutation({
         slug: row.slug,
         published: true as const,
         alreadyPublished: true,
+        changed: false,
+        revision: currentRevision(row.revision),
       };
     }
 
-    await ctx.db.patch(row._id, { published: true });
+    const revision = nextRevision(row.revision);
+    await ctx.db.patch(row._id, { published: true, revision });
 
     // PHASE 4 — knowledge indexing (ADR 015). Scheduled rather than inline
     // because embedding needs `fetch`; `runAfter(0, …)` is part of this
@@ -790,6 +840,8 @@ export const publish = mutation({
       slug: row.slug,
       published: true as const,
       alreadyPublished: false,
+      changed: true,
+      revision,
     };
   },
 });
@@ -802,10 +854,13 @@ export const publish = mutation({
  * was, and `listFeatured` already filters on `published` so an unpublished
  * featured row disappears from the dashboard in the same tick.
  *
- * @returns `{ projectId, slug, published: false, alreadyUnpublished }`
+ * @returns `{ projectId, slug, published: false, alreadyUnpublished, changed, revision }`
  */
 export const unpublish = mutation({
-  args: { projectId: v.id('projects') },
+  args: {
+    projectId: v.id('projects'),
+    expectedRevision: v.optional(v.number()),
+  },
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
 
@@ -818,16 +873,20 @@ export const unpublish = mutation({
       });
     }
 
+    assertExpectedRevision(row.revision, args.expectedRevision);
     if (!row.published) {
       return {
         projectId: row._id,
         slug: row.slug,
         published: false as const,
         alreadyUnpublished: true,
+        changed: false,
+        revision: currentRevision(row.revision),
       };
     }
 
-    await ctx.db.patch(row._id, { published: false });
+    const revision = nextRevision(row.revision);
+    await ctx.db.patch(row._id, { published: false, revision });
 
     // PHASE 4 — knowledge indexing (ADR 015). A flag patch, not a delete: the
     // text and its vector stay put for the moment this is published again, and
@@ -845,6 +904,8 @@ export const unpublish = mutation({
       slug: row.slug,
       published: false as const,
       alreadyUnpublished: false,
+      changed: true,
+      revision,
     };
   },
 });
@@ -867,6 +928,7 @@ export const setFeatured = mutation({
   args: {
     projectId: v.id('projects'),
     featured: v.boolean(),
+    expectedRevision: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
@@ -880,11 +942,18 @@ export const setFeatured = mutation({
       });
     }
 
-    if (row.featured !== args.featured) {
-      await ctx.db.patch(row._id, { featured: args.featured });
+    assertExpectedRevision(row.revision, args.expectedRevision);
+
+    const changed = row.featured !== args.featured;
+    const revision = changed ? nextRevision(row.revision) : currentRevision(row.revision);
+    if (changed) {
+      await ctx.db.patch(row._id, {
+        featured: args.featured,
+        revision,
+      });
     }
 
-    return { projectId: row._id, featured: args.featured };
+    return { projectId: row._id, featured: args.featured, changed, revision };
   },
 });
 
@@ -905,12 +974,26 @@ export const setFeatured = mutation({
  * list of thirty is two writes, not thirty.
  *
  * @param projectIds - every project `_id`, in display order.
- * @returns `{ count, changed }` — rows considered, and rows actually written.
+ * @param expectedRevisions - each id's captured revision in the same order;
+ *   the transaction rejects before writing if any row changed elsewhere.
+ * @returns `{ count, changed, revisions }` — rows considered, rows written,
+ *   and the authoritative revision for every row.
  */
 export const setSortOrder = mutation({
-  args: { projectIds: v.array(v.id('projects')) },
+  args: {
+    projectIds: v.array(v.id('projects')),
+    expectedRevisions: v.array(v.number()),
+  },
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
+
+    if (args.expectedRevisions.length !== args.projectIds.length) {
+      invalid({
+        code: 'precondition-failed',
+        field: 'expectedRevisions',
+        message: 'Every project in a reorder needs its captured revision.',
+      });
+    }
 
     const requested = new Set<Id<'projects'>>(args.projectIds);
     if (requested.size !== args.projectIds.length) {
@@ -938,7 +1021,14 @@ export const setSortOrder = mutation({
     }
 
     const byId = new Map(rows.map((row) => [row._id, row]));
+    for (const [index, projectId] of args.projectIds.entries()) {
+      const row = byId.get(projectId);
+      if (row !== undefined) {
+        assertExpectedRevision(row.revision, args.expectedRevisions[index]);
+      }
+    }
     let changed = 0;
+    const revisions: Array<{ projectId: Id<'projects'>; revision: number }> = [];
 
     for (const [index, projectId] of args.projectIds.entries()) {
       const row = byId.get(projectId);
@@ -946,13 +1036,16 @@ export const setSortOrder = mutation({
       // requested id is one of `rows`. Guarded rather than asserted because a
       // non-null assertion here would be the one line hiding a real bug.
       if (row === undefined) continue;
-      if (row.sortOrder === index) continue;
-
-      await ctx.db.patch(row._id, { sortOrder: index });
-      changed += 1;
+      let revision = currentRevision(row.revision);
+      if (row.sortOrder !== index) {
+        revision = nextRevision(row.revision);
+        await ctx.db.patch(row._id, { sortOrder: index, revision });
+        changed += 1;
+      }
+      revisions.push({ projectId: row._id, revision });
     }
 
-    return { count: rows.length, changed };
+    return { count: rows.length, changed, revisions };
   },
 });
 
@@ -969,18 +1062,24 @@ export const setSortOrder = mutation({
  * which readers already treat as "not featured yet" — see `siteSettings.upsert`.
  * The `knowledgeDocs` rows are pruned by the hook below.
  *
- * @returns `{ projectId, deleted }`
+ * @returns `{ projectId, deleted, revision }` — `revision` is the last stored
+ *   revision, or `null` when the row was already absent.
  */
 export const remove = mutation({
-  args: { projectId: v.id('projects') },
+  args: {
+    projectId: v.id('projects'),
+    expectedRevision: v.optional(v.number()),
+  },
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
 
     const row = await ctx.db.get(args.projectId);
     if (row === null) {
-      return { projectId: args.projectId, deleted: false };
+      return { projectId: args.projectId, deleted: false, revision: null };
     }
 
+    assertExpectedRevision(row.revision, args.expectedRevision);
+    const revision = currentRevision(row.revision);
     await ctx.db.delete(row._id);
 
     // PHASE 4 — knowledge indexing (ADR 015). An orphaned `knowledgeDocs` row is
@@ -991,6 +1090,6 @@ export const remove = mutation({
       sourceSlug: row.slug,
     });
 
-    return { projectId: args.projectId, deleted: true };
+    return { projectId: args.projectId, deleted: true, revision };
   },
 });

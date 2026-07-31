@@ -91,7 +91,7 @@ import { v } from 'convex/values';
 /** RFC 3339 instant with a `Z`, e.g. `'2026-07-30T06:00:00Z'`. `IsoDateTimeSchema`. */
 const isoDateTime = v.string();
 
-/** Calendar date, `YYYY-MM-DD`, UTC. `IsoDateSchema`. */
+/** Timezone-free calendar-day label, `YYYY-MM-DD`. `IsoDateSchema`. */
 const isoDate = v.string();
 
 /** Lowercase kebab-case identifier. `SlugSchema`. */
@@ -337,6 +337,8 @@ const funLocation = v.object({
  * by the Zod discriminated union in `@home/types` and by the mutation.
  */
 const funEntryFields = {
+  /** Monotonic optimistic-concurrency counter; absent legacy rows are zero. */
+  revision: v.optional(v.number()),
   type: funEntryType,
   title: v.string(),
   /** Required. Fun Entries are photo-first, and are why /fun has images at all. */
@@ -576,6 +578,8 @@ export default defineSchema({
    * why `links` has no `repo` field.
    */
   projects: defineTable({
+    /** Monotonic optimistic-concurrency counter; absent legacy rows are zero. */
+    revision: v.optional(v.number()),
     /* ---- publishableShape -------------------------------------------- */
     /** Visible to the public site. Drafts are readable only through admin auth. */
     published: v.boolean(),
@@ -663,6 +667,8 @@ export default defineSchema({
    * are the site's main source of imagery outside the case studies.
    */
   labs: defineTable({
+    /** Monotonic optimistic-concurrency counter; absent legacy rows are zero. */
+    revision: v.optional(v.number()),
     /* ---- publishableShape -------------------------------------------- */
     published: v.boolean(),
     featured: v.boolean(),
@@ -721,6 +727,8 @@ export default defineSchema({
    * `featured` and `sortOrder` would be dead fields. Ordering is `publishedAt`.
    */
   posts: defineTable({
+    /** Monotonic optimistic-concurrency counter; absent legacy rows are zero. */
+    revision: v.optional(v.number()),
     slug,
     title: v.string(),
     /** One or two sentences for the index and the meta description. */
@@ -763,6 +771,8 @@ export default defineSchema({
    * leaking it into the Swift contract.
    */
   resumeDocument: defineTable({
+    /** Monotonic optimistic-concurrency counter; absent legacy rows are zero. */
+    revision: v.optional(v.number()),
     /** The opening paragraph. Written once, rendered by page and PDF alike. */
     summary: v.string(),
     experience: v.array(resumeRole),
@@ -785,6 +795,8 @@ export default defineSchema({
    * labels: sorting and duration maths both run on them.
    */
   experienceEntries: defineTable({
+    /** Monotonic optimistic-concurrency counter; absent legacy rows are zero. */
+    revision: v.optional(v.number()),
     company: v.string(),
     title: v.string(),
     startDate: isoDate,
@@ -1019,7 +1031,7 @@ export default defineSchema({
    * guarantee than a policy promising not to ask for it.
    */
   healthDays: defineTable({
-    /** The calendar day reported, UTC. The upsert key. */
+    /** The user's local HealthKit calendar day. The upsert key. */
     day: isoDate,
     steps: v.number(),
     /** Walking + running distance, kilometres. Fractional. */
@@ -1292,6 +1304,8 @@ export default defineSchema({
    * copy the cron denormalises so the homepage still costs one document read.
    */
   siteSettings: defineTable({
+    /** Monotonic optimistic-concurrency counter; absent legacy rows are zero. */
+    revision: v.optional(v.number()),
     /**
      * The hero statement. Short — the dashboard exists because 548 words of
      * prose failed the five-second test.

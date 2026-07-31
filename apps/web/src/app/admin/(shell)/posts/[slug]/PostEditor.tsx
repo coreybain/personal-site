@@ -131,13 +131,35 @@ function PostEditorForm({ row }: { row: Doc<"posts"> }) {
    * `publishedAt` are read from `row` directly — they are not form state, so they
    * *are* live.
    */
-  const [draft, setDraft] = useState<PostDraft>(() => postDraftFromRow(row));
-  const initial = postDraftFromRow(row);
-  const dirty = !postDraftsEqual(draft, initial);
+  const [form, setForm] = useState(() => {
+    const draft = postDraftFromRow(row);
+    return {
+      draft,
+      savedDraft: draft,
+      expectedRevision: row.revision ?? 0,
+    };
+  });
+  const { draft, savedDraft, expectedRevision } = form;
+  const setDraft = (next: PostDraft) =>
+    setForm((current) => ({ ...current, draft: next }));
+  const dirty = !postDraftsEqual(draft, savedDraft);
 
   /* Same reasoning as the create form: `coverImage` cannot be cleared to nothing
      and still be a post, so the save is held rather than sent to fail. */
   const missingCover = draft.coverImage === null;
+
+  async function setPublished(next: boolean): Promise<unknown> {
+    const result = next
+      ? await publish({ postId: row._id, expectedRevision })
+      : await unpublish({ postId: row._id, expectedRevision });
+
+    setForm((current) => ({
+      ...current,
+      expectedRevision: result.revision,
+    }));
+
+    return result;
+  }
 
   return (
     <>
@@ -173,7 +195,7 @@ function PostEditorForm({ row }: { row: Doc<"posts"> }) {
               <ActionButton
                 action={write}
                 disabled={save.pending}
-                onAction={() => unpublish({ postId: row._id })}
+                onAction={() => setPublished(false)}
                 pendingLabel="Hiding…"
                 title="Hide from the public site. The publication date is kept."
               >
@@ -184,7 +206,7 @@ function PostEditorForm({ row }: { row: Doc<"posts"> }) {
                 action={write}
                 variant="primary"
                 disabled={save.pending}
-                onAction={() => publish({ postId: row._id })}
+                onAction={() => setPublished(true)}
                 pendingLabel="Publishing…"
               >
                 Publish
@@ -197,7 +219,10 @@ function PostEditorForm({ row }: { row: Doc<"posts"> }) {
               name={row.title}
               disabled={save.pending}
               onAction={async () => {
-                const result = await remove({ postId: row._id });
+                const result = await remove({
+                  postId: row._id,
+                  expectedRevision,
+                });
                 /* `replace`, not `push`: the URL just stopped resolving, and
                    leaving it in the history means Back lands on a dead editor. */
                 router.replace("/admin/posts");
@@ -253,32 +278,42 @@ function PostEditorForm({ row }: { row: Doc<"posts"> }) {
                  */
                 const patch: {
                   postId: Id<"posts">;
+                  expectedRevision: number;
                   slug?: string;
                   title?: string;
                   excerpt?: string;
                   body?: string;
                   coverImage?: MediaAsset;
                   tags?: string[];
-                } = { postId: row._id };
+                } = { postId: row._id, expectedRevision };
 
-                if (draft.slug !== initial.slug) patch.slug = draft.slug;
-                if (draft.title !== initial.title) patch.title = draft.title;
-                if (draft.excerpt !== initial.excerpt) {
+                if (draft.slug !== savedDraft.slug) patch.slug = draft.slug;
+                if (draft.title !== savedDraft.title) patch.title = draft.title;
+                if (draft.excerpt !== savedDraft.excerpt) {
                   patch.excerpt = draft.excerpt;
                 }
-                if (draft.body !== initial.body) patch.body = draft.body;
-                if (draft.tagsInput !== initial.tagsInput) {
+                if (draft.body !== savedDraft.body) patch.body = draft.body;
+                if (draft.tagsInput !== savedDraft.tagsInput) {
                   patch.tags = parseTags(draft.tagsInput);
                 }
                 if (
                   draft.coverImage !== null &&
                   JSON.stringify(draft.coverImage) !==
-                    JSON.stringify(initial.coverImage)
+                    JSON.stringify(savedDraft.coverImage)
                 ) {
                   patch.coverImage = draft.coverImage;
                 }
 
                 const result = await update(patch);
+
+                /* The request was built against this exact snapshot. Preserve
+                   any keystroke made while it was in flight, but advance the
+                   saved draft and revision only after Convex accepts it. */
+                setForm((current) => ({
+                  ...current,
+                  savedDraft: draft,
+                  expectedRevision: result.revision,
+                }));
 
                 /* The URL is keyed on the slug, so a rename has just invalidated
                    it. `replace` rather than `push` — the old slug no longer

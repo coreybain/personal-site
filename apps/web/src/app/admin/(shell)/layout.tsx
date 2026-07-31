@@ -1,8 +1,12 @@
 import { auth } from "@clerk/nextjs/server";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import type { ReactNode } from "react";
 
 import { AdminShell } from "@/components/admin/AdminShell";
+import {
+  configuredAdminClerkUserId,
+  isConfiguredAdminClerkUser,
+} from "@/lib/adminAuthorization";
 
 /**
  * The gate, and the chrome.
@@ -23,8 +27,8 @@ import { AdminShell } from "@/components/admin/AdminShell";
  *
  * ── Three layers of the same rule ───────────────────────────────────────────
  *
- * Any authenticated Clerk identity is the admin (ADR 006 — single user), and
- * that rule is enforced three times, on purpose:
+ * Clerk authentication plus the single-user `ADMIN_CLERK_USER_ID` allowlist is
+ * enforced at three layers, on purpose:
  *
  *   1. `src/proxy.ts` — `auth.protect()` on `/admin(.*)`, before a render begins.
  *      Cheap perimeter; keeps unauthenticated traffic out of React entirely.
@@ -75,15 +79,14 @@ const clerkConfigured = Boolean(
 export default async function AdminShellLayout({
   children,
 }: Readonly<{ children: ReactNode }>) {
-  if (!clerkConfigured) {
+  if (!clerkConfigured || configuredAdminClerkUserId() === null) {
     return (
       <AdminShell authConfigured={false}>
         <div className="adm-banner" data-tone="warn" role="status">
-          <strong>Auth is not configured.</strong> Nothing on these screens is
-          protected and nothing can read or write data — <code>
-            NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
-          </code>{" "}
-          and <code>CLERK_SECRET_KEY</code> are unset. See{" "}
+          <strong>Admin authorization is not configured.</strong> Nothing on
+          these screens can read or write data until Clerk and <code>
+            ADMIN_CLERK_USER_ID
+          </code> are configured. See{" "}
           <code>apps/web/.env.example</code>.
         </div>
         {children}
@@ -108,6 +111,10 @@ export default async function AdminShellLayout({
      * click away. Revisit if deep links into the admin ever get shared.
      */
     redirect("/admin/sign-in");
+  }
+
+  if (!isConfiguredAdminClerkUser(userId)) {
+    notFound();
   }
 
   return <AdminShell authConfigured>{children}</AdminShell>;

@@ -8,9 +8,9 @@ import { adminFileRouter } from "./core";
  *
  * `/api/uploadthing` is the path UploadThing's clients default to — the
  * generated helpers in `src/components/admin/uploadthing.ts` resolve
- * `window.location.origin + "/api/uploadthing"` unless told otherwise, and the
- * iOS client will use the same URL for presigned requests. Moving this file
- * means overriding the URL in two places, so it stays where the docs put it.
+ * `window.location.origin + "/api/uploadthing"` unless told otherwise. The iOS
+ * client uses the separate `/api/native/upload` contract because UploadThing's
+ * browser protocol is not a native-client API.
  *
  * Two handlers, and both halves matter:
  *

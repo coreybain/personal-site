@@ -63,6 +63,11 @@ import { v } from 'convex/values';
 import type { Doc } from './_generated/dataModel';
 import { type QueryCtx, mutation, query } from './_generated/server';
 import { requireAdmin } from './lib/auth';
+import {
+  assertExpectedRevision,
+  currentRevision,
+  nextRevision,
+} from './lib/revision';
 import { assertSlug, assertText, invalid } from './lib/validate';
 import { rebuildResumeExperience } from './resume';
 
@@ -326,7 +331,7 @@ export const get = query({
  * started. No other row is renumbered, which is why the default goes negative
  * over time rather than shuffling the table on every insert.
  *
- * @returns `{ entryId, sortOrder, resume }` — `sortOrder` is the value as stored,
+ * @returns `{ entryId, sortOrder, revision, created, resume }` — `sortOrder` is the value as stored,
  *   which the caller needs when it did not supply one. `resume.synced` is false
  *   when there is no resume document to project into yet; that is a successful
  *   state, not a failure (see `rebuildResumeExperience`).
@@ -363,6 +368,7 @@ export const create = mutation({
     // that the schema does not describe — or vice versa — is a typecheck failure
     // here rather than a rejected write at runtime.
     const row: WithoutSystemFields<Doc<'experienceEntries'>> = {
+      revision: 1,
       company: args.company.trim(),
       title: args.title.trim(),
       startDate: args.startDate,
@@ -388,7 +394,18 @@ export const create = mutation({
     const entryId = await ctx.db.insert('experienceEntries', row);
     const resume = await rebuildResumeExperience(ctx);
 
-    return { entryId, sortOrder, resume: { synced: resume.synced, roles: resume.roles } };
+    return {
+      entryId,
+      sortOrder,
+      revision: 1 as const,
+      created: true,
+      resume: {
+        synced: resume.synced,
+        roles: resume.roles,
+        changed: resume.changed,
+        revision: resume.revision,
+      },
+    };
   },
 });
 
@@ -411,13 +428,14 @@ export const create = mutation({
  * once written, and nothing reads the difference — an empty array and an absent
  * one both mean "no case studies".
  *
- * @returns `{ entryId, changed, resume }` — `changed` is false when the call
+ * @returns `{ entryId, changed, revision, resume }` — `changed` is false when the call
  *   passed no fields, which is a successful no-op rather than an error. The
  *   projection is rebuilt either way, so a no-op save doubles as a repair.
  */
 export const update = mutation({
   args: {
     entryId: v.id('experienceEntries'),
+    expectedRevision: v.optional(v.number()),
     company: v.optional(v.string()),
     title: v.optional(v.string()),
     startDate: v.optional(v.string()),
@@ -438,6 +456,8 @@ export const update = mutation({
         message: 'That experience entry no longer exists.',
       });
     }
+
+    assertExpectedRevision(row.revision, args.expectedRevision);
 
     const patch: Partial<WithoutSystemFields<Doc<'experienceEntries'>>> = {};
 
@@ -501,6 +521,7 @@ export const update = mutation({
 
     const changed = Object.keys(patch).length > 0;
     if (changed) {
+      patch.revision = nextRevision(row.revision);
       await ctx.db.patch(row._id, patch);
     }
 
@@ -509,7 +530,13 @@ export const update = mutation({
     return {
       entryId: row._id,
       changed,
-      resume: { synced: resume.synced, roles: resume.roles },
+      revision: changed ? nextRevision(row.revision) : currentRevision(row.revision),
+      resume: {
+        synced: resume.synced,
+        roles: resume.roles,
+        changed: resume.changed,
+        revision: resume.revision,
+      },
     };
   },
 });
@@ -530,12 +557,13 @@ export const update = mutation({
  *
  * Setting the value a row already has is a no-op that succeeds.
  *
- * @returns `{ entryId, sortOrder, resume }`
+ * @returns `{ entryId, sortOrder, changed, revision, resume }`
  */
 export const setSortOrder = mutation({
   args: {
     entryId: v.id('experienceEntries'),
     sortOrder: v.number(),
+    expectedRevision: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
@@ -551,8 +579,14 @@ export const setSortOrder = mutation({
       });
     }
 
-    if (row.sortOrder !== args.sortOrder) {
-      await ctx.db.patch(row._id, { sortOrder: args.sortOrder });
+    assertExpectedRevision(row.revision, args.expectedRevision);
+    const changed = row.sortOrder !== args.sortOrder;
+    const revision = changed ? nextRevision(row.revision) : currentRevision(row.revision);
+    if (changed) {
+      await ctx.db.patch(row._id, {
+        sortOrder: args.sortOrder,
+        revision,
+      });
     }
 
     // The projection's order comes from this field, so a reorder changes the
@@ -562,7 +596,115 @@ export const setSortOrder = mutation({
     return {
       entryId: row._id,
       sortOrder: args.sortOrder,
-      resume: { synced: resume.synced, roles: resume.roles },
+      changed,
+      revision,
+      resume: {
+        synced: resume.synced,
+        roles: resume.roles,
+        changed: resume.changed,
+        revision: resume.revision,
+      },
+    };
+  },
+});
+
+/**
+ * Swap two roles in one transaction and rebuild the résumé projection once.
+ *
+ * Mobile reorder controls operate a row at a time. Two independent
+ * `setSortOrder` calls leave duplicate weights if the second request fails;
+ * keeping the exchange here makes that partial state impossible.
+ *
+ * @returns `{ firstEntryId, secondEntryId, changed, firstRevision,
+ * secondRevision, resume }`
+ */
+export const swapSortOrder = mutation({
+  args: {
+    firstEntryId: v.id('experienceEntries'),
+    secondEntryId: v.id('experienceEntries'),
+    firstExpectedRevision: v.optional(v.number()),
+    secondExpectedRevision: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+
+    if (args.firstEntryId === args.secondEntryId) {
+      const row = await ctx.db.get(args.firstEntryId);
+      if (row === null) {
+        invalid({
+          code: 'not-found',
+          field: 'firstEntryId',
+          message: 'That experience entry no longer exists.',
+        });
+      }
+      assertExpectedRevision(row.revision, args.firstExpectedRevision);
+      assertExpectedRevision(row.revision, args.secondExpectedRevision);
+      const resume = await rebuildResumeExperience(ctx);
+      return {
+        firstEntryId: row._id,
+        secondEntryId: row._id,
+        changed: false,
+        firstRevision: currentRevision(row.revision),
+        secondRevision: currentRevision(row.revision),
+        resume: {
+          synced: resume.synced,
+          roles: resume.roles,
+          changed: resume.changed,
+          revision: resume.revision,
+        },
+      };
+    }
+
+    const [first, second] = await Promise.all([
+      ctx.db.get(args.firstEntryId),
+      ctx.db.get(args.secondEntryId),
+    ]);
+    if (first === null) {
+      invalid({
+        code: 'not-found',
+        field: 'firstEntryId',
+        message: 'The first experience entry no longer exists.',
+      });
+    }
+    if (second === null) {
+      invalid({
+        code: 'not-found',
+        field: 'secondEntryId',
+        message: 'The second experience entry no longer exists.',
+      });
+    }
+
+    assertExpectedRevision(first.revision, args.firstExpectedRevision);
+    assertExpectedRevision(second.revision, args.secondExpectedRevision);
+    const changed = first.sortOrder !== second.sortOrder;
+    if (changed) {
+      await ctx.db.patch(first._id, {
+        sortOrder: second.sortOrder,
+        revision: nextRevision(first.revision),
+      });
+      await ctx.db.patch(second._id, {
+        sortOrder: first.sortOrder,
+        revision: nextRevision(second.revision),
+      });
+    }
+
+    const resume = await rebuildResumeExperience(ctx);
+    return {
+      firstEntryId: first._id,
+      secondEntryId: second._id,
+      changed,
+      firstRevision: changed
+        ? nextRevision(first.revision)
+        : currentRevision(first.revision),
+      secondRevision: changed
+        ? nextRevision(second.revision)
+        : currentRevision(second.revision),
+      resume: {
+        synced: resume.synced,
+        roles: resume.roles,
+        changed: resume.changed,
+        revision: resume.revision,
+      },
     };
   },
 });
@@ -583,15 +725,20 @@ export const setSortOrder = mutation({
  * read and one patch, and it means a repeated delete from a stale tab leaves the
  * resume correct rather than merely unchanged.
  *
- * @returns `{ entryId, deleted, resume }`
+ * @returns `{ entryId, deleted, revision, resume }` — `revision` is the last
+ *   stored entry revision, or `null` when it was already absent.
  */
 export const remove = mutation({
-  args: { entryId: v.id('experienceEntries') },
+  args: {
+    entryId: v.id('experienceEntries'),
+    expectedRevision: v.optional(v.number()),
+  },
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
 
     const row = await ctx.db.get(args.entryId);
     if (row !== null) {
+      assertExpectedRevision(row.revision, args.expectedRevision);
       await ctx.db.delete(row._id);
     }
 
@@ -600,7 +747,13 @@ export const remove = mutation({
     return {
       entryId: args.entryId,
       deleted: row !== null,
-      resume: { synced: resume.synced, roles: resume.roles },
+      revision: row === null ? null : currentRevision(row.revision),
+      resume: {
+        synced: resume.synced,
+        roles: resume.roles,
+        changed: resume.changed,
+        revision: resume.revision,
+      },
     };
   },
 });

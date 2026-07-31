@@ -45,6 +45,11 @@ import type { Doc } from './_generated/dataModel';
 import { mutation, query } from './_generated/server';
 import { isAdmin, requireAdmin } from './lib/auth';
 import {
+  assertExpectedRevision,
+  currentRevision,
+  nextRevision,
+} from './lib/revision';
+import {
   assertRange,
   assertSlugUnique,
   assertText,
@@ -231,6 +236,7 @@ export const list = query({
     const drafts = await ctx.db
       .query('posts')
       .withIndex('by_published_publishedAt', (q) => q.eq('published', false))
+      .order('desc')
       .take(limit);
 
     drafts.sort((a, b) => b._creationTime - a._creationTime);
@@ -239,6 +245,29 @@ export const list = query({
     if (remaining <= 0) return drafts;
 
     return [...drafts, ...(await readPublished(remaining))];
+  },
+});
+
+/** Every post for native administrative CRUD: drafts first, then newest live. */
+export const listAdmin = query({
+  args: {},
+  handler: async (ctx) => {
+    await requireAdmin(ctx);
+
+    const [drafts, published] = await Promise.all([
+      ctx.db
+        .query('posts')
+        .withIndex('by_published_publishedAt', (q) => q.eq('published', false))
+        .collect(),
+      ctx.db
+        .query('posts')
+        .withIndex('by_published_publishedAt', (q) => q.eq('published', true))
+        .order('desc')
+        .collect(),
+    ]);
+
+    drafts.sort((a, b) => b._creationTime - a._creationTime);
+    return [...drafts, ...published];
   },
 });
 
@@ -284,7 +313,7 @@ export const getBySlug = query({
  * trying. Publishing is `publish` below, which is the only writer of
  * `publishedAt` — see the file header for what that invariant buys.
  *
- * @returns `{ postId, slug }` — the slug as stored, which is what the admin
+ * @returns `{ postId, slug, revision, created }` — the slug as stored, which is what the admin
  *   router needs to redirect to the editor.
  */
 export const create = mutation({
@@ -312,6 +341,7 @@ export const create = mutation({
     // that the schema does not describe — or vice versa — is a typecheck failure
     // here rather than a rejected write at runtime.
     const row: WithoutSystemFields<Doc<'posts'>> = {
+      revision: 1,
       slug: args.slug,
       title: args.title.trim(),
       excerpt: args.excerpt.trim(),
@@ -325,7 +355,12 @@ export const create = mutation({
     };
 
     const postId = await ctx.db.insert('posts', row);
-    return { postId, slug: row.slug };
+    return {
+      postId,
+      slug: row.slug,
+      revision: 1 as const,
+      created: true,
+    };
   },
 });
 
@@ -347,12 +382,13 @@ export const create = mutation({
  * the admin's problem. Slugs are not meant to be reused (lib/validate.ts says so
  * at `assertSlug`), and the admin UI should say as much before allowing an edit.
  *
- * @returns `{ postId, slug, changed }` — `changed` is false when the call passed
- *   no fields, which is a successful no-op rather than an error.
+ * @returns `{ postId, slug, changed, revision }` — a successful no-op returns
+ *   the current revision rather than pretending a write occurred.
  */
 export const update = mutation({
   args: {
     postId: v.id('posts'),
+    expectedRevision: v.optional(v.number()),
     slug: v.optional(v.string()),
     title: v.optional(v.string()),
     excerpt: v.optional(v.string()),
@@ -371,6 +407,8 @@ export const update = mutation({
         message: 'That post no longer exists.',
       });
     }
+
+    assertExpectedRevision(row.revision, args.expectedRevision);
 
     const patch: Partial<WithoutSystemFields<Doc<'posts'>>> = {};
 
@@ -408,6 +446,7 @@ export const update = mutation({
 
     const changed = Object.keys(patch).length > 0;
     if (changed) {
+      patch.revision = nextRevision(row.revision);
       await ctx.db.patch(row._id, patch);
     }
 
@@ -439,7 +478,12 @@ export const update = mutation({
       });
     }
 
-    return { postId: row._id, slug: patch.slug ?? row.slug, changed };
+    return {
+      postId: row._id,
+      slug: patch.slug ?? row.slug,
+      changed,
+      revision: changed ? nextRevision(row.revision) : currentRevision(row.revision),
+    };
   },
 });
 
@@ -459,10 +503,13 @@ export const update = mutation({
  * Publishing an already-published post is a no-op that succeeds and returns the
  * original date.
  *
- * @returns `{ postId, slug, published: true, publishedAt, firstPublish }`
+ * @returns `{ postId, slug, published: true, publishedAt, firstPublish, changed, revision }`
  */
 export const publish = mutation({
-  args: { postId: v.id('posts') },
+  args: {
+    postId: v.id('posts'),
+    expectedRevision: v.optional(v.number()),
+  },
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
 
@@ -474,6 +521,8 @@ export const publish = mutation({
         message: 'That post no longer exists.',
       });
     }
+
+    assertExpectedRevision(row.revision, args.expectedRevision);
 
     /* ---- the row must be renderable before it is reachable ----------- */
 
@@ -487,8 +536,10 @@ export const publish = mutation({
     const firstPublish = row.publishedAt === null;
     const publishedAt = row.publishedAt ?? nowIso();
 
-    if (!row.published || firstPublish) {
-      await ctx.db.patch(row._id, { published: true, publishedAt });
+    const changed = !row.published || firstPublish;
+    const revision = changed ? nextRevision(row.revision) : currentRevision(row.revision);
+    if (changed) {
+      await ctx.db.patch(row._id, { published: true, publishedAt, revision });
 
       // PHASE 4 — knowledge indexing (ADR 015). This is the hook: publishing a
       // project, lab or post re-indexes it into `knowledgeDocs` with embeddings
@@ -514,6 +565,8 @@ export const publish = mutation({
       published: true as const,
       publishedAt,
       firstPublish,
+      changed,
+      revision,
     };
   },
 });
@@ -529,11 +582,14 @@ export const publish = mutation({
  * one that was. `published: false` is what hides the row; `list` and `getBySlug`
  * filter on the flag, never on the date.
  *
- * @returns `{ postId, slug, published: false, publishedAt }` — the date as
+ * @returns `{ postId, slug, published: false, publishedAt, changed, revision }` — the date as
  *   stored, so the admin UI can keep showing it next to the draft badge.
  */
 export const unpublish = mutation({
-  args: { postId: v.id('posts') },
+  args: {
+    postId: v.id('posts'),
+    expectedRevision: v.optional(v.number()),
+  },
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
 
@@ -546,8 +602,11 @@ export const unpublish = mutation({
       });
     }
 
-    if (row.published) {
-      await ctx.db.patch(row._id, { published: false });
+    assertExpectedRevision(row.revision, args.expectedRevision);
+    const changed = row.published;
+    const revision = changed ? nextRevision(row.revision) : currentRevision(row.revision);
+    if (changed) {
+      await ctx.db.patch(row._id, { published: false, revision });
 
       // PHASE 4 — knowledge indexing (ADR 015). Unpublishing must reach the
       // index too, or Ask Corey will keep quoting a page that now 404s. The
@@ -566,6 +625,8 @@ export const unpublish = mutation({
       slug: row.slug,
       published: false as const,
       publishedAt: row.publishedAt,
+      changed,
+      revision,
     };
   },
 });
@@ -580,18 +641,24 @@ export const unpublish = mutation({
  * Prefer `unpublish` for anything that was ever public — a deleted post's URL
  * breaks every inbound link to it, and there is no undo.
  *
- * @returns `{ postId, deleted }`
+ * @returns `{ postId, deleted, revision }` — `revision` is the last stored
+ *   revision, or `null` when the row was already absent.
  */
 export const remove = mutation({
-  args: { postId: v.id('posts') },
+  args: {
+    postId: v.id('posts'),
+    expectedRevision: v.optional(v.number()),
+  },
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
 
     const row = await ctx.db.get(args.postId);
     if (row === null) {
-      return { postId: args.postId, deleted: false };
+      return { postId: args.postId, deleted: false, revision: null };
     }
 
+    assertExpectedRevision(row.revision, args.expectedRevision);
+    const revision = currentRevision(row.revision);
     await ctx.db.delete(row._id);
 
     // PHASE 4 — knowledge indexing (ADR 015). A deleted post leaves orphaned
@@ -608,6 +675,6 @@ export const remove = mutation({
     // action that can call UploadThing's delete API. Phase 2's UploadThing work
     // owns that decision; nothing here should assume the file is gone.
 
-    return { postId: args.postId, deleted: true };
+    return { postId: args.postId, deleted: true, revision };
   },
 });

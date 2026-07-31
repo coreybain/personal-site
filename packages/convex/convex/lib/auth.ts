@@ -1,18 +1,11 @@
 /**
  * lib/auth.ts — the single place a Convex function decides who may write.
  *
- * ADR 006: Clerk is the only human auth, and this site has exactly one human.
- * There is no roles table, no allowlist and no `users` table, because there is
- * no second person to distinguish from the first: **any identity Clerk vouches
- * for is the admin**. The gate is enforced in Clerk's dashboard (public
- * sign-ups off, one user), not here — see packages/convex/README.md step 2.
- *
- * That is a deliberate, narrow trust assumption, so it is worth being explicit
- * about what would break it: leaving sign-ups enabled in Clerk would make every
- * mutation in this package writable by anyone who can create an account. If a
- * second human ever needs an account, the fix is a claim check in
- * `requireAdmin` (e.g. `identity.subject === process.env.ADMIN_SUBJECT`), and
- * because every mutation calls this helper, that is a one-file change.
+ * ADR 006: Clerk is the only human identity provider, and this site has exactly
+ * one human administrator. Authentication is not authorization: a valid Clerk
+ * session is accepted only when its stable `subject` matches the deployment's
+ * `ADMIN_CLERK_USER_ID`. The check fails closed when that variable is absent,
+ * so an accidentally enabled public sign-up can never grant site-wide writes.
  *
  * ── Why a helper rather than a custom function wrapper ─────────────────────
  *
@@ -53,9 +46,15 @@ type AuthedCtx = { auth: Auth };
 
 /** Shape of the `data` payload on every auth failure thrown here. */
 export type AuthErrorData = {
-  code: 'unauthenticated';
+  code: 'unauthenticated' | 'forbidden' | 'authorization-not-configured';
   message: string;
 };
+
+/** The one Clerk subject allowed to operate this personal site's admin. */
+function configuredAdminSubject(): string | null {
+  const subject = process.env.ADMIN_CLERK_USER_ID?.trim();
+  return subject ? subject : null;
+}
 
 /**
  * Assert the caller is signed in, and return who they are.
@@ -64,10 +63,10 @@ export type AuthErrorData = {
  * mostly do not: the public site reads published content anonymously, and the
  * admin-only reads say so individually.
  *
- * Throws `ConvexError<AuthErrorData>` when there is no identity. It does not
+ * Throws `ConvexError<AuthErrorData>` when there is no identity, no configured
+ * administrator, or the subject is not that administrator. It does not
  * distinguish "no token" from "expired token" from "wrong `aud` claim" —
- * `getUserIdentity()` returns `null` for all three, and a misconfigured Clerk
- * JWT template looks exactly like being signed out (README step 3).
+ * `getUserIdentity()` returns `null` for all three.
  *
  * @returns the Clerk identity: `subject` is the stable user id, and `tokenIdentifier`
  *   is the issuer-qualified form. Callers that only need the gate may ignore it.
@@ -79,6 +78,21 @@ export async function requireAdmin(ctx: AuthedCtx): Promise<UserIdentity> {
     throw new ConvexError<AuthErrorData>({
       code: 'unauthenticated',
       message: 'Admin sign-in required.',
+    });
+  }
+
+  const adminSubject = configuredAdminSubject();
+  if (adminSubject === null) {
+    throw new ConvexError<AuthErrorData>({
+      code: 'authorization-not-configured',
+      message: 'The administrator allowlist is not configured.',
+    });
+  }
+
+  if (identity.subject !== adminSubject) {
+    throw new ConvexError<AuthErrorData>({
+      code: 'forbidden',
+      message: 'This Clerk account is not authorized to administer the site.',
     });
   }
 
@@ -95,5 +109,7 @@ export async function requireAdmin(ctx: AuthedCtx): Promise<UserIdentity> {
  * silent no-op.
  */
 export async function isAdmin(ctx: AuthedCtx): Promise<boolean> {
-  return (await ctx.auth.getUserIdentity()) !== null;
+  const identity = await ctx.auth.getUserIdentity();
+  const adminSubject = configuredAdminSubject();
+  return identity !== null && adminSubject !== null && identity.subject === adminSubject;
 }

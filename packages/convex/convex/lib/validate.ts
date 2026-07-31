@@ -60,6 +60,7 @@ export type ValidationErrorData = {
     | 'duplicate-slug'
     | 'not-found'
     | 'precondition-failed'
+    | 'conflict'
     /**
      * The caller is over a rate limit (build phase 6 — `lib/rateLimit.ts`).
      *

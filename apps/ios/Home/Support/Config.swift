@@ -2,8 +2,8 @@
 //  Config.swift
 //  Home — the pocket admin for coreybaines.com
 //
-//  The app's two pieces of environment: which Convex deployment to talk to, and
-//  which Clerk instance to authenticate against. Both are read once, at launch,
+//  The app's three public environment values: Convex, Clerk and the matching
+//  web origin used by the authenticated native-upload bridge. They are read once,
 //  from `Config.local.plist` — a bundle resource written by
 //  `scripts/seed-config.sh` out of the monorepo's root `.env`, so the phone and
 //  apps/web cannot end up pointed at different backends.
@@ -59,6 +59,15 @@ nonisolated enum Config {
     /// is why there is no separate domain setting to keep in step.
     static let clerkPublishableKey: String? = Self.string(forKey: "ClerkPublishableKey")
 
+    /// The web deployment that shares the configured Clerk environment. Local
+    /// development defaults to `http://localhost:3000`; production defaults to
+    /// the canonical site, and previews can override NEXT_PUBLIC_SITE_URL.
+    static let webOriginURL: URL? = Self.url(forKey: "WebOrigin")
+
+    static let nativeUploadURL: URL? = webOriginURL?.appendingPathComponent(
+        "api/native/upload"
+    )
+
     /// The Convex deployment's *HTTP action* origin, e.g.
     /// `https://hip-dragon-50.convex.site`.
     ///
@@ -87,7 +96,10 @@ nonisolated enum Config {
 
     // MARK: - Status
 
-    /// Whether the app has enough configuration to reach its backend.
+    /// Whether the app has enough configuration to authenticate and reach
+    /// Convex. `WebOrigin` is intentionally not part of this gate: it powers
+    /// image uploads only, so a missing upload bridge must not disable every
+    /// other CRUD screen or the business card.
     enum Status: Equatable {
         /// Everything needed is present and well-formed.
         case ready

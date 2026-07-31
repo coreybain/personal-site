@@ -25,19 +25,20 @@
  * disagreeing. Collapse the field when apps/web stops reading
  * `snapshot.identity`; until then, do not add a writer that touches only one.
  *
- * ── What this file does NOT do ─────────────────────────────────────────────
- *
- * It does not touch `snapshot.identity`. That copy is denormalised by the hourly
- * cron (phase 4) so the homepage costs one document read, which means an edit
- * here is visible on /about and /contact immediately and in the dashboard hero
- * at the next tick. If that lag proves annoying, the fix is for the cron's
- * rebuild to be schedulable from here (`ctx.scheduler.runAfter(0, …)`), not for
- * this mutation to start writing another table's rows.
+ * `snapshot.identity` is a denormalised homepage copy. Both writers below patch
+ * that copy in the same transaction, so an iPhone edit is visible everywhere
+ * immediately instead of waiting for the hourly full Snapshot rebuild.
  */
 
 import { v } from 'convex/values';
-import { mutation, query } from './_generated/server';
+import type { Doc } from './_generated/dataModel';
+import { mutation, query, type MutationCtx } from './_generated/server';
 import { requireAdmin } from './lib/auth';
+import {
+  assertExpectedRevision,
+  currentRevision,
+  nextRevision,
+} from './lib/revision';
 import {
   assertEmail,
   assertSlug,
@@ -47,6 +48,30 @@ import {
   nowIso,
 } from './lib/validate';
 import { featuredSelections, identity, navVisibility } from './schema';
+
+/** Committed public fallback, mirrored from apps/web/src/lib/snapshot.ts. */
+const FALLBACK_IDENTITY = {
+  name: 'Corey Baines',
+  role: 'Principal Engineer',
+  company: 'Corporate Interactive',
+  location: 'Sydney, Australia',
+  availability: 'Open to Principal Engineer roles',
+  github: 'coreybain',
+  linkedin: 'https://www.linkedin.com/in/coreybaines/',
+  x: 'https://x.com/coreybaines',
+  email: 'corey@spiritdevs.com',
+} satisfies Doc<'snapshot'>['identity'];
+
+/** Keep the homepage identity copy current in the settings transaction. */
+async function refreshSnapshotIdentity(
+  ctx: MutationCtx,
+  value: Doc<'siteSettings'>['identity'],
+): Promise<void> {
+  const snapshots = await ctx.db.query('snapshot').collect();
+  for (const snapshot of snapshots) {
+    await ctx.db.patch(snapshot._id, { identity: value });
+  }
+}
 
 /* ------------------------------------------------------------------ *
  * Read
@@ -97,10 +122,11 @@ export const get = query({
  * slug that resolves to nothing as "not featured yet". An existence check here
  * would make the settings form fail on a perfectly reasonable intermediate state.
  *
- * @returns `{ settingsId, updatedAt, created }`
+ * @returns `{ settingsId, updatedAt, created, changed, revision }`
  */
 export const upsert = mutation({
   args: {
+    expectedRevision: v.optional(v.number()),
     headline: v.string(),
     identity,
     featured: featuredSelections,
@@ -148,7 +174,7 @@ export const upsert = mutation({
     /* ---- write ------------------------------------------------------- */
 
     const existing = await ctx.db.query('siteSettings').order('desc').first();
-    const updatedAt = nowIso();
+    assertExpectedRevision(existing?.revision, args.expectedRevision);
 
     // Every stored string is trimmed, matching the rest of the package. It
     // matters most for `identity.github`: schema.ts calls it "also an API key" —
@@ -164,23 +190,89 @@ export const upsert = mutation({
       };
     };
 
-    const row = {
+    const content = {
       headline: args.headline.trim(),
       // Both copies, from one input. See the file header.
       availability: args.identity.availability.trim(),
       identity: trim(args.identity),
       featured: args.featured,
       nav: args.nav,
+    };
+    const changed =
+      existing === null ||
+      existing.headline !== content.headline ||
+      existing.availability !== content.availability ||
+      JSON.stringify(existing.identity) !== JSON.stringify(content.identity) ||
+      JSON.stringify(existing.featured) !== JSON.stringify(content.featured) ||
+      JSON.stringify(existing.nav) !== JSON.stringify(content.nav);
+    const revision =
+      existing === null
+        ? nextRevision(undefined)
+        : changed
+          ? nextRevision(existing.revision)
+          : currentRevision(existing.revision);
+    const updatedAt = changed ? nowIso() : (existing?.updatedAt ?? nowIso());
+    const row = {
+      revision,
+      ...content,
       updatedAt,
     };
 
     if (existing !== null) {
-      await ctx.db.patch(existing._id, row);
-      return { settingsId: existing._id, updatedAt, created: false };
+      if (changed) {
+        await ctx.db.patch(existing._id, row);
+        await refreshSnapshotIdentity(ctx, row.identity);
+      }
+      return {
+        settingsId: existing._id,
+        updatedAt,
+        created: false,
+        changed,
+        revision,
+      };
     }
 
     const settingsId = await ctx.db.insert('siteSettings', row);
-    return { settingsId, updatedAt, created: true };
+    await refreshSnapshotIdentity(ctx, row.identity);
+    return {
+      settingsId,
+      updatedAt,
+      created: true,
+      changed: true,
+      revision: row.revision,
+    };
+  },
+});
+
+/**
+ * Delete the site-settings singleton. Admin-only.
+ *
+ * The public site intentionally falls back to its committed defaults when this
+ * table is empty. Delete every row so a duplicate created by a restore cannot
+ * unexpectedly become the active settings record. Idempotent by design.
+ *
+ * @returns `{ deleted, revision }` — number of rows removed and the last active
+ *   revision, or `null` when the singleton was already absent.
+ */
+export const remove = mutation({
+  args: { expectedRevision: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+
+    const rows = await ctx.db.query('siteSettings').order('desc').collect();
+    const active = rows[0] ?? null;
+    if (active !== null) {
+      assertExpectedRevision(active.revision, args.expectedRevision);
+    }
+    for (const row of rows) {
+      await ctx.db.delete(row._id);
+    }
+    await refreshSnapshotIdentity(ctx, FALLBACK_IDENTITY);
+
+    return {
+      deleted: rows.length,
+      revision: active === null ? null : currentRevision(active.revision),
+    };
   },
 });
 
@@ -198,10 +290,13 @@ export const upsert = mutation({
  * other field to be invented here, and inventing an identity is not this
  * function's business.
  *
- * @returns `{ settingsId, availability, updatedAt }`
+ * @returns `{ settingsId, availability, updatedAt, changed, revision }`
  */
 export const setAvailability = mutation({
-  args: { availability: v.string() },
+  args: {
+    availability: v.string(),
+    expectedRevision: v.optional(v.number()),
+  },
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
 
@@ -215,16 +310,40 @@ export const setAvailability = mutation({
           'Site settings have not been created yet — run siteSettings.upsert first.',
       });
     }
+    assertExpectedRevision(existing.revision, args.expectedRevision);
 
     const availability = args.availability.trim();
-    const updatedAt = nowIso();
+    const changed =
+      existing.availability !== availability ||
+      existing.identity.availability !== availability;
 
+    if (!changed) {
+      return {
+        settingsId: existing._id,
+        availability,
+        updatedAt: existing.updatedAt,
+        changed: false,
+        revision: currentRevision(existing.revision),
+      };
+    }
+
+    const updatedAt = nowIso();
+    const revision = nextRevision(existing.revision);
+    const nextIdentity = { ...existing.identity, availability };
     await ctx.db.patch(existing._id, {
       availability,
-      identity: { ...existing.identity, availability },
+      identity: nextIdentity,
       updatedAt,
+      revision,
     });
+    await refreshSnapshotIdentity(ctx, nextIdentity);
 
-    return { settingsId: existing._id, availability, updatedAt };
+    return {
+      settingsId: existing._id,
+      availability,
+      updatedAt,
+      changed: true,
+      revision,
+    };
   },
 });

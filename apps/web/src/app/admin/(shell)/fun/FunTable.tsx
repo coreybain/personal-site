@@ -180,7 +180,12 @@ export function FunTable() {
                   own to break, so there is no `unpublish` to prefer. */}
               <DeleteButton
                 name={row.title}
-                onAction={() => remove({ entryId: row._id })}
+                onAction={() =>
+                  remove({
+                    entryId: row._id,
+                    expectedRevision: row.revision ?? 0,
+                  })
+                }
               />
             </RowActions>
           </td>

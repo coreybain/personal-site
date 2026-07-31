@@ -48,6 +48,23 @@ const MAX_NAME = 120;
 const MAX_COMPANY = 160;
 const MAX_MESSAGE = 5000;
 
+/**
+ * Maximum number of message bodies any interactive admin read may keep live.
+ *
+ * `contactMessages` is publicly writable, so an unbounded reactive query would
+ * let retained history grow the native app's subscription forever. Five hundred
+ * matches the web inbox's existing ceiling while leaving ample room for the
+ * working set. Keep historical access paginated rather than increasing this
+ * constant if the site ever outgrows that window.
+ */
+export const CONTACT_MESSAGE_ADMIN_READ_LIMIT = 500;
+
+/** Pure and exported only so the read-boundary contract has a focused test. */
+export function contactMessageReadLimit(requested?: number): number {
+  if (requested === undefined || !Number.isFinite(requested)) return 100;
+  return Math.min(Math.max(Math.trunc(requested), 1), CONTACT_MESSAGE_ADMIN_READ_LIMIT);
+}
+
 /* ------------------------------------------------------------------ *
  * Public
  * ------------------------------------------------------------------ */
@@ -181,7 +198,7 @@ export const list = query({
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
 
-    const limit = Math.min(Math.max(args.limit ?? 100, 1), 500);
+    const limit = contactMessageReadLimit(args.limit);
 
     if (args.status !== undefined) {
       const status = args.status;
@@ -201,11 +218,39 @@ export const list = query({
 });
 
 /**
+ * The newest native-admin inbox working set, newest first.
+ *
+ * This is deliberately a bounded live subscription, not an archive query. The
+ * table is filled by an anonymous public mutation and retained history can grow
+ * without bound; subscribing the phone to every body would therefore make both
+ * initial decode and every reactive update grow forever. The newest 500 messages
+ * cover the active triage window and match the web inbox's maximum read.
+ *
+ * Falling outside this window does **not** delete or expire a message. Rows are
+ * retained until `remove` is called. Operators can recover/export older history
+ * through the Convex data dashboard or backups; a product UI for that history
+ * must use a separate cursor-paginated query rather than widening this reactive
+ * subscription.
+ */
+export const listAdmin = query({
+  args: {},
+  handler: async (ctx) => {
+    await requireAdmin(ctx);
+    return await ctx.db
+      .query('contactMessages')
+      .withIndex('by_createdAt')
+      .order('desc')
+      .take(CONTACT_MESSAGE_ADMIN_READ_LIMIT);
+  },
+});
+
+/**
  * Count messages per triage state, for the admin nav badge.
  *
- * Admin-only, and separate from `list` so the badge does not have to fetch
- * message bodies to render a number. Each state is counted through
- * `by_status_createdAt`, so this is five indexed reads rather than a table scan.
+ * Admin-only, and separate from `list` so the badge does not have to fetch the
+ * mixed-status working set. Each state is bounded at the same 500-row ceiling
+ * as the inbox: this publicly writable table must never turn a badge query into
+ * an unbounded scan. A returned 500 therefore means "500 or more" operationally.
  *
  * @returns `{ new, read, replied, archived, spam }`
  */
@@ -221,7 +266,7 @@ export const counts = query({
           await ctx.db
             .query('contactMessages')
             .withIndex('by_status_createdAt', (q) => q.eq('status', status))
-            .collect()
+            .take(CONTACT_MESSAGE_ADMIN_READ_LIMIT)
         ).length,
       ),
     );

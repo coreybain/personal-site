@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "test": "bun test src/proxy.test.ts src/app/api/native/upload/contract.test.ts 'src/app/admin/(shell)/fun/FunFields.test.ts'",
     "lint": "eslint",
     "typecheck": "tsc --noEmit"
   },

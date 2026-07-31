@@ -14,6 +14,7 @@
 
 import * as z from 'zod';
 import {
+  CountSchema,
   EmailSchema,
   IsoDateTimeSchema,
   NonEmptyStringSchema,
@@ -115,6 +116,8 @@ export type FeaturedSelections = z.infer<typeof FeaturedSelectionsSchema>;
  * ------------------------------------------------------------------ */
 
 export const SiteSettingsSchema = z.object({
+  /** Optimistic-concurrency token on the persisted singleton. */
+  revision: CountSchema.optional(),
   /**
    * The hero statement. Short — the dashboard exists because 548 words of prose
    * failed the five-second test.

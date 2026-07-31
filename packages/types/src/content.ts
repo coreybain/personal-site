@@ -67,6 +67,8 @@ export type ProjectLinks = z.infer<typeof ProjectLinksSchema>;
  *    fields; none of them may ever be promoted to required.
  */
 export const ProjectSchema = z.object({
+  /** Optimistic-concurrency token on persisted admin documents. */
+  revision: CountSchema.optional(),
   ...publishableShape,
 
   slug: SlugSchema,
@@ -173,6 +175,8 @@ export type LabLiveStats = z.infer<typeof LabLiveStatsSchema>;
  * this schema.
  */
 export const LabSchema = z.object({
+  /** Optimistic-concurrency token on persisted admin documents. */
+  revision: CountSchema.optional(),
   ...publishableShape,
 
   slug: SlugSchema,
@@ -204,6 +208,8 @@ export type Lab = z.infer<typeof LabSchema>;
  * fields. Ordering comes from `publishedAt`.
  */
 export const PostSchema = z.object({
+  /** Optimistic-concurrency token on persisted admin documents. */
+  revision: CountSchema.optional(),
   slug: SlugSchema,
   title: NonEmptyStringSchema,
   /** One or two sentences for the index and the meta description. */
@@ -254,6 +260,8 @@ export type FunEntryKind = z.infer<typeof FunEntryKindSchema>;
  * entry claim to be from today.
  */
 const funEntryBaseShape = {
+  /** Optimistic-concurrency token on persisted admin documents. */
+  revision: CountSchema.optional(),
   title: NonEmptyStringSchema,
   photo: MediaAssetSchema,
   note: NonEmptyStringSchema,

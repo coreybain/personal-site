@@ -132,7 +132,7 @@ export function EntryEditor({
 
   if (entryId === null) {
     /* No read to wait for. The create form starts populated. */
-    return <EntryForm entryId={null} initial={EMPTY_DRAFT} />;
+    return <EntryForm entryId={null} initial={EMPTY_DRAFT} initialRevision={0} />;
   }
 
   if (entry === undefined) {
@@ -171,15 +171,23 @@ export function EntryEditor({
    * anyway), and a key tied to the *document* would discard whatever was being typed
    * the moment a live push arrived.
    */
-  return <EntryForm entryId={entryId} initial={draftFrom(entry)} />;
+  return (
+    <EntryForm
+      entryId={entryId}
+      initial={draftFrom(entry)}
+      initialRevision={entry.revision ?? 0}
+    />
+  );
 }
 
 function EntryForm({
   entryId,
   initial,
+  initialRevision,
 }: {
   entryId: string | null;
   initial: Draft;
+  initialRevision: number;
 }) {
   const router = useRouter();
   const create = useMutation(api.experienceEntries.create);
@@ -189,9 +197,10 @@ function EntryForm({
   const [state, setState] = useState(() => ({
     draft: initial,
     savedKey: JSON.stringify(initial),
+    expectedRevision: initialRevision,
   }));
 
-  const { draft, savedKey } = state;
+  const { draft, savedKey, expectedRevision } = state;
   const setDraft = (next: Draft) =>
     setState((current) => ({ ...current, draft: next }));
 
@@ -248,6 +257,7 @@ function EntryForm({
 
     const answer = await update({
       entryId: entryId as Id<"experienceEntries">,
+      expectedRevision,
       company: draft.company,
       title: draft.title,
       startDate: draft.startDate,
@@ -259,7 +269,11 @@ function EntryForm({
     });
 
     setEcho(answer.resume);
-    setState({ draft, savedKey: JSON.stringify(draft) });
+    setState((current) => ({
+      ...current,
+      savedKey: JSON.stringify(draft),
+      expectedRevision: answer.revision,
+    }));
   };
 
   return (

@@ -63,6 +63,11 @@ import { v } from 'convex/values';
 import type { Doc } from './_generated/dataModel';
 import { type MutationCtx, mutation, query } from './_generated/server';
 import { requireAdmin } from './lib/auth';
+import {
+  assertExpectedRevision,
+  currentRevision,
+  nextRevision,
+} from './lib/revision';
 import { assertText, invalid } from './lib/validate';
 
 /* ------------------------------------------------------------------ *
@@ -157,6 +162,38 @@ function projectRole(entry: Doc<'experienceEntries'>): ProjectedRole {
   };
 }
 
+function stringListsEqual(
+  left: readonly string[] | undefined,
+  right: readonly string[] | undefined,
+): boolean {
+  const a = left ?? [];
+  const b = right ?? [];
+  return a.length === b.length && a.every((value, index) => value === b[index]);
+}
+
+/** Compare the projection by value, independent of object-key serialisation order. */
+function projectedExperienceEqual(
+  left: readonly ProjectedRole[],
+  right: readonly ProjectedRole[],
+): boolean {
+  return (
+    left.length === right.length &&
+    left.every((role, index) => {
+      const other = right[index];
+      return (
+        other !== undefined &&
+        role.company === other.company &&
+        role.title === other.title &&
+        role.start === other.start &&
+        role.end === other.end &&
+        role.summary === other.summary &&
+        stringListsEqual(role.highlights, other.highlights) &&
+        stringListsEqual(role.skills, other.skills)
+      );
+    })
+  );
+}
+
 /**
  * Rebuild `resumeDocument.experience` from `experienceEntries`, in `sortOrder`.
  *
@@ -178,7 +215,7 @@ function projectRole(entry: Doc<'experienceEntries'>): ProjectedRole {
  * `.collect()` is unbounded and that is safe here: this table holds a career, not
  * a feed. If it ever held hundreds of rows the resume would already be unusable.
  *
- * @returns `{ documentId, roles, synced }`. `synced: false` with a `null`
+ * @returns `{ documentId, roles, synced, changed, revision }`. `synced: false` with a `null`
  *   `documentId` means **there is no resume document yet, and that is not an
  *   error** — entries may legitimately be authored before the singleton exists,
  *   and failing an entry write here would impose an ordering on the admin that
@@ -189,16 +226,38 @@ export async function rebuildResumeExperience(ctx: MutationCtx): Promise<{
   documentId: Doc<'resumeDocument'>['_id'] | null;
   roles: number;
   synced: boolean;
+  changed: boolean;
+  revision: number | null;
 }> {
   const experience = await projectExperience(ctx);
   const document = await ctx.db.query('resumeDocument').order('desc').first();
 
   if (document === null) {
-    return { documentId: null, roles: experience.length, synced: false };
+    return {
+      documentId: null,
+      roles: experience.length,
+      synced: false,
+      changed: false,
+      revision: null,
+    };
   }
 
-  await ctx.db.patch(document._id, { experience });
-  return { documentId: document._id, roles: experience.length, synced: true };
+  const changed = !projectedExperienceEqual(document.experience, experience);
+  const revision = changed
+    ? nextRevision(document.revision)
+    : currentRevision(document.revision);
+
+  if (changed) {
+    await ctx.db.patch(document._id, { experience, revision });
+  }
+
+  return {
+    documentId: document._id,
+    roles: experience.length,
+    synced: true,
+    changed,
+    revision,
+  };
 }
 
 /** The projection as an array, without writing it. Used by `upsert`'s insert path. */
@@ -258,12 +317,13 @@ export const get = query({
  * also repairs a projection that had drifted, and that a caller cannot write a
  * work history the source table does not agree with.
  *
- * @returns `{ documentId, created, roles }` — `roles` is how many entries the
+ * @returns `{ documentId, created, changed, roles, revision }` — `roles` is how many entries the
  *   projection was built from, so the admin UI can say "3 roles" without a second
  *   read, and can notice a zero.
  */
 export const upsert = mutation({
   args: {
+    expectedRevision: v.optional(v.number()),
     summary: v.string(),
     capabilities: v.array(v.string()),
     education: v.array(educationEntry),
@@ -309,16 +369,34 @@ export const upsert = mutation({
 
     const experience = await projectExperience(ctx);
     const existing = await ctx.db.query('resumeDocument').order('desc').first();
+    assertExpectedRevision(existing?.revision, args.expectedRevision);
 
     // Annotated with the table's own document type, so a field this file writes
     // that the schema does not describe — or vice versa — is a typecheck failure
     // here rather than a rejected write at runtime.
-    const row: WithoutSystemFields<Doc<'resumeDocument'>> = {
+    const content = {
       summary: args.summary.trim(),
       experience,
       capabilities,
       education,
       embedGitStats: args.embedGitStats,
+    };
+    const changed =
+      existing === null ||
+      existing.summary !== content.summary ||
+      !projectedExperienceEqual(existing.experience, content.experience) ||
+      JSON.stringify(existing.capabilities) !== JSON.stringify(content.capabilities) ||
+      JSON.stringify(existing.education) !== JSON.stringify(content.education) ||
+      existing.embedGitStats !== content.embedGitStats;
+    const revision =
+      existing === null
+        ? nextRevision(undefined)
+        : changed
+          ? nextRevision(existing.revision)
+          : currentRevision(existing.revision);
+    const row: WithoutSystemFields<Doc<'resumeDocument'>> = {
+      revision,
+      ...content,
     };
 
     // PHASE 4 — knowledge indexing (ADR 015). The resume is one of the four
@@ -331,12 +409,55 @@ export const upsert = mutation({
     // `by_source` index.
 
     if (existing !== null) {
-      await ctx.db.patch(existing._id, row);
-      return { documentId: existing._id, created: false, roles: experience.length };
+      if (changed) await ctx.db.patch(existing._id, row);
+      return {
+        documentId: existing._id,
+        created: false,
+        changed,
+        roles: experience.length,
+        revision,
+      };
     }
 
     const documentId = await ctx.db.insert('resumeDocument', row);
-    return { documentId, created: true, roles: experience.length };
+    return {
+      documentId,
+      created: true,
+      changed: true,
+      roles: experience.length,
+      revision: currentRevision(row.revision),
+    };
+  },
+});
+
+/**
+ * Delete the Resume Document singleton. Admin-only.
+ *
+ * All rows are removed rather than only the newest one so a historical duplicate
+ * from a restore cannot become visible after deletion. Experience entries remain
+ * untouched: they are the editable source and can rebuild a new document later.
+ *
+ * @returns `{ deleted, revision }` — number of singleton rows removed and the
+ * last active revision, or `null` for an idempotent no-op.
+ */
+export const remove = mutation({
+  args: { expectedRevision: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+
+    const rows = await ctx.db.query('resumeDocument').order('desc').collect();
+    const active = rows[0] ?? null;
+    if (active !== null) {
+      assertExpectedRevision(active.revision, args.expectedRevision);
+    }
+    for (const row of rows) {
+      await ctx.db.delete(row._id);
+    }
+
+    return {
+      deleted: rows.length,
+      revision: active === null ? null : currentRevision(active.revision),
+    };
   },
 });
 
@@ -353,15 +474,20 @@ export const upsert = mutation({
  * It writes nothing but `experience`; `summary`, `capabilities`, `education` and
  * `embedGitStats` are authored content and are untouched.
  *
- * @returns `{ documentId, roles, synced }` — `synced: false` means there is no
+ * @returns `{ documentId, roles, synced, changed, revision }` — `synced: false` means there is no
  *   resume document to sync into, which is a successful no-op rather than an
  *   error (see `rebuildResumeExperience`). The admin UI should read that as "save
  *   the resume first", not as a failure.
  */
 export const syncFromEntries = mutation({
-  args: {},
-  handler: async (ctx) => {
+  args: { expectedRevision: v.optional(v.number()) },
+  handler: async (ctx, args) => {
     await requireAdmin(ctx);
+
+    const existing = await ctx.db.query('resumeDocument').order('desc').first();
+    if (existing !== null) {
+      assertExpectedRevision(existing.revision, args.expectedRevision);
+    }
 
     // PHASE 4 — knowledge indexing (ADR 015). Same hook as `upsert`: the
     // projection is the resume's work-history prose, so a rebuild that changes it

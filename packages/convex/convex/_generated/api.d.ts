@@ -22,6 +22,7 @@ import type * as labs from "../labs.js";
 import type * as lib_auth from "../lib/auth.js";
 import type * as lib_days from "../lib/days.js";
 import type * as lib_rateLimit from "../lib/rateLimit.js";
+import type * as lib_revision from "../lib/revision.js";
 import type * as lib_validate from "../lib/validate.js";
 import type * as migrations from "../migrations.js";
 import type * as posts from "../posts.js";
@@ -54,6 +55,7 @@ declare const fullApi: ApiFromModules<{
   "lib/auth": typeof lib_auth;
   "lib/days": typeof lib_days;
   "lib/rateLimit": typeof lib_rateLimit;
+  "lib/revision": typeof lib_revision;
   "lib/validate": typeof lib_validate;
   migrations: typeof migrations;
   posts: typeof posts;

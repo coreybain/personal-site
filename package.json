@@ -12,6 +12,7 @@
     "build": "bun --env-file=.env run turbo run build",
     "dev": "bun --env-file=.env run turbo run dev",
     "lint": "bun --env-file=.env run turbo run lint",
+    "test": "bun --env-file=.env run turbo run test",
     "typecheck": "bun --env-file=.env run turbo run typecheck"
   },
   "devDependencies": {

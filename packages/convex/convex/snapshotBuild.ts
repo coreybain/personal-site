@@ -140,7 +140,7 @@ const labStatPayload = v.object({
  * ------------------------------------------------------------------ */
 
 // DAY_MS, isoDay and dayMs come from lib/days.ts — see that file for why this
-// package keeps exactly one definition of "which UTC day is this".
+// package keeps exactly one definition of calendar-label arithmetic.
 
 /** Days in `healthStats.recentDays` / the window `sevenDayAverageSteps` means. */
 const HEALTH_WINDOW_DAYS = 7;
@@ -647,11 +647,44 @@ async function applyLabStats(
     // is not the same document as one without the key.
     if (lastPushedAt !== undefined) liveStats.lastPushedAt = lastPushedAt;
 
+    if (labStatsMateriallyEqual(lab.liveStats, liveStats)) {
+      continue;
+    }
+
+    // `revision` guards human-authored fields. Every editor treats liveStats as
+    // collector-owned and omits it from editorial saves, so a GitHub refresh
+    // must not manufacture an unrelated content conflict.
     await ctx.db.patch(lab._id, { liveStats });
     written += 1;
   }
 
   return written;
+}
+
+type LabStatsForComparison = Omit<Doc<'labs'>['liveStats'], 'syncedAt'>;
+
+/** Ignore the observation timestamp; a check that found the same facts is no-op. */
+export function labStatsMateriallyEqual(
+  current: Doc<'labs'>['liveStats'],
+  next: Doc<'labs'>['liveStats'],
+): boolean {
+  const left: LabStatsForComparison = {
+    stars: current.stars,
+    forks: current.forks,
+    commitsYear: current.commitsYear,
+    lastPushDaysAgo: current.lastPushDaysAgo,
+    ...(current.lastPushedAt === undefined
+      ? {}
+      : { lastPushedAt: current.lastPushedAt }),
+  };
+  const right: LabStatsForComparison = {
+    stars: next.stars,
+    forks: next.forks,
+    commitsYear: next.commitsYear,
+    lastPushDaysAgo: next.lastPushDaysAgo,
+    ...(next.lastPushedAt === undefined ? {} : { lastPushedAt: next.lastPushedAt }),
+  };
+  return JSON.stringify(left) === JSON.stringify(right);
 }
 
 /**
@@ -699,7 +732,9 @@ async function applyProjectAiStats(
       continue; // No change; do not spend a write on it.
     }
 
-    await ctx.db.patch(project._id, { aiBuildStats: next });
+    await ctx.db.patch(project._id, {
+      aiBuildStats: next,
+    });
     written += 1;
   }
 

@@ -55,5 +55,11 @@ Two rules that are easy to break and hard to notice:
 
 Everything degrades with no environment variables set: `/admin` renders its shell
 and its nine section cards with a banner explaining that auth is off,
-`/api/uploadthing` answers 503, and the public site is byte-identical to a build
-without the admin at all (verified per page).
+`/api/uploadthing` and `/api/native/upload` answer 503, and the public site is
+byte-identical to a build without the admin at all (verified per page). The
+native route accepts one authenticated multipart `file` image up to 4 MiB and
+returns `{ file: { url, storageKey, name, size, contentType } }`.
+
+All administrative surfaces require the signed-in Clerk subject to match the
+server-only `ADMIN_CLERK_USER_ID`. Set it in the web deployment and set the same
+subject in each matching Convex deployment; missing values fail closed.

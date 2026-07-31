@@ -747,7 +747,8 @@ translucent overlays, so anything floating above arbitrary content (as
 - `create` **never** takes `published`. Everything is inserted as a draft;
   `publish`/`unpublish` are separate mutations. There is no publish *field* to
   write, on any table.
-- `setSortOrder({ projectIds })` / `({ labIds })` requires **every** id in the
+- `setSortOrder({ projectIds, expectedRevisions })` /
+  `({ labIds, expectedRevisions })` requires **every** id in the
   table, in display order. A subset returns `precondition-failed`. Both `list`
   queries are unpaginated, so you always have them.
 - `ingestTokens.issue` returns the plaintext token **once**. It is stored nowhere
