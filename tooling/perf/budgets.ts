@@ -110,53 +110,84 @@ export const BUDGETS: Budget[] = [
     // identical to /blog and /fun, with no contraband — the post page ships no
     // client component of its own and the markdown is compiled to HTML on the
     // server. The row will go green rather than grey the day it is exercised.
-    note: 'post — no prerendered instances while the blog is empty (167.2 KB measured against a fixture)',
+    //
+    // ⚠️ That figure predates the Ask launcher. It tracked /blog and /fun
+    // exactly, and both moved 167.2 → 168.9 when the launcher landed, so read
+    // it as ~168.9 KB today. Not re-measured against a fixture, and not worth
+    // re-measuring until there is a real post.
+    note: 'post — no prerendered instances while the blog is empty (~168.9 KB, tracks /blog exactly)',
   },
   { route: '/fun', budget: 172, plan: null, note: 'photo grid' },
   { route: '/resume', budget: 172, plan: null, note: 'web resume + PDF link' },
   { route: '/contact', budget: 180, plan: null, note: 'contact form' },
-  {
-    route: '/ask',
-    budget: 298,
-    plan: null,
-    // MEASURED, and the number is bad. 290.3 KB gzipped on the build that
-    // landed the route; 298 is that plus the table's standard headroom
-    // (`measured + max(4 KB, 2.5%)`, rounded up to an even KB). It replaces the
-    // 200 KB placeholder that was written here before anyone had built the page
-    // — that guess was 90 KB optimistic.
-    //
-    // ── Where the 290 KB goes, measured rather than assumed ─────────────────
-    //
-    //   144.9 KB   the framework floor, identical to every other route
-    //   122.6 KB   ONE chunk (515.9 KB raw): the AI SDK's client runtime
-    //    ~22.8 KB  everything else this route adds — the console, the
-    //              markdown-lite renderer, the notices, the page's own CSS-in-
-    //              JS-free components
-    //
-    // The 122.6 KB is not an import that could have been written more tightly.
-    // It was verified by deleting the `import { DefaultChatTransport } from
-    // 'ai'` entirely and building again: **290.1 KB**, a 0.2 KB difference.
-    // `@ai-sdk/react` depends on `ai` and pulls the same graph through
-    // `useChat` whatever the calling code imports, and the barrel does not
-    // shake down under Turbopack. Nothing in `components/site/ask` can move
-    // this number materially; only a different chat client could.
-    //
-    // ── Two things that would actually reduce it, neither done here ─────────
-    //
-    //   1. Defer the island (`next/dynamic`, load on first interaction). The
-    //      122.6 KB stops being *first-load* JS and becomes on-demand JS. That
-    //      is a real improvement for a reader who never types anything — and it
-    //      is also the move that makes this row look good without the page
-    //      getting lighter, so it should be taken deliberately, for the reader,
-    //      and the note here should say the total is unchanged.
-    //   2. Hand-write a transport against the SSE protocol and drop `useChat`.
-    //      Cheaper bytes, considerably more code to own, and the streaming
-    //      protocol becomes this repo's problem on every SDK release.
-    //
-    // Until one of those is chosen, this route is 1.7× the floor and the number
-    // is written down where a reviewer has to look at it.
-    note: 'Ask Corey — the one public route with chat JS (ADR 015). 122.6 KB of it is the AI SDK client runtime',
-  },
+  /*
+   * ── `/ask` used to be a row here, and this is what happened to it ─────────
+   *
+   * It was the worst line in the table: **290.3 KB gzipped**, budgeted at 298,
+   * against a 144.9 KB framework floor. The breakdown, measured at the time:
+   *
+   *   144.9 KB   the framework floor, identical to every other route
+   *   122.6 KB   ONE chunk (515.9 KB raw): the AI SDK's client runtime
+   *    ~22.8 KB  the console, the markdown-lite renderer, the notices
+   *
+   * That note ended by listing two things that would actually reduce it. The
+   * first — "defer the island (`next/dynamic`, load on first interaction)" —
+   * has now been done, and taken further than the note imagined: Ask Corey is
+   * no longer a route at all. It is a launcher mounted in the `(site)` layout,
+   * and the AI SDK is behind `next/dynamic({ ssr: false })` in `AskPanel`,
+   * fetched on the reader's first click.
+   *
+   * So the row is deleted rather than moved, because the surface it measured no
+   * longer exists. ⚠️ **The old note's warning still stands**: deferring did not
+   * make the chat smaller. A reader who opens the widget still downloads
+   * ~122.6 KB gzipped of AI SDK, just at a moment when they have asked for it.
+   * What changed is who pays: every visitor to `/ask` before, only the people
+   * who click now, and nobody at all on a cold load of any page.
+   *
+   * ── The launcher's cost, which every `(site)` route now carries ───────────
+   *
+   * `AskLauncher` is a client component in the shared layout, so its bytes land
+   * in every row below: `/`, `/work`, `/work/[slug]`, `/labs`, `/blog`,
+   * `/blog/[slug]`, `/fun`, `/resume`, `/contact`. It imports React and
+   * `next/dynamic` and nothing else — a button, a dialog frame, a focus trap —
+   * so the expected delta is **single-digit KB gzipped**, and the existing
+   * headroom in those rows (4–8 KB by construction, see the header) should
+   * absorb it.
+   *
+   * That prediction was then **measured**, because this file does not keep
+   * predictions. Two production builds of the same tree, differing only in
+   * whether the layout mounts `<AskLauncher>`:
+   *
+   *   route          without    with    delta
+   *   /               175.5    177.2    +1.7
+   *   /work           167.9    169.5    +1.6
+   *   /work/[slug]    167.2    168.9    +1.7
+   *   /labs           172.6    174.2    +1.6
+   *   /blog           167.2    168.9    +1.7
+   *   /fun            167.2    168.9    +1.7
+   *   /resume         167.2    168.9    +1.7
+   *   /contact        174.3    175.9    +1.6
+   *   /_not-found     144.9    144.9     0.0   ← control
+   *   /variants       148.3    148.3     0.0   ← control
+   *   /v/[variant]    149.8    149.8     0.0   ← control
+   *
+   * **+1.7 KB gzipped**, everywhere it applies, for a chat on every page. The
+   * three controls render under the root layout rather than `(site)` and did
+   * not move by a single byte, which is the check that the number above is the
+   * launcher and not build noise.
+   *
+   * **No ceiling below moved.** Every row still passes on the number it already
+   * had, so raising one would have been unnecessary and lowering one to
+   * `measured + headroom` would have *raised* four of them (`/fun`, `/blog`,
+   * `/resume`, `/work/[slug]` sit at 172 and the formula would issue 174) —
+   * which is the thing this table's ratchet exists to stop.
+   *
+   * ⚠️ What did change is the slack, and it is worth saying out loud: the
+   * `(site)` rows now run 2.8–4.5 KB under their ceilings rather than 4.5–6.2.
+   * The launcher fit in the headroom, and it used a third of it. The next thing
+   * that wants to live in the shared shell has materially less room to do it in
+   * than this one did, and should expect to be asked why it is not lazy too.
+   */
   {
     route: '/variants',
     budget: 154,

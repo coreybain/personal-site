@@ -82,25 +82,28 @@ const CONTRABAND: { marker: string; what: string; allowedOn?: string[] }[] = [
   { marker: 'ProseMirror', what: 'Tiptap / ProseMirror' },
   { marker: 'uploadthing', what: 'UploadThing' },
 
-  // ── The AI SDK, and the one route allowed to carry it ────────────────────
+  // ── The AI SDK, allowed on no route at all ───────────────────────────────
   //
-  // ADR 015 buys `/ask` an exception to the zero-client-JS rule, because a chat
-  // cannot be a form post. An exception nobody measures is an exception that
-  // spreads: the moment a shared layout imports something from `ai`, every
-  // public route pays for the chat runtime and the only symptom is a byte
-  // total drifting up a few KB at a time.
+  // These two used to carry `allowedOn: ['/ask']`: ADR 015 bought that route an
+  // exception to the zero-client-JS rule, because a chat cannot be a form post.
+  // The exception is **gone**, and not because the chat is — Ask Corey is now a
+  // launcher in the `(site)` layout whose panel loads through
+  // `next/dynamic({ ssr: false })` on the reader's first click.
   //
-  // So the exception is written down as a *scope* rather than a silence. These
-  // markers are contraband everywhere except `/ask`, which means importing the
-  // SDK into a shared component fails the gate by name and points at the route
-  // that regressed. `/ask` itself is still held to its size budget below —
-  // being allowed to carry the SDK is not being allowed to carry any amount
-  // of it.
+  // That makes the rule stronger rather than weaker, and this is the assertion
+  // that keeps it honest. What this check reads is the `<script src>` tags of
+  // each route's prerendered HTML — precisely the bytes a cold visit executes.
+  // A lazily-fetched chunk is not in that set, so the SDK appearing here means
+  // exactly one thing: something pulled it back into a route's first-load
+  // graph. The two ways that happens are dropping `ssr: false`, and importing
+  // from `ai` or `@ai-sdk/react` in `AskLauncher` (or anything else the layout
+  // reaches), which is the regression the launcher's own header warns about.
   //
-  // Both markers were confirmed present in the emitted `/ask` chunk and absent
-  // from every other chunk in the build, rather than guessed from the source.
-  { marker: 'UIMessageStream', what: 'the AI SDK client runtime', allowedOn: ['/ask'] },
-  { marker: 'ai-sdk', what: 'the AI SDK client runtime', allowedOn: ['/ask'] },
+  // Both markers were confirmed present in the emitted chat chunk and absent
+  // from every route's script set in the build, rather than guessed from the
+  // source.
+  { marker: 'UIMessageStream', what: 'the AI SDK client runtime' },
+  { marker: 'ai-sdk', what: 'the AI SDK client runtime' },
 ];
 
 /* ------------------------------------------------------------------ *

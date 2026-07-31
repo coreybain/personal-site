@@ -45,9 +45,9 @@ import { requestIdentifierHash } from "@/lib/requestIdentity";
  * `OPENAI_API_KEY`**. Both absences are handled, and neither is papered over:
  *
  *   • no answering key  → `503` with `{ configured: false, missing: [...] }`
- *                          before a single token is generated. The `/ask` page
- *                          renders that state from `askConfiguration()` without
- *                          even making the request.
+ *                          before a single token is generated. The ask widget's
+ *                          unconfigured panel renders that state (seeded by the
+ *                          layout's server-side probe, confirmed by this body).
  *   • no embedding key  → the route answers normally, and the streamed
  *                          `data-retrieval` part carries `mode:
  *                          'lexical'` with `degraded: true` and

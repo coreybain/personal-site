@@ -25,7 +25,7 @@
  * mangles a chunk. What is dropped is dropped silently and specifically: a
  * citation with no site-relative URL is a chip that goes nowhere, and a chip
  * that goes nowhere is worse than one fewer chip, because the whole claim of
- * this page (ADR 015) is that its answers are traceable to real pages here.
+ * this feature (ADR 015) is that its answers are traceable to real pages here.
  */
 
 import type {
@@ -198,7 +198,7 @@ function count(value: unknown): number | null {
  * what makes it testable without a browser or a network. It reads exactly one
  * string: `error.message`, which for a failed request is the response body as
  * the transport saw it, **enriched with `status` and `retryAfterSeconds` by the
- * `fetch` wrapper in `AskConsole`** (the SDK discards both; see the comment on
+ * `fetch` wrapper in `AskPanel`** (the SDK discards both; see the comment on
  * `askTransport`).
  *
  * ── Branch on `error`, not on the status code ─────────────────────────────

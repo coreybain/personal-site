@@ -169,13 +169,22 @@ function draftFrom(stored: Doc<"siteSettings"> | null): Draft {
 }
 
 /**
- * The seven routes of `navVisibility`, in the order the public nav renders them.
+ * The routes of `navVisibility` that still have a key in the public nav, in the
+ * order it renders them.
  *
  * Enumerated rather than iterated over the object's keys, because the *labels* and
  * the routes are the information — a `Object.entries(draft.nav)` loop would render
- * `ask` as "ask" and leave the reader to guess which page that is. Adding a route
+ * `fun` as "fun" and leave the reader to guess which page that is. Adding a route
  * to the schema without adding a line here is a typecheck failure at `NAV_ITEMS`'
  * `satisfies`.
+ *
+ * ⚠️ `nav.ask` is deliberately **absent**, and its absence is not a bug to fix by
+ * adding the row back. Ask Corey stopped being a route: it is a launcher fixed to
+ * the bottom-right of every public page, mounted in the `(site)` layout, and it
+ * has no nav key left to hide. The field stays in the schema and keeps
+ * round-tripping through `draftFrom`/`upsert` untouched — it is stored data and
+ * deleting stored data to tidy a form is how a rollback becomes a migration — but
+ * a toggle that controls nothing is worse than no toggle, so it is not offered.
  */
 const NAV_ITEMS = [
   { key: "work", label: "Work", route: "/work" },
@@ -183,7 +192,6 @@ const NAV_ITEMS = [
   { key: "blog", label: "Writing", route: "/blog" },
   { key: "fun", label: "Fun", route: "/fun" },
   { key: "resume", label: "Résumé", route: "/resume" },
-  { key: "ask", label: "Ask Corey", route: "/ask" },
   { key: "contact", label: "Contact", route: "/contact" },
 ] as const satisfies readonly { key: keyof Draft["nav"]; label: string; route: string }[];
 

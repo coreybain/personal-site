@@ -33,9 +33,9 @@
  * a number, not inline anchors a model might invent.
  *
  * Headings deliberately render as a strong lead-in `<p>` rather than `<h2>`:
- * this text sits inside a page that already has a heading outline, and letting
- * a model inject H2s into it would corrupt the document structure a screen
- * reader navigates by.
+ * this text sits inside a dialog floating over a page that already has a
+ * heading outline, and letting a model inject H2s into it would corrupt the
+ * document structure a screen reader navigates by.
  *
  * ── Streaming ─────────────────────────────────────────────────────────────
  *
@@ -63,10 +63,10 @@ import type { ReactNode } from "react";
  * exact behaviour streaming needs: an opener with no closer is emitted as the
  * literal characters that are actually on screen.
  *
- * `onCitation` is the hook the console uses to turn `[1]` into a link to the
+ * `onCitation` is the hook the panel uses to turn `[1]` into a link to the
  * matching chip. It returns `null` when the number is out of range — a model
  * that cites `[7]` with four sources gets the literal text `[7]`, which is the
- * honest rendering of a claim the page cannot back up.
+ * honest rendering of a claim the answer cannot back up.
  */
 function inline(
   text: string,
@@ -197,7 +197,7 @@ export type MarkdownLiteProps = {
 
 /**
  * The renderer. Pure, cheap, and called on every streamed chunk — memoise it at
- * the call site (`AskConsole` does) so a finished message stops re-parsing when
+ * the call site (`AskPanel` does) so a finished message stops re-parsing when
  * a *later* message streams.
  */
 export function MarkdownLite({

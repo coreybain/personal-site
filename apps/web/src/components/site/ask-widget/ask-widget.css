@@ -1,0 +1,872 @@
+/*
+ * ask-widget.css — Ask Corey as a fixed launcher and a panel, dressed in
+ * Horizon.
+ *
+ * ══════════════════════════════════════════════════════════════════════════
+ *  WHY THIS FILE IS LOADED BY THE LAYOUT AND NOT BY THE COMPONENT
+ *
+ *  Every other stylesheet in this app is imported by the route that owns it
+ *  (`ask.css` by the old `/ask` page, `work.css` by `/work`, `horizon.css` by
+ *  the `(site)` layout). The widget has no route: it is mounted in the `(site)`
+ *  layout, so the layout is where its stylesheet is imported — the same rule,
+ *  applied to a thing whose owner happens to be the shell.
+ *
+ *  It is emphatically *not* imported by `AskPanel.tsx`. That module is behind a
+ *  `next/dynamic({ ssr: false })` boundary and its CSS would arrive with the
+ *  chunk, i.e. after the panel is already on screen. The launcher needs its
+ *  styles before first paint and the panel needs its styles before its first
+ *  frame; both are satisfied by the layout's stylesheet and neither is
+ *  satisfied by the chunk's.
+ * ══════════════════════════════════════════════════════════════════════════
+ *
+ * ── The layer stack, written down because it is the load-bearing part ──────
+ *
+ * Everything below is measured from the values already in `horizon.css`, not
+ * invented:
+ *
+ *      5   `.hor-footer`               in flow, `position: relative`
+ *     30   `.hor-command-menu`         inside its own subtree
+ *     60   `.hor-navpill`              fixed, top centre
+ *     70   `.ask-w-dock`               THIS, closed — above the pill, so the
+ *                                      launcher is never covered by chrome
+ *     80   `.hor-heat-tooltip`         fixed, `pointer-events: none`, follows
+ *                                      the cursor on the homepage heatmap.
+ *                                      Deliberately *above* the closed
+ *                                      launcher: it is transient, it cannot be
+ *                                      clicked, and a tooltip clipped by a
+ *                                      button is worse than one drawn over it.
+ *     88   `.ask-w-scrim`              THIS, mobile sheet only
+ *     90   `.ask-w-dock[data-open]`    THIS, open — above everything, because
+ *                                      it is a dialog the reader just asked for
+ *
+ * `.hor-theme-menu` reads `z-index: 80` but sits inside
+ * `.hor-theme-picker { isolation: isolate }` nested in the footer, so its real
+ * position in the global stack is the footer's 5. It cannot compete with the
+ * widget and does not need to: the launcher clears the footer's bottom padding
+ * (`pb-14` / `sm:pb-20`, 56–80px) and the menu opens *upward*.
+ *
+ * ── Tokens only ───────────────────────────────────────────────────────────
+ *
+ * No literal colour appears below. Every value resolves from a `--hor-*` token
+ * declared in `@home/ui/tokens.css`, which is what makes both themes work here
+ * with no rules of their own. Widget chrome is namespaced `ask-w-*`; the
+ * ported thread, citation, notice and composer rules keep their original
+ * `ask-*` names, because the markup they style was ported verbatim from the
+ * page this widget replaced.
+ */
+
+/* ================================================================== *
+ * The dock — the fixed bottom-right column
+ * ================================================================== */
+
+.hor .ask-w-dock {
+  position: fixed;
+  right: max(1rem, env(safe-area-inset-right));
+  bottom: max(1rem, env(safe-area-inset-bottom));
+  z-index: 70;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.65rem;
+}
+
+.hor .ask-w-dock[data-open="true"] {
+  z-index: 90;
+}
+
+/* ------------------------------------------------------------------ *
+ * The launcher — a quiet pill, the same material as the nav
+ * ------------------------------------------------------------------ */
+
+/* Deliberately the nav pill's material: translucent canvas, hairline sky edge,
+   the same blur. It is chrome, it floats over content on every page, and it
+   should read as a sibling of the pill at the top rather than as a badge
+   somebody bolted on. */
+.hor .ask-w-launcher {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.5rem 0.85rem 0.5rem 0.7rem;
+  border: 1px solid var(--hor-sky-card-edge);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--hor-bg) 72%, transparent);
+  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  box-shadow: var(--hor-inset-top), var(--hor-shadow-sky);
+  color: var(--hor-ink-2);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    color 200ms var(--hor-ease),
+    border-color 200ms var(--hor-ease),
+    background-color 200ms var(--hor-ease),
+    box-shadow 200ms var(--hor-ease),
+    transform 300ms var(--hor-spring);
+}
+
+.hor .ask-w-launcher:hover {
+  transform: translateY(-1px);
+  border-color: var(--hor-line-strong);
+  background: var(--hor-panel);
+  color: var(--hor-ink);
+  box-shadow: var(--hor-inset-top), var(--hor-shadow-sky-lift);
+}
+
+.hor .ask-w-launcher:focus-visible {
+  outline: 2px solid var(--hor-focus);
+  outline-offset: 3px;
+}
+
+/* The glyph carries the accent so the pill has one warm point in it without
+   the label shouting. */
+.hor .ask-w-launcher-glyph {
+  display: inline-grid;
+  place-items: center;
+  color: var(--hor-accent);
+}
+
+/* ================================================================== *
+ * The panel
+ * ================================================================== */
+
+.hor .ask-w-panel {
+  display: flex;
+  flex-direction: column;
+  width: min(380px, calc(100vw - 2rem));
+  /* A definite height, not a max: the thread below is the scroller, and a
+     scroller inside an auto-height flex column collapses to its content. */
+  height: min(640px, 85vh);
+  overflow: hidden;
+  border: 1px solid var(--hor-line-strong);
+  border-radius: var(--hor-radius-deck);
+  background:
+    linear-gradient(180deg, var(--hor-panel-top), transparent 22%),
+    var(--hor-panel);
+  box-shadow: var(--hor-inset-top), var(--hor-shadow-sky-lift);
+  animation: ask-w-in 220ms var(--hor-spring) both;
+}
+
+@keyframes ask-w-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * Panel head
+ * ------------------------------------------------------------------ */
+
+.hor .ask-w-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  flex: none;
+  padding: 0.85rem 0.9rem 0.75rem;
+  border-bottom: 1px solid var(--hor-line-soft);
+  background: var(--hor-chip);
+}
+
+.hor .ask-w-head-copy {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.hor .ask-w-title {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: var(--hor-ink);
+}
+
+.hor .ask-w-sub {
+  text-wrap: pretty;
+}
+
+.hor .ask-w-close {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  margin-left: auto;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--hor-ink-3);
+  cursor: pointer;
+  transition:
+    color 200ms var(--hor-ease),
+    border-color 200ms var(--hor-ease),
+    background-color 200ms var(--hor-ease);
+}
+
+.hor .ask-w-close:hover {
+  border-color: var(--hor-line);
+  background: var(--hor-panel);
+  color: var(--hor-ink);
+}
+
+.hor .ask-w-close:focus-visible {
+  outline: 2px solid var(--hor-focus);
+  outline-offset: 2px;
+}
+
+/* ------------------------------------------------------------------ *
+ * Panel body — the dynamic chunk lands here
+ * ------------------------------------------------------------------ */
+
+.hor .ask-w-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* The affordance shown while the chat chunk is in flight. It is a real state,
+   not a spinner over an empty box: the panel is already open, framed and
+   labelled, and this is the one line saying the rest is on its way. */
+.hor .ask-w-loading {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: auto;
+  padding: 1.5rem;
+}
+
+/* ================================================================== *
+ * The thread
+ * ================================================================== */
+
+/*
+ * ⚠️ This inverts a rule the `/ask` page held deliberately.
+ *
+ * On the page the thread never scrolled independently — the thread grew and the
+ * document scrolled, which kept find-in-page, anchor links and scroll
+ * restoration working. A panel of fixed height cannot do that: the composer has
+ * to stay reachable while the answer grows, so the thread is the scroller here.
+ * The cost is real and is accepted knowingly — `[1]` anchors still work because
+ * they resolve inside this box, but the browser's find-in-page will not reveal
+ * text scrolled out of it.
+ */
+/*
+ * ⚠️ Flex column, **not** grid, and this is not a preference.
+ *
+ * The first version of this rule was `display: grid; align-content: start`, and
+ * it silently ate content: `.ask-notice` carries `overflow: hidden`, which
+ * gives a grid item an automatic minimum size of zero, so the unconfigured
+ * panel was compressed to 168px around 290px of content and the bottom half —
+ * the three links to /work, /labs and /resume, i.e. the entire point of that
+ * state — was clipped away with no scrollbar to reveal it. Caught in the
+ * browser, not in review.
+ *
+ * `flex-direction: column` with `flex: 0 0 auto` on every child cannot do that:
+ * each turn is its own height and the *scroller* overflows, which is what a
+ * thread is supposed to do.
+ */
+.hor .ask-w-thread {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0.95rem 0.9rem;
+  scrollbar-width: thin;
+}
+
+.hor .ask-w-thread > * {
+  flex: 0 0 auto;
+}
+
+/* ── the question ───────────────────────────────────────────────────── */
+
+.hor .ask-turn-question {
+  display: grid;
+  gap: 0.3rem;
+  padding-left: 0.75rem;
+  border-left: 2px solid var(--hor-line-strong);
+}
+
+.hor .ask-question {
+  font-size: 0.9375rem;
+  line-height: 1.4;
+  letter-spacing: -0.015em;
+  font-weight: 500;
+  color: var(--hor-ink);
+  text-wrap: pretty;
+}
+
+/* ── the answer ─────────────────────────────────────────────────────── */
+
+.hor .ask-turn-answer {
+  position: relative;
+  padding: 0.85rem 0.9rem;
+  border: 1px solid var(--hor-line);
+  border-radius: 12px;
+  background: var(--hor-chip);
+}
+
+.hor .ask-prose {
+  font-size: 0.875rem;
+  line-height: 1.62;
+  color: var(--hor-ink);
+  overflow-wrap: break-word;
+}
+
+.hor .ask-prose > * + * {
+  margin-top: 0.7rem;
+}
+
+.hor .ask-prose strong {
+  font-weight: 600;
+  color: var(--hor-ink);
+}
+
+.hor .ask-lead {
+  letter-spacing: -0.015em;
+}
+
+.hor .ask-ul,
+.hor .ask-ol {
+  display: grid;
+  gap: 0.3rem;
+  padding-left: 1.25rem;
+}
+
+.hor .ask-ul {
+  list-style: disc;
+}
+
+.hor .ask-ol {
+  list-style: decimal;
+}
+
+.hor .ask-ul li::marker,
+.hor .ask-ol li::marker {
+  color: var(--hor-ink-4);
+}
+
+.hor .ask-quote {
+  padding-left: 0.75rem;
+  border-left: 2px solid var(--hor-line-strong);
+  color: var(--hor-ink-2);
+}
+
+.hor .ask-code {
+  padding: 0.1em 0.35em;
+  border-radius: 5px;
+  background: var(--hor-bg);
+  color: var(--hor-ink);
+  font-family: var(--font-hor-mono), ui-monospace, SFMono-Regular, monospace;
+  font-size: 0.85em;
+}
+
+.hor .ask-pre {
+  position: relative;
+  overflow-x: auto;
+  padding: 0.7rem 0.75rem;
+  border: 1px solid var(--hor-line-soft);
+  border-radius: 10px;
+  background: var(--hor-bg);
+  font-family: var(--font-hor-mono), ui-monospace, SFMono-Regular, monospace;
+  font-size: 0.75rem;
+  line-height: 1.55;
+  tab-size: 2;
+}
+
+.hor .ask-pre-lang {
+  display: block;
+  margin-bottom: 0.45rem;
+}
+
+/* Inline `[1]` — a superscript key into the chips below. Small, quiet, and a
+   real link: it moves the thread to the source it names. */
+.hor .ask-ref {
+  display: inline-grid;
+  place-items: center;
+  min-width: 15px;
+  height: 15px;
+  margin-inline: 0.15em;
+  padding-inline: 0.2em;
+  border: 1px solid var(--hor-line);
+  border-radius: 5px;
+  background: var(--hor-bg);
+  color: var(--hor-ink-2);
+  font-family: var(--font-hor-mono), ui-monospace, monospace;
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 1;
+  text-decoration: none;
+  vertical-align: 0.35em;
+  transition:
+    color 200ms var(--hor-ease),
+    border-color 200ms var(--hor-ease);
+}
+
+.hor .ask-ref:hover {
+  color: var(--hor-accent);
+  border-color: var(--hor-line-strong);
+}
+
+/* The streaming caret. 2px wide, inside the text flow, so it cannot reflow the
+   answer as it blinks. */
+.hor .ask-caret {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-left: 2px;
+  background: var(--hor-accent);
+  vertical-align: -0.15em;
+  animation: ask-blink 1.1s steps(2, start) infinite;
+}
+
+@keyframes ask-blink {
+  to {
+    opacity: 0;
+  }
+}
+
+/* ── citations ──────────────────────────────────────────────────────── */
+
+.hor .ask-cites {
+  display: grid;
+  gap: 0.45rem;
+  margin-top: 0.9rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--hor-line-soft);
+}
+
+.hor .ask-cite-list {
+  display: grid;
+  gap: 0.35rem;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.hor .ask-cite {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  height: 100%;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--hor-line-soft);
+  border-radius: 9px;
+  background: var(--hor-panel);
+  color: inherit;
+  text-decoration: none;
+  transition:
+    border-color 200ms var(--hor-ease),
+    box-shadow 200ms var(--hor-ease);
+}
+
+.hor .ask-cite:hover {
+  border-color: var(--hor-line-strong);
+  box-shadow: var(--hor-inset-top), var(--hor-glow-accent);
+}
+
+.hor .ask-cite-num {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  flex: none;
+  margin-top: 1px;
+  border: 1px solid var(--hor-line);
+  border-radius: 6px;
+  color: var(--hor-accent);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.hor .ask-cite-copy {
+  display: grid;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.hor .ask-cite-title {
+  font-size: 0.78125rem;
+  font-weight: 500;
+  letter-spacing: -0.012em;
+  color: var(--hor-ink);
+  overflow-wrap: anywhere;
+}
+
+.hor a.ask-cite:hover .ask-cite-title {
+  color: var(--hor-accent);
+}
+
+.hor .ask-cite-meta {
+  overflow-wrap: anywhere;
+}
+
+/* ── the retrieval readout (ADR 015) ────────────────────────────────── */
+
+.hor .ask-mode {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  padding-top: 0.65rem;
+  border-top: 1px dashed var(--hor-line-soft);
+}
+
+.hor .ask-mode-key {
+  flex: none;
+  padding-top: 0.1rem;
+}
+
+/* Degraded is marked, not hidden. The lexical path is the thing ADR 015
+   replaced; an answer built on it must never read like one built on
+   embeddings. */
+.hor .ask-mode[data-degraded="true"] .ask-mode-key {
+  color: var(--hor-sun);
+}
+
+.hor .ask-mode .hor-vrule {
+  flex: none;
+  height: 12px;
+  margin-top: 0.15rem;
+}
+
+/* The hourly allowance, shown only once it is nearly spent. */
+.hor .ask-quota {
+  margin-top: 0.6rem;
+  color: var(--hor-ink-4);
+}
+
+/* ── in-flight ──────────────────────────────────────────────────────── */
+
+.hor .ask-working {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+/* ================================================================== *
+ * Starters
+ * ================================================================== */
+
+.hor .ask-starters {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.hor .ask-starter-list {
+  display: grid;
+  gap: 0.4rem;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.hor .ask-starter {
+  display: block;
+  width: 100%;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--hor-line);
+  border-radius: 10px;
+  background: var(--hor-chip);
+  color: var(--hor-ink-2);
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    color 200ms var(--hor-ease),
+    border-color 200ms var(--hor-ease),
+    transform 300ms var(--hor-spring);
+}
+
+.hor .ask-starter:hover:not(:disabled) {
+  transform: translateY(-1px);
+  color: var(--hor-ink);
+  border-color: var(--hor-line-strong);
+}
+
+.hor .ask-starter:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* ================================================================== *
+ * Composer
+ * ================================================================== */
+
+.hor .ask-composer {
+  display: grid;
+  gap: 0.5rem;
+  flex: none;
+  padding: 0.75rem 0.9rem 0.85rem;
+  border-top: 1px solid var(--hor-line-soft);
+  background: var(--hor-chip);
+}
+
+.hor .ask-composer-label {
+  /* Present for screen readers and for the instrument look; the placeholder
+     carries the same instruction for everyone else. */
+  color: var(--hor-ink-4);
+}
+
+.hor .ask-input {
+  display: block;
+  width: 100%;
+  min-height: 52px;
+  max-height: 140px;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--hor-line);
+  border-radius: 10px;
+  background: var(--hor-bg);
+  color: var(--hor-ink);
+  font: inherit;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  resize: none;
+  transition:
+    border-color 200ms var(--hor-ease),
+    box-shadow 200ms var(--hor-ease);
+}
+
+.hor .ask-input::placeholder {
+  color: var(--hor-ink-4);
+}
+
+.hor .ask-input:focus {
+  outline: none;
+  border-color: var(--hor-line-strong);
+  box-shadow: var(--hor-glow-accent);
+}
+
+.hor .ask-input:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.hor .ask-composer-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.hor .ask-composer-note {
+  flex: 1 1 14ch;
+  min-width: 0;
+}
+
+.hor .ask-clear {
+  flex: none;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+/* `.hor-btn` belongs to horizon.css and has no disabled state, because until
+   Ask Corey nothing on the public site had a button that could be disabled.
+   Scoped to the panel rather than declared globally: a component stylesheet may
+   extend a shared component *within its own subtree*, never for the site. */
+.hor .ask-w-panel .hor-btn {
+  padding: 0.42rem 0.75rem;
+  font-size: 0.78125rem;
+}
+
+.hor .ask-w-panel .hor-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+  filter: none;
+  box-shadow: var(--hor-inset-top);
+}
+
+/* ================================================================== *
+ * Notices — the honest states
+ * ================================================================== */
+
+/* Deliberately the same material as an answer panel. These states are not
+   errors squeezed into a toast; they are what the widget has to say, so they
+   get the same weight as the thing they replace.
+   ⚠️ The `overflow: hidden` this rule used to carry (to clip `.hor-panel`'s
+   corner ticks) is gone — see `.ask-w-thread` for what it cost. The ticks are
+   inside the border box anyway, so there was nothing to clip. */
+.hor .ask-notice {
+  min-width: 0;
+}
+
+.hor .ask-notice-title {
+  font-size: 0.875rem;
+  font-weight: 500;
+  letter-spacing: -0.018em;
+  color: var(--hor-ink);
+}
+
+.hor .ask-notice-body {
+  margin-top: 0.55rem;
+  text-wrap: pretty;
+}
+
+.hor .ask-notice-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--hor-ink-4);
+}
+
+.hor .ask-notice[data-tone="hold"] .ask-notice-dot {
+  background: var(--hor-accent);
+  box-shadow: var(--hor-glow-accent);
+}
+
+.hor .ask-notice[data-tone="wait"] .ask-notice-dot,
+.hor .ask-notice[data-tone="fault"] .ask-notice-dot {
+  background: var(--hor-sun);
+  box-shadow: var(--hor-glow-sun);
+}
+
+.hor .ask-keys {
+  display: grid;
+  gap: 0.45rem;
+  margin-top: 0.8rem;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--hor-line-soft);
+  border-radius: 10px;
+  background: var(--hor-bg);
+}
+
+.hor .ask-key dt {
+  color: var(--hor-ink-2);
+  overflow-wrap: anywhere;
+}
+
+.hor .ask-key dd {
+  margin-top: 0.2rem;
+}
+
+.hor .ask-notice-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.85rem;
+}
+
+.hor .ask-countdown {
+  display: flex;
+  align-items: baseline;
+  gap: 0.55rem;
+  margin-top: 0.8rem;
+}
+
+.hor .ask-countdown-value {
+  color: var(--hor-sun);
+}
+
+/* ================================================================== *
+ * The mobile sheet
+ * ================================================================== */
+
+/*
+ * Below 640px the panel stops being a card anchored to a corner and becomes a
+ * bottom sheet: full width, square-cornered at the bottom edge, with the
+ * launcher removed while it is up. A 380px card on a 375px viewport is a
+ * modal pretending not to be one, and pretending is what makes it feel broken.
+ *
+ * The scrim exists only in this state, and so does the body scroll lock —
+ * see `AskLauncher.tsx`. On desktop the panel is a card beside the page and
+ * the page stays usable behind it.
+ */
+.hor .ask-w-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 88;
+  background: color-mix(in srgb, var(--hor-bg) 62%, transparent);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  animation: ask-w-scrim-in 200ms var(--hor-ease) both;
+}
+
+@keyframes ask-w-scrim-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (min-width: 641px) {
+  /* Belt and braces: the scrim is not rendered above this width, but if a
+     future change ever renders it, it must not dim the desktop card. */
+  .hor .ask-w-scrim {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .hor .ask-w-dock {
+    right: 0;
+    bottom: 0;
+    left: 0;
+    align-items: stretch;
+    gap: 0;
+  }
+
+  /* The launcher keeps its corner while closed. */
+  .hor .ask-w-dock[data-open="false"] .ask-w-launcher {
+    align-self: flex-end;
+    margin: 0 max(1rem, env(safe-area-inset-right))
+      max(1rem, env(safe-area-inset-bottom)) 0;
+  }
+
+  .hor .ask-w-dock[data-open="true"] .ask-w-launcher {
+    display: none;
+  }
+
+  .hor .ask-w-panel {
+    width: 100%;
+    height: min(85dvh, 640px);
+    border-inline: none;
+    border-bottom: none;
+    border-radius: var(--hor-radius-deck) var(--hor-radius-deck) 0 0;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .hor .ask-w-panel .ask-cite-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ================================================================== *
+ * Preferences
+ * ================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .hor .ask-w-panel,
+  .hor .ask-w-scrim {
+    animation: none;
+  }
+
+  .hor .ask-caret {
+    animation: none;
+  }
+
+  .hor .ask-w-launcher:hover,
+  .hor .ask-starter:hover:not(:disabled) {
+    transform: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .hor .ask-w-launcher,
+  .hor .ask-w-panel,
+  .hor .ask-cite,
+  .hor .ask-ref,
+  .hor .ask-starter {
+    border: 1px solid CanvasText;
+  }
+}

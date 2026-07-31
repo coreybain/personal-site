@@ -1,21 +1,27 @@
 "use client";
 
 /**
- * AskConsole.tsx — the chat itself, and the only client island on the public
- * site.
+ * AskPanel.tsx — the chat itself: the thread, the composer, and the states that
+ * are not an answer.
  *
  * ══════════════════════════════════════════════════════════════════════════
- *  THE INVARIANT THIS FILE IS ALLOWED TO BREAK, AND ONLY THIS FILE
+ *  THE ONE CHUNK ON THIS SITE THAT CARRIES THE AI SDK
  *
- *  Every other public route ships zero client JavaScript of its own: the
- *  homepage's telemetry, the case studies, the resume and the blog are all
- *  server-rendered, and the perf gate (`tooling/perf/budget.ts`) exists to
- *  keep it that way. `/ask` is the documented exception (ADR 015) — a chat
- *  cannot be a form post — so the exception is confined to one component,
- *  mounted by one route, with its own line in `tooling/perf/budgets.ts`.
+ *  Every public route ships zero client JavaScript of its own beyond the shell,
+ *  and `tooling/perf/budget.ts` exists to keep it that way. This module is the
+ *  documented exception (ADR 015) — a chat cannot be a form post — and the
+ *  exception is now contained by *time* rather than by route: nothing here is
+ *  in any page's first-load JS, because `AskLauncher` imports this module
+ *  through `next/dynamic({ ssr: false })` and only on the reader's first click.
  *
- *  Consequences worth keeping in mind before adding anything here: this file
- *  and its imports are the entire weight of the exception. `useChat` +
+ *  That is the whole point of the widget, and it is a stronger containment than
+ *  `/ask` ever had. When Ask Corey was a page, visiting it cost 290 KB gzipped
+ *  whether or not you typed anything; 122.6 KB of that was one chunk of AI SDK
+ *  client runtime. Now the same bytes are fetched by the people who ask, at the
+ *  moment they ask, and by nobody else.
+ *
+ *  Consequences worth keeping in mind before adding an import: this file and
+ *  its graph are the entire weight of the exception. `useChat` +
  *  `DefaultChatTransport` are the whole SDK surface used; no provider SDK, no
  *  Convex client, no markdown library (see `markdown.tsx` for why).
  * ══════════════════════════════════════════════════════════════════════════
@@ -25,23 +31,38 @@
  *   this component  ──POST /api/ask──▶  route handler  ──▶  Convex `ask.retrieve`
  *                                                      └──▶  the answering model
  *
- * The island never touches Convex and never sees a key. It posts UI messages
- * and renders what streams back; the route owns retrieval, metering and the
- * model. That split is why `NEXT_PUBLIC_CONVEX_URL` does not appear in this
- * bundle and why the rate-limit identifier — a salted digest of the caller's
- * address — is computed on the server, where the address exists.
+ * The panel never touches Convex and never sees a key. It posts UI messages and
+ * renders what streams back; the route owns retrieval, metering and the model.
+ * That split is why `NEXT_PUBLIC_CONVEX_URL` does not appear in this bundle and
+ * why the rate-limit identifier — a salted digest of the caller's address — is
+ * computed on the server, where the address exists.
  *
  * ── AI SDK v7, verified against `node_modules/ai/docs` ────────────────────
  *
- * `useChat` from `@ai-sdk/react` 4.0.x, `DefaultChatTransport` from `ai` 7.0.x.
- * The v7 shapes this file depends on, all confirmed in the installed package
- * rather than recalled: messages carry `parts` (not `content`); `sendMessage`
- * takes `{ text }`; `status` is `submitted | streaming | ready | error`;
+ * `useChat` from `@ai-sdk/react`, `DefaultChatTransport` from `ai` 7.x. The v7
+ * shapes this file depends on, all confirmed in the installed package rather
+ * than recalled: messages carry `parts` (not `content`); `sendMessage` takes
+ * `{ text }`; `status` is `submitted | streaming | ready | error`;
  * `clearError()` exists and returns the chat to `ready`; `regenerate()` with no
  * argument truncates to the last user message and re-requests it.
+ *
+ * ── What this file does *not* own ─────────────────────────────────────────
+ *
+ * The frame, the dialog role, focus management, Escape and the scroll lock all
+ * live in `AskLauncher`, because they have to work in the interval before this
+ * chunk arrives. This file's only claim on focus is one line: when it mounts,
+ * the composer takes it.
  */
 
-import { useCallback, useMemo, useState, type FormEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
 import Link from "next/link";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
@@ -98,6 +119,13 @@ function parseRetryAfter(header: string | null): number | null {
  * a URL and a `fetch`. A hook would only invite a dependency array to get it
  * wrong, and the React Compiler (enabled in this repo, and enforced by the lint
  * config) is entitled to drop a manual memo it cannot prove.
+ *
+ * ⚠️ "Once for the module" now means *once per session*: this module is loaded
+ * on the reader's first open and stays loaded, so the transport survives the
+ * panel being closed and reopened. Nothing about it is per-conversation, so
+ * that is exactly the right lifetime — but it is worth knowing that closing the
+ * widget does not reset anything here. The thread itself is unmounted with the
+ * panel, which is what "close" is expected to mean.
  *
  * ── The `fetch` wrapper, and why it rewrites the body ─────────────────────
  *
@@ -176,6 +204,13 @@ const SOURCE_LABEL: Record<string, string> = {
  * ADR 015 asked for. So they render as real `<Link>`s to real site-relative
  * routes — prefetched, navigable, and verifiable in one click.
  *
+ * ⚠️ Following one navigates the page *behind* the widget, and the widget's
+ * open state does not survive that: the launcher is remounted by the new
+ * route's render of the `(site)` layout with `open` back to `false`. That is
+ * the intended behaviour — a citation is an invitation to go and read the page
+ * — but it means a chip click ends the conversation, which is why nothing in a
+ * thread is persisted or promised to be.
+ *
  * `id` on each chip is what an inline `[1]` in the answer links to — and the
  * number rendered is the citation's own `index`, assigned once by the route,
  * **never its position in this array**. That distinction is the whole reason
@@ -246,28 +281,25 @@ function AskAnswer({
    *
    * A marker naming a source that is not on screen renders as plain text —
    * see `markdown.tsx`. A link to a chip that does not exist would be a
-   * citation that cannot be checked, which is the one thing this page is not
+   * citation that cannot be checked, which is the one thing this widget is not
    * allowed to ship.
    */
   const numbered = citations.map((citation) => citation.index).join(",");
 
-  const body = useMemo(
-    () => {
-      const known = new Set(
-        numbered.length === 0 ? [] : numbered.split(",").map(Number),
-      );
-      return (
-        <MarkdownLite
-          text={text}
-          idPrefix={message.id}
-          citationHref={(index) =>
-            known.has(index) ? `#${message.id}-source-${index}` : null
-          }
-        />
-      );
-    },
-    [text, message.id, numbered],
-  );
+  const body = useMemo(() => {
+    const known = new Set(
+      numbered.length === 0 ? [] : numbered.split(",").map(Number),
+    );
+    return (
+      <MarkdownLite
+        text={text}
+        idPrefix={message.id}
+        citationHref={(index) =>
+          known.has(index) ? `#${message.id}-source-${index}` : null
+        }
+      />
+    );
+  }, [text, message.id, numbered]);
 
   return (
     <article className="ask-turn ask-turn-answer" aria-label="Answer">
@@ -296,17 +328,17 @@ function AskAnswer({
 }
 
 /* ------------------------------------------------------------------ *
- * The console
+ * The panel body
  * ------------------------------------------------------------------ */
 
-export type AskConsoleProps = {
+export type AskPanelProps = {
   /** Starter questions, built on the server from live content. */
   starters: string[];
   /**
-   * Whether the server could see an answering key when this page was rendered.
+   * Whether the server could see an answering key when the shell was rendered.
    *
    * ⚠️ **Advisory, not authoritative.** The route decides — it may read a key
-   * this page cannot see, and this page may have been prerendered before the
+   * the layout cannot see, and the shell may have been prerendered before the
    * key was set. So a `false` here shows the "not wired up" panel up front
    * (better than inviting a question that cannot be answered) but never
    * disables the composer: asking anyway is how a reader — or a deploy that has
@@ -316,7 +348,7 @@ export type AskConsoleProps = {
   answeringConfigured: boolean;
 };
 
-export function AskConsole({ starters, answeringConfigured }: AskConsoleProps) {
+export function AskPanel({ starters, answeringConfigured }: AskPanelProps) {
   const {
     messages,
     sendMessage,
@@ -329,6 +361,18 @@ export function AskConsole({ starters, answeringConfigured }: AskConsoleProps) {
   } = useChat<AskUIMessage>({ transport: askTransport });
 
   const [input, setInput] = useState("");
+
+  /**
+   * Ids rather than literals, because this component is no longer guaranteed to
+   * be a singleton on the page: it is a dynamic import, and a second mount
+   * during a fast open/close/open would otherwise duplicate `id="ask-input"`
+   * and break the `<label>`'s association.
+   */
+  const inputId = useId();
+  const noteId = useId();
+
+  const threadRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const busy = status === "submitted" || status === "streaming";
   // Pure: everything the classification needs is in the error's message, put
@@ -350,6 +394,56 @@ export function AskConsole({ starters, answeringConfigured }: AskConsoleProps) {
   const canSend = !busy && !heldUntilReset;
 
   const tooLong = input.trim().length > ASK_LIMITS.maxQuestionChars;
+
+  const empty = messages.length === 0;
+
+  /**
+   * Waiting for the first token: the request is out and the assistant message
+   * either does not exist yet or is still empty.
+   */
+  const last = messages[messages.length - 1];
+  const lastText = last === undefined ? "" : textOf(last);
+  const awaitingFirstToken =
+    busy && (last === undefined || last.role === "user" || lastText.length === 0);
+
+  /**
+   * The composer takes focus when the chunk lands.
+   *
+   * `AskLauncher` has already moved focus to the panel so that Escape and the
+   * trap work during the fetch; this hands it on to the thing a reader actually
+   * wants, exactly once, on mount. Not on every render — that would fight
+   * anyone who clicked a citation chip.
+   */
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  /**
+   * Follow the stream.
+   *
+   * The thread is the scroller in a panel of fixed height (it was the document
+   * on the old `/ask` page), so nothing keeps the newest text in view unless
+   * this does. Keyed on the last message's id and its length so it fires on
+   * every chunk, and on `auto` rather than `smooth` because a smooth scroll
+   * retriggered thirty times a second never arrives.
+   *
+   * ⚠️ It scrolls unconditionally rather than only-if-near-the-bottom. In a
+   * 380px card there is no meaningful "reading back through history" state
+   * while an answer is arriving, and the simpler rule has no way to strand a
+   * reader at the top of a growing answer.
+   *
+   * ⚠️ …but **not** while the thread is empty. The empty state is a notice and
+   * a list of starters that read top-down, and they are taller than the box on
+   * this deployment (the unconfigured panel is 290px in a 396px scroller).
+   * Scrolling to the bottom on mount opened the widget onto the last two
+   * suggestions with the explanation of why it cannot answer pushed off the
+   * top — which is the one thing the unconfigured state must not do.
+   */
+  useEffect(() => {
+    const thread = threadRef.current;
+    if (thread === null || messages.length === 0) return;
+    thread.scrollTop = thread.scrollHeight;
+  }, [messages.length, lastText.length, failure?.kind]);
 
   const ask = useCallback(
     (question: string) => {
@@ -394,7 +488,7 @@ export function AskConsole({ starters, answeringConfigured }: AskConsoleProps) {
    * Start over: drop the thread and the error together.
    *
    * Nothing is persisted — no history, no local storage, no server-side thread
-   * — so "clear" is exactly what it says, and closing the tab does the same.
+   * — so "clear" is exactly what it says, and closing the widget does the same.
    */
   const clear = () => {
     clearError();
@@ -402,20 +496,10 @@ export function AskConsole({ starters, answeringConfigured }: AskConsoleProps) {
     setInput("");
   };
 
-  const empty = messages.length === 0;
-
-  /**
-   * Waiting for the first token: the request is out and the assistant message
-   * either does not exist yet or is still empty.
-   */
-  const last = messages[messages.length - 1];
-  const awaitingFirstToken =
-    busy && (last === undefined || last.role === "user" || textOf(last).length === 0);
-
   return (
-    <div className="ask-console">
+    <>
       {/* ── The thread ───────────────────────────────────────────────── */}
-      <div className="ask-thread">
+      <div className="ask-w-thread" ref={threadRef}>
         {messages.map((message) =>
           message.role === "user" ? (
             <div className="ask-turn ask-turn-question" key={message.id}>
@@ -434,17 +518,18 @@ export function AskConsole({ starters, answeringConfigured }: AskConsoleProps) {
         {awaitingFirstToken ? (
           <p className="ask-working" role="status">
             <span className="hor-live" aria-hidden="true" />
-            <span className="hor-label">
-              Searching the published corpus…
-            </span>
+            <span className="hor-label">Searching the published corpus…</span>
           </p>
         ) : null}
 
         {/* Honest states. The route's answer wins over the server hint: once a
-            failure exists it is the thing rendered, whatever the page guessed
+            failure exists it is the thing rendered, whatever the layout guessed
             at render time. */}
         {failure?.kind === "unconfigured" ? (
-          <AskUnconfiguredPanel detail={failure.detail} missing={failure.missing} />
+          <AskUnconfiguredPanel
+            detail={failure.detail}
+            missing={failure.missing}
+          />
         ) : failure?.kind === "rate-limited" ? (
           <AskRateLimitPanel
             // Remount on a new refusal — that is how the countdown resets. See
@@ -461,7 +546,7 @@ export function AskConsole({ starters, answeringConfigured }: AskConsoleProps) {
             onRetry={retry}
           />
         ) : empty && !answeringConfigured ? (
-          // The page's own guess, made on the server. It carries no `missing`
+          // The layout's own guess, made on the server. It carries no `missing`
           // list because only the route knows which variables it needs.
           <AskUnconfiguredPanel detail={null} missing={[]} />
         ) : null}
@@ -470,7 +555,7 @@ export function AskConsole({ starters, answeringConfigured }: AskConsoleProps) {
             Only while the thread is empty: once there is a conversation, the
             composer is the obvious next move and a wall of suggestions is
             noise. Every one of them is built on the server from content that
-            is actually published — see the page. */}
+            is actually published — see the `(site)` layout. */}
         {empty ? (
           <div className="ask-starters">
             <span className="hor-label">Try</span>
@@ -494,12 +579,13 @@ export function AskConsole({ starters, answeringConfigured }: AskConsoleProps) {
 
       {/* ── The composer ─────────────────────────────────────────────── */}
       <form className="ask-composer" onSubmit={onSubmit}>
-        <label className="hor-label ask-composer-label" htmlFor="ask-input">
+        <label className="hor-label ask-composer-label" htmlFor={inputId}>
           Your question
         </label>
 
         <textarea
-          id="ask-input"
+          id={inputId}
+          ref={inputRef}
           className="ask-input"
           rows={2}
           value={input}
@@ -516,12 +602,16 @@ export function AskConsole({ starters, answeringConfigured }: AskConsoleProps) {
           }}
           disabled={heldUntilReset}
           maxLength={ASK_LIMITS.maxQuestionChars}
-          aria-describedby="ask-composer-note"
+          aria-describedby={noteId}
         />
 
         <div className="ask-composer-row">
           {busy ? (
-            <button type="button" className="hor-btn hor-btn-ghost" onClick={stop}>
+            <button
+              type="button"
+              className="hor-btn hor-btn-ghost"
+              onClick={stop}
+            >
               Stop
             </button>
           ) : (
@@ -531,7 +621,13 @@ export function AskConsole({ starters, answeringConfigured }: AskConsoleProps) {
               disabled={!canSend || input.trim().length === 0 || tooLong}
             >
               Ask
-              <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true">
+              <svg
+                width="13"
+                height="13"
+                viewBox="0 0 13 13"
+                fill="none"
+                aria-hidden="true"
+              >
                 <path
                   d="M2.6 6.5h7.8M7.2 3.3l3.2 3.2-3.2 3.2"
                   stroke="currentColor"
@@ -543,9 +639,8 @@ export function AskConsole({ starters, answeringConfigured }: AskConsoleProps) {
             </button>
           )}
 
-          <span className="hor-micro ask-composer-note" id="ask-composer-note">
-            Enter sends · answers are drawn from published pages and cited ·{" "}
-            {ASK_QUESTIONS_PER_HOUR} questions an hour
+          <span className="hor-micro ask-composer-note" id={noteId}>
+            Enter sends · {ASK_QUESTIONS_PER_HOUR} questions an hour
           </span>
 
           {!empty ? (
@@ -555,6 +650,6 @@ export function AskConsole({ starters, answeringConfigured }: AskConsoleProps) {
           ) : null}
         </div>
       </form>
-    </div>
+    </>
   );
 }

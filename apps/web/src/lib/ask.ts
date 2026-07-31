@@ -101,10 +101,13 @@ export type AskConfiguration = {
 /**
  * Probe the environment, without touching a provider or Convex.
  *
- * Exported for the `/ask` page: a Server Component can call this and render an
- * honest unconfigured state on first paint, with **no client JS and no failed
- * request** — which is strictly better than shipping a composer that discovers
- * the 503 only after a reader has typed a question into it.
+ * Written for the `/ask` page (now retired — the surface is the floating
+ * widget in `components/site/ask-widget`); today its caller is the `/api/ask`
+ * route, and the `(site)` layout's advisory `answeringConfigured()` covers the
+ * server-side first-paint case with a plain env probe. The principle stands: a
+ * server can know the unconfigured state without a failed request, which is
+ * strictly better than a composer that discovers the 503 only after a reader
+ * has typed a question into it.
  *
  * `NEXT_PUBLIC_CONVEX_URL` is required despite the `NEXT_PUBLIC_` prefix: the
  * route reads it server-side through `convex/nextjs`, and without it there is

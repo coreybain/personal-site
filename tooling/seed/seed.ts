@@ -110,9 +110,12 @@ const HEADLINE =
  * `contact` and nothing else.
  *
  * `blog: false` is ADR 018 — the blog may launch empty and a nav link to an
- * empty list is worse than no link. `ask: false` because `/ask` (ADR 015) has no
- * route yet; a nav entry pointing at a 404 is the one thing worse than a missing
- * one.
+ * empty list is worse than no link.
+ *
+ * `ask: false` because there is no `/ask` route to link to: Ask Corey (ADR 015)
+ * is a launcher fixed to the corner of every public page, not a nav key. The
+ * field is seeded rather than dropped because it is part of `navVisibility` in
+ * the schema and the seed has to write the whole object; nothing reads it.
  */
 const NAV = {
   work: true,

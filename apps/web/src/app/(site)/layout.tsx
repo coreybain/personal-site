@@ -3,12 +3,18 @@ import type { ReactNode } from "react";
 import { IBM_Plex_Mono, Inter } from "next/font/google";
 
 import { MotionProvider } from "@/components/motion";
+import { AskLauncher } from "@/components/site/ask-widget/AskLauncher";
 import { Footer, NavPill } from "@/components/site/Chrome";
 import { num } from "@/components/site/format";
 import { ThemeScope } from "@/components/theme/ThemeScope";
 import { getSiteData, showBlogInNav } from "@/lib/data";
 
 import "./horizon.css";
+/* The widget's stylesheet is imported here rather than by the component,
+   because the launcher is painted on first load and the panel arrives from a
+   lazily-fetched chunk — neither can wait for CSS that ships with the chunk.
+   See the header of `ask-widget.css` for the layer stack it documents. */
+import "@/components/site/ask-widget/ask-widget.css";
 
 /**
  * Fonts are loaded here and nowhere else. They are exposed as CSS variables
@@ -47,6 +53,76 @@ const horMono = IBM_Plex_Mono({
  * which `next.config.ts` does not enable.
  */
 export const revalidate = 300;
+
+/* ------------------------------------------------------------------ *
+ * Ask Corey — the two values the widget needs from the server
+ * ------------------------------------------------------------------ */
+
+/**
+ * Whether this deployment can answer at all, as far as the *server* can tell.
+ *
+ * Read here rather than in the island for the same reason `/contact` decides
+ * its transport in the page: a `"use client"` module that reads an environment
+ * variable inlines it into the public bundle. A boolean crosses the boundary;
+ * the key never does, and could not — this is not a `NEXT_PUBLIC_` variable, so
+ * it does not exist in a browser bundle at all.
+ *
+ * ⚠️ Advisory only. Three ways it can disagree with reality, all handled by
+ * `AskPanel` treating the route as the authority:
+ *
+ *   • the shell was prerendered before the key was set (ISR: five minutes)
+ *   • the route reads a key or a config this layout does not
+ *   • the answering key is set but the retrieval side is not, or vice versa
+ *
+ * Read per render rather than at module scope so setting the variable takes
+ * effect on the next revalidation rather than the next deploy.
+ */
+function answeringConfigured(): boolean {
+  const key = process.env.ANTHROPIC_API_KEY;
+  return key !== undefined && key.length > 0;
+}
+
+/**
+ * Starter questions, built from content that is actually published.
+ *
+ * This is the difference between a demo and a feature. A hardcoded "Tell me
+ * about your experience" is a prompt somebody wrote once; these name real
+ * projects by their real titles, so every suggestion is a question the corpus
+ * can answer — and if a project is unpublished tomorrow, its starter disappears
+ * with it rather than becoming a question that returns nothing.
+ *
+ * `projects` arrives ordered by the same `order` field `/work` renders, so the
+ * first two are the two Corey leads with.
+ *
+ * ── Why `showBlog` and not a post count ───────────────────────────────────
+ *
+ * The `/ask` page called `getPosts()` to decide whether "what has he written
+ * about recently?" was a fair suggestion. This layout must not: it renders on
+ * **every** public route, and adding a second reader here would put a
+ * `posts.list` query on the homepage, the case studies and the resume in
+ * exchange for one word in one starter. `showBlog` is already resolved for the
+ * nav a line below, costs nothing extra (it shares `siteSettings.get`), and
+ * asserts the same thing this needs it to: there is writing on this site worth
+ * pointing a reader at.
+ */
+function starterQuestions(
+  projects: { title: string }[],
+  showBlog: boolean,
+): string[] {
+  const starters = projects
+    .slice(0, 2)
+    .map((project) => `What did Corey build for ${project.title}?`);
+
+  starters.push("What's his AI-assisted workflow?");
+
+  starters.push(
+    showBlog
+      ? "What has he written about recently?"
+      : "Which stacks has he shipped to production?",
+  );
+
+  return starters;
+}
 
 /**
  * The title and the description are the first thing a recruiter's search result
@@ -112,6 +188,7 @@ export async function generateMetadata(): Promise<Metadata> {
  *   NavPill        — floating glyph nav, persists across route changes
  *   {children}     — the page's own zones (sky / deck / sky)
  *   Footer         — contact block + theme picker, persists across routes
+ *   AskLauncher    — Ask Corey's fixed launcher, bottom-right (see below)
  *
  * Pages below this layout render *only* their sections. Because the scope and
  * the chrome now live in the layout, a client-side navigation between site
@@ -141,11 +218,26 @@ export async function generateMetadata(): Promise<Metadata> {
  *
  * It is cheap by construction: `getNav()` shares the layout's own
  * `siteSettings.get`, so the pill costs no extra query in either state.
+ *
+ * ── Ask Corey is chrome now, not a route ──────────────────────────────────
+ *
+ * `/ask` is gone. The feature is a launcher fixed to the bottom-right of every
+ * page in this group, which is why it is mounted here — the same reasoning that
+ * puts the pill and the footer here, and the reason it does **not** appear on
+ * `/admin`, `/variants` or the seven `/v/*` explorations: those render under
+ * the root layout, not this one.
+ *
+ * The two props it takes are server-derived and cost nothing extra: the
+ * starters come from `projects`, which this layout already has, and
+ * `answeringConfigured()` is a `process.env` read that cannot cross into a
+ * browser bundle. Everything past those two values is client, lazy and behind a
+ * click — see `AskLauncher`, which is a few hundred bytes and imports no AI SDK
+ * at all.
  */
 export default async function SiteLayout({
   children,
 }: Readonly<{ children: ReactNode }>) {
-  const [{ identity, computedAt }, showBlog] = await Promise.all([
+  const [{ identity, projects, computedAt }, showBlog] = await Promise.all([
     getSiteData(),
     showBlogInNav(),
   ]);
@@ -157,6 +249,10 @@ export default async function SiteLayout({
           <NavPill showBlog={showBlog} />
           {children}
           <Footer identity={identity} computedAt={computedAt} />
+          <AskLauncher
+            starters={starterQuestions(projects, showBlog)}
+            answeringConfigured={answeringConfigured()}
+          />
         </MotionProvider>
       </ThemeScope>
     </div>

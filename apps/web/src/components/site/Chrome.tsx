@@ -99,22 +99,10 @@ const NAV: NavItem[] = [
       </svg>
     ),
   },
-  {
-    /* Speech bubble with a spark — Ask Corey (ADR 015). Ungated on purpose:
-       unlike Writing, this key leads somewhere that is designed for every
-       state it can be in. With no model keys set the page says so in words and
-       points at the pages it would have quoted, so the key never leads to an
-       empty room — which is the only condition the blog gate exists to
-       enforce. */
-    href: "/ask",
-    label: "Ask",
-    icon: (
-      <svg width="18" height="18" viewBox="0 0 20 20" {...STROKE}>
-        <path d="M16.6 10.4a6.3 6.3 0 01-8.7 5.8L3.6 17.2l1.1-4.1a6.3 6.3 0 015.6-9.1 6.3 6.3 0 016.3 6.4z" />
-        <path d="M12.6 7.1l.5 1.4 1.4.5-1.4.5-.5 1.4-.5-1.4-1.4-.5 1.4-.5z" />
-      </svg>
-    ),
-  },
+  /* Ask Corey used to hold a key here, pointing at `/ask`. It is a launcher in
+     the bottom-right corner now (see `components/site/ask-widget`), so the
+     route and this entry both went with it; `siteSettings.nav.ask` is left in
+     the schema untouched and is simply no longer read. */
   {
     /* Envelope — the contact page (the mailto still lives in the footer). */
     href: "/contact",

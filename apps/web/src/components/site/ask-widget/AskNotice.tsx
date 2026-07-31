@@ -15,13 +15,18 @@
  *  missing key.
  *
  *  Nothing in this folder ever fabricates an answer. If the route cannot
- *  answer, the page says what is missing and what to do instead.
+ *  answer, the widget says what is missing and what to do instead.
+ *
+ *  ⚠️ This matters more now than it did when Ask Corey was a page. A reader
+ *  had to navigate to `/ask` to meet the unconfigured state; the launcher
+ *  invites them into it from every page on the site. It has to look like a
+ *  designed answer, because for most visitors today it *is* the feature.
  * ══════════════════════════════════════════════════════════════════════════
  *
  * `"use client"` because of one hook: the rate-limit countdown ticks. The rest
  * would render happily on the server, but they are only ever mounted by
- * `AskConsole`, which is already a client island — splitting them out would
- * buy nothing and cost a file.
+ * `AskPanel`, which is already behind a client-only dynamic import — splitting
+ * them out would buy nothing and cost a file.
  */
 
 import Link from "next/link";
@@ -40,8 +45,12 @@ import {
  * The frame every notice shares: a deck panel with a mono label, a heading,
  * and body copy. `tone` drives the accent — `wait` for the states that resolve
  * by themselves, `hold` for the ones a person has to fix.
+ *
+ * Named `NoticeShell` rather than the `AskPanel` it used to be: `AskPanel` is
+ * now the chat itself, one directory over, and two things by that name in one
+ * feature is how a grep stops being useful.
  */
-function AskPanel({
+function NoticeShell({
   tone,
   label,
   title,
@@ -86,7 +95,7 @@ const MISSING_EXPLAINS: Record<string, string> = {
 };
 
 /**
- * The route answered `503 { configured: false }`, or the page already knew it
+ * The route answered `503 { configured: false }`, or the layout already knew it
  * would.
  *
  * The copy names the variables because they do different jobs and can be set
@@ -105,24 +114,24 @@ export function AskUnconfiguredPanel({
   missing,
 }: {
   detail: string | null;
-  /** Variables the route named. Empty when the page guessed this state itself. */
+  /** Variables the route named. Empty when the layout guessed this state itself. */
   missing: string[];
 }) {
   return (
-    <AskPanel
+    <NoticeShell
       tone="hold"
       label="Not wired up"
       title="Ask Corey has no model key on this deployment."
     >
       <p className="hor-body ask-notice-body">
         {detail ??
-          "The page, the retrieval and the rate limiting are all built and live — but the key that answers is not set here, so there is nothing to answer with. Rather than improvise a reply, it stops."}
+          "The retrieval, the citations and the rate limiting are all built and live — but the key that answers is not set on this deployment, so there is nothing to answer with. Rather than improvise a reply, it stops."}
       </p>
 
       {/* The mechanism, printed on the chrome — the same habit as the contact
           form's `POST contactMessages.submit` readout. */}
       {missing.length > 0 ? (
-        <dl className="ask-keys" aria-label="What this page is waiting for">
+        <dl className="ask-keys" aria-label="What Ask Corey is waiting for">
           {missing.map((name) => (
             <div className="ask-key" key={name}>
               <dt className="hor-label">{name}</dt>
@@ -149,7 +158,7 @@ export function AskUnconfiguredPanel({
           Resume
         </Link>
       </div>
-    </AskPanel>
+    </NoticeShell>
   );
 }
 
@@ -170,12 +179,12 @@ function clock(total: number): string {
  *
  * The countdown is driven from `Retry-After` when the route sent one and from
  * the body's `retryAfterSeconds` otherwise; when neither arrived there is no
- * clock, because a made-up one would be a promise the page cannot keep — the
+ * clock, because a made-up one would be a promise the widget cannot keep — the
  * window is a fixed window on the server and only the server knows where it
  * ends.
  *
- * `onExpire` lets the console clear the error and re-enable the composer the
- * moment the wait is over, so the reader never has to guess whether the page
+ * `onExpire` lets the panel clear the error and re-enable the composer the
+ * moment the wait is over, so the reader never has to guess whether the widget
  * has noticed.
  */
 export function AskRateLimitPanel({
@@ -219,7 +228,7 @@ export function AskRateLimitPanel({
   const done = remaining !== null && remaining <= 0;
 
   return (
-    <AskPanel
+    <NoticeShell
       tone="wait"
       label="Rate limited"
       title={done ? "The window has reset." : "That is enough questions for now."}
@@ -245,7 +254,7 @@ export function AskRateLimitPanel({
         </Link>
         , and a person answers.
       </p>
-    </AskPanel>
+    </NoticeShell>
   );
 }
 
@@ -272,7 +281,7 @@ export function AskErrorPanel({
   onRetry: () => void;
 }) {
   return (
-    <AskPanel
+    <NoticeShell
       tone="fault"
       label={offline ? "No response" : "Fault"}
       title={
@@ -295,7 +304,7 @@ export function AskErrorPanel({
           Ask a person
         </Link>
       </div>
-    </AskPanel>
+    </NoticeShell>
   );
 }
 
