@@ -30,12 +30,12 @@
  *
  * ── ADR 015, restated as a data structure ──────────────────────────────────
  *
- * `AskRetrieval.mode` and `.degraded` are not diagnostics. They are the
- * ADR's honesty requirement in the payload: real retrieval is vector search over
- * embeddings, and the lexical path that answers when vectors cannot is *the same
- * class of thing ADR 015 exists to replace*. A UI that renders a lexical answer
- * as though it were a vector one would be the v2 matcher wearing the new label.
- * Render the flag.
+ * `AskRetrieval.mode` and `.degraded` preserve how the route found its context:
+ * real retrieval is vector search over embeddings, while the lexical path is
+ * the fallback ADR 015 replaced. The public widget keeps this implementation
+ * detail in the typed payload for diagnostics but does not print it beneath
+ * every answer; its reader-facing honesty comes from links to the exact source
+ * pages instead.
  *
  * The live deployment retrieves on **vectors** — one `OPENAI_API_KEY` powers
  * embeddings and answering both, and `knowledge:backfill` has been run against
@@ -43,8 +43,9 @@
  * therefore the *fallback*, not the status quo, and it is reached in exactly two
  * situations: a fresh deployment whose rows still carry `embedding: []` (expect
  * `reason: 'empty-vector-index'` until backfill runs), or a Convex deployment
- * with no key at all (`reason: 'no-key'`). Both remain reachable, so both are
- * still the UI's job to render — do not assume the vector path.
+ * with no key at all (`reason: 'no-key'`). Both remain reachable and stay
+ * explicit in the wire data even though the public widget does not display
+ * retrieval diagnostics.
  */
 
 import type { UIMessage } from "ai";
@@ -97,23 +98,23 @@ export type AskCitation = RetrieveResult["results"][number] & { index: number };
  * ------------------------------------------------------------------ */
 
 /**
- * How the answer's context was found — the fact ADR 015 insists is surfaced.
+ * How the answer's context was found, retained as typed diagnostic data.
  *
  * Delivered as a **data part** (`data-retrieval`, stable id `"retrieval"`)
  * before the first token, alongside `data-citations`. Two parts rather than one
  * envelope because they answer different questions: this one is *how the answer
- * was grounded*, the other is *what it was grounded in*, and a UI renders them
- * in different places — a notice above the answer, a list of chips below it.
+ * was grounded*, the other is *what it was grounded in*. The public widget
+ * renders only the reader-actionable source list.
  *
  * `mode: 'lexical'` means the vector index could not answer — no embedding key
  * on the Convex deployment, or a corpus nobody has backfilled — and retrieval
  * fell back to Convex's text search: the same class of matcher the rebuild
- * exists to replace. Say so in words. The live deployment sends
- * `mode: 'vector'`, so this is the branch that is easy to leave untested and
- * exactly the branch worth rendering carefully.
+ * exists to replace. The wire records that distinction explicitly. The live
+ * deployment sends `mode: 'vector'`, so this is the branch that is easy to
+ * leave untested and still worth preserving explicitly for diagnostics.
  */
 export type AskRetrieval = {
-  /** ⚠️ Surface this. `'lexical'` means degraded — see the file header. */
+  /** `'lexical'` means degraded — see the file header. */
   mode: AskRetrievalMode;
   /** `mode === 'lexical'`. The same fact, pre-computed for a `&&`. */
   degraded: boolean;

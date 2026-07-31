@@ -32,10 +32,7 @@
 import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
 
-import {
-  ASK_QUESTIONS_PER_HOUR,
-  type AskRetrieval,
-} from "@/lib/ask-contract";
+import { ASK_QUESTIONS_PER_HOUR } from "@/lib/ask-contract";
 
 /* ------------------------------------------------------------------ *
  * Shell
@@ -107,9 +104,8 @@ const MISSING_EXPLAINS: Record<string, string> = {
  * ⚠️ This panel is about the **web app's** key. The Convex deployment holds its
  * own copy of the same variable for embeddings, and a missing one *there* is a
  * downgrade rather than an outage: retrieval falls back to keyword search, the
- * route still answers, and `AskRetrievalStrip` says so under the answer. The
- * two states are never conflated anywhere in this feature — one panel means
- * "cannot answer", one strip means "answered, matched on words".
+ * route still answers from the cited published pages. That state must not be
+ * conflated with this panel's "cannot answer" state.
  */
 export function AskUnconfiguredPanel({
   detail,
@@ -307,80 +303,5 @@ export function AskErrorPanel({
         </Link>
       </div>
     </NoticeShell>
-  );
-}
-
-/* ------------------------------------------------------------------ *
- * The retrieval readout — ADR 015's honesty requirement, rendered
- * ------------------------------------------------------------------ */
-
-/**
- * A one-line strip under every answer saying how its context was found.
- *
- * ⚠️ **Do not make this quieter than the answer.** ADR 015 kept Ask Corey on
- * the condition that it becomes real retrieval over embeddings; while the
- * embeddings key is unset it is Convex text search — a lexical matcher, which
- * is the exact thing the ADR replaced. An answer built on that path is still
- * useful and is still cited, but it must not be able to pass for the other one.
- *
- * The vector path prints what it actually used (model, corpus coverage). The
- * lexical path prints why it fell back.
- */
-export function AskRetrievalStrip({ retrieval }: { retrieval: AskRetrieval }) {
-  const lexical = retrieval.mode === "lexical";
-  const corpus = retrieval.corpus;
-
-  /**
-   * Why it fell back, in the reader's terms.
-   *
-   * Every branch is a *different fact about the deployment*, and collapsing
-   * them into one "search is degraded" would throw away the only interesting
-   * part — `no-key` is a variable nobody set, `empty-vector-index` is a
-   * backfill that has not run, `embed-failed` is a provider that just failed.
-   */
-  const why = (() => {
-    switch (retrieval.reason) {
-      case "no-key":
-        return "no embedding key is set on this deployment, so the vector index is empty";
-      case "empty-vector-index":
-        return corpus === null
-          ? "the corpus has not been embedded yet"
-          : `only ${corpus.embedded} of ${corpus.published} published documents are embedded`;
-      case "embed-failed":
-        return "embedding this question failed, so it could not be matched by meaning";
-      case "vector-no-match":
-        return "vector search returned nothing close enough, so words were used instead";
-      default:
-        return "the vector index was unavailable for this question";
-    }
-  })();
-
-  return (
-    <p className="ask-mode" data-degraded={retrieval.degraded ? "true" : undefined}>
-      <span className="hor-label ask-mode-key">
-        {lexical ? "Keyword search" : "Vector retrieval"}
-      </span>
-      <span className="hor-vrule hor-vrule-sm" aria-hidden="true" />
-      <span className="hor-micro">
-        {lexical ? (
-          <>
-            Matched on words, not meaning — {why}. The sources above are real
-            and the answer is drawn from them; the ranking is weaker than it
-            will be once embeddings are on.
-          </>
-        ) : (
-          <>
-            Ranked by cosine similarity
-            {retrieval.embeddingModel === null
-              ? ""
-              : ` over ${retrieval.embeddingModel}`}
-            {corpus === null
-              ? ""
-              : `, across ${corpus.embedded} of ${corpus.published} published documents`}
-            .
-          </>
-        )}
-      </span>
-    </p>
   );
 }

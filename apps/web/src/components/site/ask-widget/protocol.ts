@@ -31,7 +31,6 @@
 import type {
   AskCitation,
   AskErrorCode,
-  AskRetrieval,
   AskUIMessage,
 } from "@/lib/ask-contract";
 
@@ -109,24 +108,6 @@ export function citationsOf(message: AskUIMessage): AskCitation[] {
   }
 
   return out;
-}
-
-/**
- * How that list was found — `'vector'` or `'lexical'`.
- *
- * ⚠️ A message with citations and no retrieval part must **not** render as
- * though retrieval succeeded on vectors; the caller renders nothing at all in
- * that case rather than assuming. See `AskRetrievalStrip`.
- */
-export function retrievalOf(message: AskUIMessage): AskRetrieval | null {
-  for (const part of message.parts) {
-    if (part.type !== "data-retrieval" || !isRecord(part.data)) continue;
-    const mode = str((part.data as AskRetrieval).mode);
-    if (mode === "vector" || mode === "lexical") {
-      return part.data as AskRetrieval;
-    }
-  }
-  return null;
 }
 
 /** The message's text, concatenated in part order. Streaming-safe. */

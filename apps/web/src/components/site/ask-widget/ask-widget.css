@@ -146,13 +146,29 @@
     linear-gradient(180deg, var(--hor-panel-top), transparent 22%),
     var(--hor-panel);
   box-shadow: var(--hor-inset-top), var(--hor-shadow-sky-lift);
-  animation: ask-w-in 220ms var(--hor-spring) both;
+  transform-origin: calc(100% - 24px) calc(100% + 18px);
 }
 
-@keyframes ask-w-in {
+.hor .ask-w-panel[data-state="open"] {
+  animation: ask-w-panel-in 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.hor .ask-w-panel[data-state="closing"] {
+  pointer-events: none;
+  animation: ask-w-panel-out 170ms cubic-bezier(0.7, 0, 0.84, 0) both;
+}
+
+@keyframes ask-w-panel-in {
   from {
     opacity: 0;
-    transform: translateY(10px) scale(0.985);
+    transform: translateY(24px) scale(0.94);
+  }
+}
+
+@keyframes ask-w-panel-out {
+  to {
+    opacity: 0;
+    transform: translateY(20px) scale(0.96);
   }
 }
 
@@ -162,17 +178,15 @@
 
 .hor .ask-w-head {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 0.75rem;
   flex: none;
-  padding: 0.85rem 0.9rem 0.75rem;
+  padding: 0.7rem 0.9rem;
   border-bottom: 1px solid var(--hor-line-soft);
   background: var(--hor-chip);
 }
 
 .hor .ask-w-head-copy {
-  display: grid;
-  gap: 0.2rem;
   min-width: 0;
 }
 
@@ -184,10 +198,6 @@
   font-weight: 600;
   letter-spacing: -0.015em;
   color: var(--hor-ink);
-}
-
-.hor .ask-w-sub {
-  text-wrap: pretty;
 }
 
 .hor .ask-w-close {
@@ -438,18 +448,66 @@
 /* ── citations ──────────────────────────────────────────────────────── */
 
 .hor .ask-cites {
-  display: grid;
-  gap: 0.45rem;
   margin-top: 0.9rem;
-  padding-top: 0.75rem;
   border-top: 1px solid var(--hor-line-soft);
+}
+
+.hor .ask-cites-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  min-height: 36px;
+  padding: 0.55rem 0;
+  border: 0;
+  background: transparent;
+  color: var(--hor-ink-3);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: color 160ms var(--hor-ease);
+}
+
+.hor .ask-cites-summary::after {
+  content: "+";
+  margin-left: auto;
+  color: var(--hor-ink-4);
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.75rem;
+  line-height: 1;
+}
+
+.hor .ask-cites[data-open="true"] .ask-cites-summary::after {
+  content: "−";
+}
+
+.hor .ask-cites-summary:hover {
+  color: var(--hor-ink);
+}
+
+.hor .ask-cites-summary:focus-visible {
+  outline: 2px solid var(--hor-accent);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+.hor .ask-cites-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 18px;
+  padding: 0 0.3rem;
+  border: 1px solid var(--hor-line);
+  border-radius: 999px;
+  color: var(--hor-ink-3);
+  font-size: 0.625rem;
 }
 
 .hor .ask-cite-list {
   display: grid;
   gap: 0.35rem;
   list-style: none;
-  padding: 0;
+  padding: 0 0 0.65rem;
   margin: 0;
 }
 
@@ -509,35 +567,6 @@
 
 .hor .ask-cite-meta {
   overflow-wrap: anywhere;
-}
-
-/* ── the retrieval readout (ADR 015) ────────────────────────────────── */
-
-.hor .ask-mode {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.5rem;
-  margin-top: 0.75rem;
-  padding-top: 0.65rem;
-  border-top: 1px dashed var(--hor-line-soft);
-}
-
-.hor .ask-mode-key {
-  flex: none;
-  padding-top: 0.1rem;
-}
-
-/* Degraded is marked, not hidden. The lexical path is the thing ADR 015
-   replaced; an answer built on it must never read like one built on
-   embeddings. */
-.hor .ask-mode[data-degraded="true"] .ask-mode-key {
-  color: var(--hor-sun);
-}
-
-.hor .ask-mode .hor-vrule {
-  flex: none;
-  height: 12px;
-  margin-top: 0.15rem;
 }
 
 /* The hourly allowance, shown only once it is nearly spent. */
@@ -605,37 +634,37 @@
  * ================================================================== */
 
 .hor .ask-composer {
-  display: grid;
-  gap: 0.5rem;
+  position: relative;
   flex: none;
-  padding: 0.75rem 0.9rem 0.85rem;
-  border-top: 1px solid var(--hor-line-soft);
-  background: var(--hor-chip);
+  margin: 0.75rem 0.9rem 0.85rem;
+  padding: 0.85rem 3.9rem 0.85rem 0.9rem;
+  border: 1px solid var(--hor-line);
+  border-radius: 18px;
+  background: var(--hor-panel);
+  box-shadow: var(--hor-inset-top);
+  transition:
+    border-color 200ms var(--hor-ease),
+    box-shadow 200ms var(--hor-ease);
 }
 
-.hor .ask-composer-label {
-  /* Present for screen readers and for the instrument look; the placeholder
-     carries the same instruction for everyone else. */
-  color: var(--hor-ink-4);
+.hor .ask-composer:focus-within {
+  border-color: var(--hor-line-strong);
+  box-shadow: var(--hor-inset-top), var(--hor-glow-accent);
 }
 
 .hor .ask-input {
   display: block;
   width: 100%;
-  min-height: 52px;
+  min-height: 76px;
   max-height: 140px;
-  padding: 0.5rem 0.6rem;
-  border: 1px solid var(--hor-line);
-  border-radius: 10px;
-  background: var(--hor-bg);
+  padding: 0;
+  border: 0;
+  background: transparent;
   color: var(--hor-ink);
   font: inherit;
-  font-size: 0.875rem;
+  font-size: 0.9375rem;
   line-height: 1.5;
   resize: none;
-  transition:
-    border-color 200ms var(--hor-ease),
-    box-shadow 200ms var(--hor-ease);
 }
 
 .hor .ask-input::placeholder {
@@ -644,8 +673,6 @@
 
 .hor .ask-input:focus {
   outline: none;
-  border-color: var(--hor-line-strong);
-  box-shadow: var(--hor-glow-accent);
 }
 
 .hor .ask-input:disabled {
@@ -653,39 +680,67 @@
   cursor: not-allowed;
 }
 
-.hor .ask-composer-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.55rem;
-}
-
-.hor .ask-composer-note {
-  flex: 1 1 14ch;
-  min-width: 0;
-}
-
-.hor .ask-clear {
-  flex: none;
-  font-size: 0.75rem;
+.hor .ask-composer-action {
+  position: absolute;
+  right: 0.65rem;
+  bottom: 0.65rem;
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--hor-bg);
   cursor: pointer;
+  transition:
+    transform 180ms var(--hor-spring),
+    opacity 180ms var(--hor-ease);
 }
 
-/* `.hor-btn` belongs to horizon.css and has no disabled state, because until
-   Ask Corey nothing on the public site had a button that could be disabled.
-   Scoped to the panel rather than declared globally: a component stylesheet may
-   extend a shared component *within its own subtree*, never for the site. */
-.hor .ask-w-panel .hor-btn {
-  padding: 0.42rem 0.75rem;
-  font-size: 0.78125rem;
+.hor .ask-composer-action::before {
+  content: "";
+  position: absolute;
+  inset: 5px;
+  border-radius: inherit;
+  background: var(--hor-ink);
+  transition: box-shadow 180ms var(--hor-ease);
 }
 
-.hor .ask-w-panel .hor-btn:disabled {
-  opacity: 0.45;
+.hor .ask-composer-action:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.hor .ask-composer-action:hover:not(:disabled)::before {
+  box-shadow: 0 5px 16px color-mix(in srgb, var(--hor-ink) 22%, transparent);
+}
+
+.hor .ask-composer-action:focus-visible {
+  outline: 2px solid var(--hor-focus);
+  outline-offset: 3px;
+}
+
+.hor .ask-composer-action:disabled {
+  opacity: 0.28;
   cursor: not-allowed;
   transform: none;
-  filter: none;
-  box-shadow: var(--hor-inset-top);
+}
+
+.hor .ask-composer-action > svg {
+  position: relative;
+  z-index: 1;
+  width: 16px;
+  height: 16px;
+}
+
+.hor .ask-stop-icon {
+  position: relative;
+  z-index: 1;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background: currentColor;
 }
 
 /* ================================================================== *
@@ -790,11 +845,25 @@
   background: color-mix(in srgb, var(--hor-bg) 62%, transparent);
   backdrop-filter: blur(2px);
   -webkit-backdrop-filter: blur(2px);
-  animation: ask-w-scrim-in 200ms var(--hor-ease) both;
+}
+
+.hor .ask-w-scrim[data-state="open"] {
+  animation: ask-w-scrim-in 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.hor .ask-w-scrim[data-state="closing"] {
+  pointer-events: none;
+  animation: ask-w-scrim-out 150ms cubic-bezier(0.7, 0, 0.84, 0) both;
 }
 
 @keyframes ask-w-scrim-in {
   from {
+    opacity: 0;
+  }
+}
+
+@keyframes ask-w-scrim-out {
+  to {
     opacity: 0;
   }
 }
@@ -834,6 +903,7 @@
     border-bottom: none;
     border-radius: var(--hor-radius-deck) var(--hor-radius-deck) 0 0;
     padding-bottom: env(safe-area-inset-bottom);
+    transform-origin: bottom center;
   }
 
   .hor .ask-w-panel .ask-cite-list {

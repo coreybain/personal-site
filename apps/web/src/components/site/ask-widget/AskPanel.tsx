@@ -63,7 +63,6 @@
 import {
   useCallback,
   useEffect,
-  useId,
   useMemo,
   useRef,
   useState,
@@ -75,7 +74,6 @@ import { DefaultChatTransport } from "ai";
 
 import {
   ASK_LIMITS,
-  ASK_QUESTIONS_PER_HOUR,
   type AskCitation,
   type AskUIMessage,
 } from "@/lib/ask-contract";
@@ -85,14 +83,12 @@ import {
   citationsOf,
   describeAskFailure,
   remainingOf,
-  retrievalOf,
   textOf,
 } from "./protocol";
 import { MarkdownLite } from "./markdown";
 import {
   AskErrorPanel,
   AskRateLimitPanel,
-  AskRetrievalStrip,
   AskUnconfiguredPanel,
 } from "./AskNotice";
 
@@ -217,11 +213,10 @@ const SOURCE_LABEL: Record<string, string> = {
  * — but it means a chip click ends the conversation, which is why nothing in a
  * thread is persisted or promised to be.
  *
- * `id` on each chip is what an inline `[1]` in the answer links to — and the
- * number rendered is the citation's own `index`, assigned once by the route,
- * **never its position in this array**. That distinction is the whole reason
- * the field exists: dropping one unrenderable source would otherwise renumber
- * every chip below it and quietly point half the answer's markers at the wrong
+ * The number rendered is the citation's own `index`, assigned once by the
+ * route, **never its position in this array**. That distinction is the whole
+ * reason the field exists: dropping one unrenderable source must not renumber
+ * the sources below it or make the answer's inline markers point at the wrong
  * page.
  */
 function AskCitations({
@@ -231,14 +226,24 @@ function AskCitations({
   citations: AskCitation[];
   messageId: string;
 }) {
+  const [open, setOpen] = useState(false);
+  const listId = `${messageId}-sources`;
+
   return (
-    <div className="ask-cites">
-      <span className="hor-label ask-cites-key">
-        Sources · {citations.length}
-      </span>
-      <ol className="ask-cite-list">
+    <div className="ask-cites" data-open={open ? "true" : undefined}>
+      <button
+        type="button"
+        className="ask-cites-summary"
+        aria-expanded={open}
+        aria-controls={listId}
+        onClick={() => setOpen((current) => !current)}
+      >
+        <span className="hor-label">Sources</span>
+        <span className="hor-mono ask-cites-count">{citations.length}</span>
+      </button>
+      <ol className="ask-cite-list" id={listId} hidden={!open}>
         {citations.map((citation) => (
-          <li key={citation.url} id={`${messageId}-source-${citation.index}`}>
+          <li key={citation.url}>
             <Link className="ask-cite" href={citation.url}>
               <span className="ask-cite-num hor-mono" aria-hidden="true">
                 {citation.index}
@@ -264,7 +269,8 @@ function AskCitations({
  * ------------------------------------------------------------------ */
 
 /**
- * An answer: prose, then its sources, then how they were found.
+ * An answer: prose, then its sources in a disclosure that stays out of the way
+ * until a reader wants to verify it.
  *
  * The parse is memoised on the text so a finished answer stops re-parsing when
  * a later one streams — with two or three turns on screen that is the
@@ -279,7 +285,6 @@ function AskAnswer({
 }) {
   const text = textOf(message);
   const citations = citationsOf(message);
-  const retrieval = retrievalOf(message);
   const remaining = remainingOf(message);
 
   /**
@@ -290,22 +295,22 @@ function AskAnswer({
    * citation that cannot be checked, which is the one thing this widget is not
    * allowed to ship.
    */
-  const numbered = citations.map((citation) => citation.index).join(",");
+  const citationTargets = JSON.stringify(
+    citations.map((citation) => [citation.index, citation.url]),
+  );
 
   const body = useMemo(() => {
-    const known = new Set(
-      numbered.length === 0 ? [] : numbered.split(",").map(Number),
+    const targets = new Map<number, string>(
+      JSON.parse(citationTargets) as [number, string][],
     );
     return (
       <MarkdownLite
         text={text}
         idPrefix={message.id}
-        citationHref={(index) =>
-          known.has(index) ? `#${message.id}-source-${index}` : null
-        }
+        citationHref={(index) => targets.get(index) ?? null}
       />
     );
-  }, [text, message.id, numbered]);
+  }, [text, message.id, citationTargets]);
 
   return (
     <article className="ask-turn ask-turn-answer" aria-label="Answer">
@@ -317,8 +322,6 @@ function AskAnswer({
       {citations.length > 0 ? (
         <AskCitations citations={citations} messageId={message.id} />
       ) : null}
-
-      {retrieval !== null ? <AskRetrievalStrip retrieval={retrieval} /> : null}
 
       {/* The quota, and only once it is nearly spent. A counter on screen from
           the first question turns a generous allowance into a meter running. */}
@@ -363,19 +366,9 @@ export function AskPanel({ starters, answeringConfigured }: AskPanelProps) {
     stop,
     regenerate,
     clearError,
-    setMessages,
   } = useChat<AskUIMessage>({ transport: askTransport });
 
   const [input, setInput] = useState("");
-
-  /**
-   * Ids rather than literals, because this component is no longer guaranteed to
-   * be a singleton on the page: it is a dynamic import, and a second mount
-   * during a fast open/close/open would otherwise duplicate `id="ask-input"`
-   * and break the `<label>`'s association.
-   */
-  const inputId = useId();
-  const noteId = useId();
 
   const threadRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -398,8 +391,6 @@ export function AskPanel({ starters, answeringConfigured }: AskPanelProps) {
     failure.retryAfterSeconds > 0;
 
   const canSend = !busy && !heldUntilReset;
-
-  const tooLong = input.trim().length > ASK_LIMITS.maxQuestionChars;
 
   const empty = messages.length === 0;
 
@@ -490,18 +481,6 @@ export function AskPanel({ starters, answeringConfigured }: AskPanelProps) {
     void regenerate();
   }, [clearError, messages.length, regenerate]);
 
-  /**
-   * Start over: drop the thread and the error together.
-   *
-   * Nothing is persisted — no history, no local storage, no server-side thread
-   * — so "clear" is exactly what it says, and closing the widget does the same.
-   */
-  const clear = () => {
-    clearError();
-    setMessages([]);
-    setInput("");
-  };
-
   return (
     <>
       {/* ── The thread ───────────────────────────────────────────────── */}
@@ -585,17 +564,13 @@ export function AskPanel({ starters, answeringConfigured }: AskPanelProps) {
 
       {/* ── The composer ─────────────────────────────────────────────── */}
       <form className="ask-composer" onSubmit={onSubmit}>
-        <label className="hor-label ask-composer-label" htmlFor={inputId}>
-          Your question
-        </label>
-
         <textarea
-          id={inputId}
           ref={inputRef}
           className="ask-input"
-          rows={2}
+          rows={3}
           value={input}
-          placeholder="Ask about a project, a decision, or how something was built."
+          placeholder="Ask anything…"
+          aria-label="Ask Corey"
           onChange={(event) => setInput(event.target.value)}
           onKeyDown={(event) => {
             // Enter sends, Shift+Enter breaks the line — the convention every
@@ -608,53 +583,41 @@ export function AskPanel({ starters, answeringConfigured }: AskPanelProps) {
           }}
           disabled={heldUntilReset}
           maxLength={ASK_LIMITS.maxQuestionChars}
-          aria-describedby={noteId}
         />
 
-        <div className="ask-composer-row">
-          {busy ? (
-            <button
-              type="button"
-              className="hor-btn hor-btn-ghost"
-              onClick={stop}
+        {busy ? (
+          <button
+            type="button"
+            className="ask-composer-action"
+            aria-label="Stop response"
+            onClick={stop}
+          >
+            <span className="ask-stop-icon" aria-hidden="true" />
+          </button>
+        ) : (
+          <button
+            type="submit"
+            className="ask-composer-action"
+            aria-label="Send question"
+            disabled={!canSend || input.trim().length === 0}
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 18 18"
+              fill="none"
+              aria-hidden="true"
             >
-              Stop
-            </button>
-          ) : (
-            <button
-              type="submit"
-              className="hor-btn"
-              disabled={!canSend || input.trim().length === 0 || tooLong}
-            >
-              Ask
-              <svg
-                width="13"
-                height="13"
-                viewBox="0 0 13 13"
-                fill="none"
-                aria-hidden="true"
-              >
-                <path
-                  d="M2.6 6.5h7.8M7.2 3.3l3.2 3.2-3.2 3.2"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </button>
-          )}
-
-          <span className="hor-micro ask-composer-note" id={noteId}>
-            Enter sends · {ASK_QUESTIONS_PER_HOUR} questions an hour
-          </span>
-
-          {!empty ? (
-            <button type="button" className="ask-clear hor-link" onClick={clear}>
-              Clear
-            </button>
-          ) : null}
-        </div>
+              <path
+                d="M9 14V4M5 8l4-4 4 4"
+                stroke="currentColor"
+                strokeWidth="1.7"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+        )}
       </form>
     </>
   );

@@ -107,6 +107,8 @@ const FOCUSABLE =
 
 /** Below this the panel is a bottom sheet — must match `ask-widget.css`. */
 const SHEET_QUERY = "(max-width: 640px)";
+const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
+const PANEL_EXIT_MS = 170;
 
 export type AskLauncherProps = {
   /**
@@ -125,18 +127,55 @@ export type AskLauncherProps = {
 
 export function AskLauncher({ starters, answeringConfigured }: AskLauncherProps) {
   const [open, setOpen] = useState(false);
+  const [present, setPresent] = useState(false);
 
   const panelRef = useRef<HTMLDivElement>(null);
   const launcherRef = useRef<HTMLButtonElement>(null);
+  const closeTimerRef = useRef<number | null>(null);
+  const restoreFocusRef = useRef(false);
+
+  const clearCloseTimer = () => {
+    if (closeTimerRef.current === null) return;
+    window.clearTimeout(closeTimerRef.current);
+    closeTimerRef.current = null;
+  };
+
+  const openPanel = () => {
+    clearCloseTimer();
+    setPresent(true);
+    setOpen(true);
+  };
+
+  const closePanel = () => {
+    clearCloseTimer();
+    setOpen(false);
+
+    if (window.matchMedia(REDUCED_MOTION_QUERY).matches) {
+      setPresent(false);
+      return;
+    }
+
+    closeTimerRef.current = window.setTimeout(() => {
+      setPresent(false);
+      closeTimerRef.current = null;
+    }, PANEL_EXIT_MS);
+  };
+
+  useEffect(
+    () => () => {
+      if (closeTimerRef.current !== null) {
+        window.clearTimeout(closeTimerRef.current);
+      }
+    },
+    [],
+  );
 
   /**
    * Focus in on open, back on close.
    *
-   * One effect for both halves, because the cleanup *is* the close: whichever
-   * way the panel goes away — Escape, the close button, the launcher toggling
-   * it — React runs this cleanup after the re-render, by which point the
-   * launcher is back in the DOM (on the mobile sheet it was `display: none`)
-   * and can take focus.
+   * The exit animation keeps the panel mounted briefly after `open` becomes
+   * false. Focus therefore returns only once `present` becomes false and the
+   * launcher is visible again on the mobile sheet.
    *
    * `focus()` on the panel rather than on the composer because at this instant
    * the composer may not exist yet: the chat chunk is still in flight. The
@@ -144,15 +183,17 @@ export function AskLauncher({ starters, answeringConfigured }: AskLauncherProps)
    * hands focus on to the textarea when it mounts.
    */
   useEffect(() => {
-    if (!open) return;
+    if (open) {
+      restoreFocusRef.current = true;
+      panelRef.current?.focus();
+      return;
+    }
 
-    const launcher = launcherRef.current;
-    panelRef.current?.focus();
-
-    return () => {
-      launcher?.focus();
-    };
-  }, [open]);
+    if (!present && restoreFocusRef.current) {
+      restoreFocusRef.current = false;
+      launcherRef.current?.focus();
+    }
+  }, [open, present]);
 
   /**
    * Scroll lock — the mobile sheet only.
@@ -167,7 +208,7 @@ export function AskLauncher({ starters, answeringConfigured }: AskLauncherProps)
    * across the breakpoint while the panel is open resolves correctly.
    */
   useEffect(() => {
-    if (!open) return;
+    if (!present) return;
 
     const query = window.matchMedia(SHEET_QUERY);
     const previous = document.body.style.overflow;
@@ -183,7 +224,7 @@ export function AskLauncher({ starters, answeringConfigured }: AskLauncherProps)
       query.removeEventListener("change", apply);
       document.body.style.overflow = previous;
     };
-  }, [open]);
+  }, [present]);
 
   /**
    * Escape closes; Tab wraps.
@@ -195,7 +236,7 @@ export function AskLauncher({ starters, answeringConfigured }: AskLauncherProps)
   const onPanelKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key === "Escape") {
       event.stopPropagation();
-      setOpen(false);
+      closePanel();
       return;
     }
 
@@ -230,20 +271,22 @@ export function AskLauncher({ starters, answeringConfigured }: AskLauncherProps)
       {/* The mobile scrim. Rendered only when open; hidden above 640px by the
           stylesheet, so the desktop card never dims the page. A click on it
           closes, which is the gesture every sheet on a phone already has. */}
-      {open ? (
+      {present ? (
         <div
           className="ask-w-scrim"
-          onClick={() => setOpen(false)}
+          data-state={open ? "open" : "closing"}
+          onClick={closePanel}
           aria-hidden="true"
         />
       ) : null}
 
-      <div className="ask-w-dock" data-open={open ? "true" : "false"}>
-        {open ? (
+      <div className="ask-w-dock" data-open={present ? "true" : "false"}>
+        {present ? (
           <div
             className="ask-w-panel"
             id="ask-widget-panel"
             ref={panelRef}
+            data-state={open ? "open" : "closing"}
             role="dialog"
             aria-label="Ask Corey"
             tabIndex={-1}
@@ -255,15 +298,11 @@ export function AskLauncher({ starters, answeringConfigured }: AskLauncherProps)
                   <span className="hor-live" aria-hidden="true" />
                   Ask Corey
                 </p>
-                <p className="hor-micro ask-w-sub">
-                  Answers drawn from the pages published here, with the sources
-                  cited as links.
-                </p>
               </div>
               <button
                 type="button"
                 className="ask-w-close"
-                onClick={() => setOpen(false)}
+                onClick={closePanel}
                 aria-label="Close Ask Corey"
               >
                 <svg
@@ -299,7 +338,7 @@ export function AskLauncher({ starters, answeringConfigured }: AskLauncherProps)
           type="button"
           className="ask-w-launcher"
           ref={launcherRef}
-          onClick={() => setOpen((value) => !value)}
+          onClick={open ? closePanel : openPanel}
           aria-expanded={open}
           aria-controls="ask-widget-panel"
         >

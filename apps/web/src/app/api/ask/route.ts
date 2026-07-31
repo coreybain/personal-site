@@ -65,9 +65,10 @@ import { requestIdentifierHash } from "@/lib/requestIdentity";
  *   • no key *on Convex*, or a corpus that was never backfilled → the route
  *                          answers normally, and the streamed `data-retrieval`
  *                          part carries `mode: 'lexical'` with
- *                          `degraded: true` and a `reason`. ADR 015 exists
- *                          because v2's lexical matcher was presented as AI; a
- *                          UI that hides this flag reintroduces exactly that.
+ *                          `degraded: true` and a `reason` for diagnostics.
+ *                          The public widget keeps that implementation detail
+ *                          off-screen and grounds the answer with links to the
+ *                          published source pages instead.
  *
  * Set the key on either side and the corresponding path lights up on the next
  * request — nothing is read at module scope, so neither needs a redeploy.
@@ -451,11 +452,31 @@ export async function POST(request: Request): Promise<Response> {
     // throws, an exception out of `execute`.
     onError: (error) => describeStreamFailure("stream failed", error),
     execute: ({ writer }) => {
-      // Written *before* the model stream is merged, so the citation list and
-      // the degradation flag are on the wire before the first token. A UI can
-      // render its sources panel and its "keyword search" notice while the
-      // answer is still arriving, and both persist in `message.parts` after it
-      // has finished.
+      // Own the response's single `start` chunk here. Writing persistent data
+      // before a start makes `useChat` create an assistant message for that
+      // data; letting the merged model stream then emit its own start (with a
+      // server-generated id) makes the next write look like a second assistant
+      // message. The result is one sources-only card followed by the prose in
+      // another. Starting once here and suppressing the inner start keeps every
+      // part on one assistant turn.
+      writer.write({
+        type: "start",
+        messageMetadata: {
+          createdAt: Date.now(),
+          model,
+          rateLimit: {
+            limit: decision.limit,
+            remaining: decision.remaining,
+            resetAt: decision.resetAt,
+          },
+        },
+      });
+
+      // Written before the model stream is merged, so the citation list and
+      // retrieval diagnostics are on the wire before the first token and both
+      // persist in `message.parts` after it has finished. The public widget
+      // renders the citations behind a compact disclosure and intentionally
+      // leaves the retrieval implementation detail off-screen.
       //
       // Data parts rather than metadata because this is message *content*: it
       // is what makes an `[n]` marker resolvable, and what a reader checks the
@@ -468,26 +489,18 @@ export async function POST(request: Request): Promise<Response> {
       writer.merge(
         toUIMessageStream({
           stream: result.stream,
+          // The outer stream above already started this assistant turn. A
+          // second start would change its id after the data parts were written
+          // and split one answer into two messages in `useChat`.
+          sendStart: false,
           // The handler that actually fires for a provider failure — see
           // `describeStreamFailure`. Without it the SDK's default masks a
           // rotated key as "An error occurred."
           onError: (error) => describeStreamFailure("generation failed", error),
-          // Called on `start` and again on `finish`; the SDK merges what each
-          // pass returns. Facts *about* the message — which model answered,
-          // what quota is left — as opposed to the sources above, which are
-          // part of the message.
+          // The start metadata is attached to the outer start above because
+          // this inner stream deliberately suppresses its own. Finish still
+          // adds how generation ended.
           messageMetadata: ({ part }) => {
-            if (part.type === "start") {
-              return {
-                createdAt: Date.now(),
-                model,
-                rateLimit: {
-                  limit: decision.limit,
-                  remaining: decision.remaining,
-                  resetAt: decision.resetAt,
-                },
-              };
-            }
             if (part.type === "finish") {
               return { finishReason: part.finishReason };
             }
