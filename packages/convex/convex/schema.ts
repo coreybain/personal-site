@@ -180,6 +180,25 @@ export const contactStatus = v.union(
   v.literal('spam'),
 );
 
+/**
+ * Which public surface a rate-limit counter belongs to. Mirrors
+ * `RateLimitBucketSchema` (build phase 6 — Ask Corey).
+ *
+ * Exported because three functions declare it as an argument —
+ * `ask.checkRateLimit`, `ask.retrieve` (implicitly, via its own bucket) and the
+ * internal consume helper — and a bucket one of them accepts but the column
+ * cannot store would be a limit that is checked and never enforced.
+ *
+ * Buckets are separate counters rather than a shared pool: they meter different
+ * costs, and a reader who has used up their questions must still be able to
+ * send a message.
+ */
+export const rateLimitBucket = v.union(
+  v.literal('ask'),
+  v.literal('ask-retrieve'),
+  v.literal('contact'),
+);
+
 /** `{ name, sessions }` — mirrors `AgentUsageSchema` and `ProjectUsageSchema`. */
 const namedSessions = v.object({ name: v.string(), sessions: v.number() });
 
@@ -1205,6 +1224,64 @@ export default defineSchema({
     // silently stop being right the first time a message is backfilled or
     // imported with a `createdAt` the insert order does not match.
     .index('by_createdAt', ['createdAt']),
+
+  /**
+   * Rate-limit counters for the public surfaces (build phase 6). Mirrors
+   * `RateLimitSchema`.
+   *
+   * `contactMessages.submit` has carried a docblock since phase 2 saying rate
+   * limiting "belongs to build phase 6, because doing it properly needs a store
+   * for counters keyed on something the client cannot forge". This is that
+   * store, and it serves Ask Corey (ADR 015) as well — one question is an
+   * OpenAI embedding plus an Anthropic completion, and an unmetered public
+   * endpoint that spends money is a bill waiting to happen.
+   *
+   * ── The key the client cannot forge ───────────────────────────────────────
+   *
+   * `identifierHash` is a lowercase hex SHA-256 of `salt + identifier`, computed
+   * in the **Next.js layer** where the caller's IP actually exists (see
+   * `apps/web/src/lib/requestIdentity.ts`). ⛔ A raw IP address must never be
+   * written to this column, logged, or passed as an argument to any function in
+   * this package: the digest is the only form the address takes once it leaves
+   * the request, and the salt — held only in the web app's environment — is what
+   * stops a third party computing someone else's bucket key and burning their
+   * quota.
+   *
+   * ── One row per (bucket, identifier). Not per window ──────────────────────
+   *
+   * A fixed window counter, reset in place. `windowStart` is floored to a
+   * multiple of the bucket's window length, and a request belonging to a later
+   * window overwrites `windowStart` and sets `count` back to 1 rather than
+   * inserting a second row. So the table is bounded by *distinct recent
+   * identifiers*, not by traffic, and a busy hour costs one row.
+   *
+   * The trade-off (a burst of up to 2× the limit across a window boundary, paid
+   * to avoid a row per request) is argued in full in `lib/rateLimit.ts`, which
+   * is the enforcing copy.
+   *
+   * Derived and disposable: deleting every row in this table forgives every
+   * caller and breaks nothing. `ask.pruneRateLimits` does exactly that to rows
+   * whose window is long gone.
+   */
+  rateLimits: defineTable({
+    bucket: rateLimitBucket,
+    /** Lowercase hex SHA-256. Never an IP address — see above. */
+    identifierHash: v.string(),
+    /** Start of the window this count belongs to, floored to the window length. */
+    windowStart: isoDateTime,
+    /** Requests consumed in this window. ≥ 1 whenever the row exists. */
+    count: v.number(),
+    /** Last touch. Read by the prune sweep and by nothing else. */
+    updatedAt: isoDateTime,
+  })
+    // THE lookup, on every metered request: one indexed read, then one patch.
+    // The pair is the identity of a counter, so this index is also what makes
+    // "at most one row per (bucket, identifier)" cheap to maintain.
+    .index('by_bucket_identifierHash', ['bucket', 'identifierHash'])
+    // The prune sweep's range read: every row whose window started before a
+    // cutoff, across all buckets. Leading field is `windowStart` precisely
+    // because the sweep does not care which bucket a stale row belongs to.
+    .index('by_windowStart', ['windowStart']),
 
   /**
    * Site settings — singleton. Mirrors `SiteSettingsSchema`. The editable chrome

@@ -1,0 +1,598 @@
+/*
+ * Ask — page-scoped extensions to the Horizon language.
+ *
+ * Everything nests under `.hor` (the ThemeScope class) and is namespaced
+ * `ask-*`, so it cannot collide with horizon.css or with a sibling page's
+ * stylesheet. **No colour is declared literally**: every value resolves from a
+ * `--hor-*` token, which is what makes both themes work with no rules of their
+ * own down here.
+ *
+ * The page keeps the site's zone grammar:
+ *   SKY   what the thing is, and what it is not.
+ *   DECK  the console. It is drawn as an instrument — mono labels, hairline
+ *         panels, a graph-paper ground — because that is what it is: a query
+ *         against an index, with the index's state printed on the chrome.
+ *   SKY   the ground rules.
+ *
+ * ── One layout rule worth stating ─────────────────────────────────────────
+ *
+ * Nothing in the thread animates on arrival and nothing moves when a message
+ * lands. Streaming text already changes height every few hundred milliseconds;
+ * adding an entrance to that is how a chat becomes unreadable while it writes.
+ * The single moving part is the caret, which is 2px wide and cannot reflow.
+ */
+
+/* ------------------------------------------------------------------ *
+ * Sky — hero
+ * ------------------------------------------------------------------ */
+
+/* One step down from `.hor-display`, matching /contact: section pages share a
+   scale, and the top of it belongs to the homepage. */
+.hor .ask-display {
+  font-size: clamp(2.4rem, 7.6vw, 4.4rem);
+  line-height: 0.95;
+  letter-spacing: -0.042em;
+  font-weight: 500;
+}
+
+.hor .ask-corpus {
+  color: var(--hor-ink-2);
+}
+
+/* ------------------------------------------------------------------ *
+ * Deck — the console shell
+ * ------------------------------------------------------------------ */
+
+.hor .ask-console {
+  display: grid;
+  gap: 1rem;
+}
+
+.hor .ask-thread {
+  display: grid;
+  gap: 1.15rem;
+  /* Nothing is clipped and nothing scrolls independently: the thread grows and
+     the page scrolls, which keeps the browser's own find-in-page, anchor links
+     and scroll restoration working. An inner scroller would break all three for
+     the sake of a fixed-height box nobody asked for. */
+}
+
+/* ── the question ───────────────────────────────────────────────────── */
+
+.hor .ask-turn-question {
+  display: grid;
+  gap: 0.4rem;
+  padding-left: 0.9rem;
+  border-left: 2px solid var(--hor-line-strong);
+}
+
+.hor .ask-question {
+  font-size: clamp(1.05rem, 2.2vw, 1.2rem);
+  line-height: 1.35;
+  letter-spacing: -0.02em;
+  font-weight: 500;
+  color: var(--hor-ink);
+  text-wrap: pretty;
+}
+
+/* ── the answer ─────────────────────────────────────────────────────── */
+
+.hor .ask-turn-answer {
+  position: relative;
+  padding: clamp(1rem, 3vw, 1.35rem);
+  border: 1px solid var(--hor-line);
+  border-radius: var(--hor-radius-deck);
+  background:
+    linear-gradient(180deg, var(--hor-panel-top), transparent 38%),
+    var(--hor-panel);
+  box-shadow: var(--hor-shadow-panel);
+}
+
+.hor .ask-prose {
+  font-size: 0.9375rem;
+  line-height: 1.66;
+  color: var(--hor-ink);
+  overflow-wrap: break-word;
+}
+
+.hor .ask-prose > * + * {
+  margin-top: 0.8rem;
+}
+
+.hor .ask-prose strong {
+  font-weight: 600;
+  color: var(--hor-ink);
+}
+
+.hor .ask-lead {
+  letter-spacing: -0.015em;
+}
+
+.hor .ask-ul,
+.hor .ask-ol {
+  display: grid;
+  gap: 0.35rem;
+  padding-left: 1.35rem;
+}
+
+.hor .ask-ul {
+  list-style: disc;
+}
+
+.hor .ask-ol {
+  list-style: decimal;
+}
+
+.hor .ask-ul li::marker,
+.hor .ask-ol li::marker {
+  color: var(--hor-ink-4);
+}
+
+.hor .ask-quote {
+  padding-left: 0.85rem;
+  border-left: 2px solid var(--hor-line-strong);
+  color: var(--hor-ink-2);
+}
+
+.hor .ask-code {
+  padding: 0.1em 0.35em;
+  border-radius: 5px;
+  background: var(--hor-chip);
+  color: var(--hor-ink);
+  font-family: var(--font-hor-mono), ui-monospace, SFMono-Regular, monospace;
+  font-size: 0.85em;
+}
+
+.hor .ask-pre {
+  position: relative;
+  overflow-x: auto;
+  padding: 0.85rem 0.9rem;
+  border: 1px solid var(--hor-line-soft);
+  border-radius: 10px;
+  background: var(--hor-chip);
+  font-family: var(--font-hor-mono), ui-monospace, SFMono-Regular, monospace;
+  font-size: 0.8125rem;
+  line-height: 1.55;
+  tab-size: 2;
+}
+
+.hor .ask-pre-lang {
+  display: block;
+  margin-bottom: 0.5rem;
+}
+
+/* Inline `[1]` — a superscript key into the chips below. Small, quiet, and a
+   real link: it moves the viewport to the source it names. */
+.hor .ask-ref {
+  display: inline-grid;
+  place-items: center;
+  min-width: 15px;
+  height: 15px;
+  margin-inline: 0.15em;
+  padding-inline: 0.2em;
+  border: 1px solid var(--hor-line);
+  border-radius: 5px;
+  background: var(--hor-chip);
+  color: var(--hor-ink-2);
+  font-family: var(--font-hor-mono), ui-monospace, monospace;
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 1;
+  text-decoration: none;
+  vertical-align: 0.35em;
+  transition:
+    color 200ms var(--hor-ease),
+    border-color 200ms var(--hor-ease);
+}
+
+.hor .ask-ref:hover {
+  color: var(--hor-accent);
+  border-color: var(--hor-line-strong);
+}
+
+/* The streaming caret. 2px wide, inside the text flow, so it cannot reflow the
+   answer as it blinks. */
+.hor .ask-caret {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-left: 2px;
+  background: var(--hor-accent);
+  vertical-align: -0.15em;
+  animation: ask-blink 1.1s steps(2, start) infinite;
+}
+
+@keyframes ask-blink {
+  to {
+    opacity: 0;
+  }
+}
+
+/* ── citations ──────────────────────────────────────────────────────── */
+
+.hor .ask-cites {
+  display: grid;
+  gap: 0.55rem;
+  margin-top: 1.1rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--hor-line-soft);
+}
+
+.hor .ask-cite-list {
+  display: grid;
+  gap: 0.4rem;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+@media (min-width: 700px) {
+  .hor .ask-cite-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.hor .ask-cite {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  height: 100%;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--hor-line-soft);
+  border-radius: 10px;
+  background: var(--hor-chip);
+  color: inherit;
+  text-decoration: none;
+  transition:
+    border-color 200ms var(--hor-ease),
+    box-shadow 200ms var(--hor-ease);
+}
+
+.hor .ask-cite:hover {
+  border-color: var(--hor-line-strong);
+  box-shadow: var(--hor-inset-top), var(--hor-glow-accent);
+}
+
+.hor .ask-cite-num {
+  display: inline-grid;
+  place-items: center;
+  width: 19px;
+  height: 19px;
+  flex: none;
+  margin-top: 1px;
+  border: 1px solid var(--hor-line);
+  border-radius: 6px;
+  color: var(--hor-accent);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.hor .ask-cite-copy {
+  display: grid;
+  gap: 0.12rem;
+  min-width: 0;
+}
+
+.hor .ask-cite-title {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  letter-spacing: -0.012em;
+  color: var(--hor-ink);
+  overflow-wrap: anywhere;
+}
+
+.hor a.ask-cite:hover .ask-cite-title {
+  color: var(--hor-accent);
+}
+
+.hor .ask-cite-meta {
+  overflow-wrap: anywhere;
+}
+
+/* ── the retrieval readout (ADR 015) ────────────────────────────────── */
+
+.hor .ask-mode {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  margin-top: 0.9rem;
+  padding-top: 0.75rem;
+  border-top: 1px dashed var(--hor-line-soft);
+}
+
+.hor .ask-mode-key {
+  flex: none;
+  padding-top: 0.1rem;
+}
+
+/* Degraded is marked, not hidden. The lexical path is the thing ADR 015
+   replaced; an answer built on it must never read like one built on
+   embeddings. */
+.hor .ask-mode[data-degraded="true"] .ask-mode-key {
+  color: var(--hor-sun);
+}
+
+.hor .ask-mode .hor-vrule {
+  flex: none;
+  height: 12px;
+  margin-top: 0.15rem;
+}
+
+/* The hourly allowance, shown only once it is nearly spent. */
+.hor .ask-quota {
+  margin-top: 0.7rem;
+  color: var(--hor-ink-4);
+}
+
+/* ── in-flight ──────────────────────────────────────────────────────── */
+
+.hor .ask-working {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+/* ------------------------------------------------------------------ *
+ * Starters
+ * ------------------------------------------------------------------ */
+
+.hor .ask-starters {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.hor .ask-starter-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.hor .ask-starter {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.45rem 0.8rem;
+  border: 1px solid var(--hor-line);
+  border-radius: 999px;
+  background: var(--hor-chip);
+  color: var(--hor-ink-2);
+  font-size: 0.8125rem;
+  line-height: 1.25;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    color 200ms var(--hor-ease),
+    border-color 200ms var(--hor-ease),
+    transform 300ms var(--hor-spring);
+}
+
+.hor .ask-starter:hover:not(:disabled) {
+  transform: translateY(-1px);
+  color: var(--hor-ink);
+  border-color: var(--hor-line-strong);
+}
+
+.hor .ask-starter:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* ------------------------------------------------------------------ *
+ * Composer
+ * ------------------------------------------------------------------ */
+
+.hor .ask-composer {
+  display: grid;
+  gap: 0.55rem;
+  padding: clamp(0.85rem, 2.6vw, 1.1rem);
+  border: 1px solid var(--hor-line);
+  border-radius: var(--hor-radius-deck);
+  background: var(--hor-panel);
+  box-shadow: var(--hor-shadow-panel);
+}
+
+.hor .ask-composer-label {
+  /* Present for screen readers and for the instrument look; the placeholder
+     carries the same instruction for everyone else. */
+  color: var(--hor-ink-4);
+}
+
+.hor .ask-input {
+  display: block;
+  width: 100%;
+  min-height: 66px;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--hor-line);
+  border-radius: 10px;
+  background: var(--hor-bg);
+  color: var(--hor-ink);
+  font: inherit;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  resize: vertical;
+  transition:
+    border-color 200ms var(--hor-ease),
+    box-shadow 200ms var(--hor-ease);
+}
+
+.hor .ask-input::placeholder {
+  color: var(--hor-ink-4);
+}
+
+.hor .ask-input:focus {
+  outline: none;
+  border-color: var(--hor-line-strong);
+  box-shadow: var(--hor-glow-accent);
+}
+
+.hor .ask-input:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.hor .ask-composer-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.hor .ask-composer-note {
+  flex: 1 1 16ch;
+  min-width: 0;
+}
+
+.hor .ask-clear {
+  flex: none;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+/* `.hor-btn` belongs to horizon.css and has no disabled state, because until
+   this page nothing on the public site had a button that could be disabled.
+   Scoped to the console rather than declared globally: a page stylesheet may
+   extend a shared component *within its own subtree*, never for the site. */
+.hor .ask-console .hor-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+  filter: none;
+  box-shadow: var(--hor-inset-top);
+}
+
+/* ------------------------------------------------------------------ *
+ * Notices — the honest states
+ * ------------------------------------------------------------------ */
+
+.hor .ask-notice {
+  /* Deliberately the same material as an answer panel. These states are not
+     errors squeezed into a toast; they are what the page has to say, so they
+     get the same weight as the thing they replace. */
+  overflow: hidden;
+}
+
+.hor .ask-notice-title {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  letter-spacing: -0.018em;
+  color: var(--hor-ink);
+}
+
+.hor .ask-notice-body {
+  margin-top: 0.6rem;
+  max-width: 62ch;
+  text-wrap: pretty;
+}
+
+.hor .ask-notice-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--hor-ink-4);
+}
+
+.hor .ask-notice[data-tone="hold"] .ask-notice-dot {
+  background: var(--hor-accent);
+  box-shadow: var(--hor-glow-accent);
+}
+
+.hor .ask-notice[data-tone="wait"] .ask-notice-dot,
+.hor .ask-notice[data-tone="fault"] .ask-notice-dot {
+  background: var(--hor-sun);
+  box-shadow: var(--hor-glow-sun);
+}
+
+.hor .ask-keys {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 0.9rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--hor-line-soft);
+  border-radius: 10px;
+  background: var(--hor-chip);
+}
+
+.hor .ask-key dt {
+  color: var(--hor-ink-2);
+}
+
+.hor .ask-key dd {
+  margin-top: 0.2rem;
+}
+
+.hor .ask-notice-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.hor .ask-countdown {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  margin-top: 0.9rem;
+}
+
+.hor .ask-countdown-value {
+  color: var(--hor-sun);
+}
+
+/* ------------------------------------------------------------------ *
+ * Sky — ground rules
+ * ------------------------------------------------------------------ */
+
+.hor .ask-ground {
+  display: grid;
+  gap: 1.75rem;
+}
+
+@media (min-width: 760px) {
+  .hor .ask-ground {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 2.5rem;
+  }
+}
+
+.hor .ask-ground-list {
+  display: grid;
+  gap: 0.7rem;
+  margin-top: 1rem;
+  padding: 0;
+  list-style: none;
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  color: var(--hor-ink-2);
+  max-width: 46ch;
+}
+
+.hor .ask-ground-list li {
+  padding-left: 1rem;
+  border-left: 1px solid var(--hor-line);
+  text-wrap: pretty;
+}
+
+/* ------------------------------------------------------------------ *
+ * Motion and contrast preferences
+ * ------------------------------------------------------------------ */
+
+@media (prefers-reduced-motion: reduce) {
+  .hor .ask-caret {
+    animation: none;
+  }
+
+  .hor .ask-starter:hover:not(:disabled) {
+    transform: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .hor .ask-cite,
+  .hor .ask-ref,
+  .hor .ask-starter {
+    border-color: CanvasText;
+  }
+}

@@ -59,7 +59,21 @@ export type ValidationErrorData = {
     | 'out-of-range'
     | 'duplicate-slug'
     | 'not-found'
-    | 'precondition-failed';
+    | 'precondition-failed'
+    /**
+     * The caller is over a rate limit (build phase 6 — `lib/rateLimit.ts`).
+     *
+     * The odd one out in this union: every other code describes something wrong
+     * with the request, and this one describes something true about the caller.
+     * It is here anyway because the transport is the same — a `ConvexError` the
+     * contact form already knows how to render — and adding a second error
+     * channel for one case would mean the form handling two shapes.
+     *
+     * ⚠️ `field` is absent on this code. There is no input to highlight, and
+     * pinning the message to `message` would tell a reader their message was
+     * malformed when it was fine.
+     */
+    | 'rate-limited';
   field?: string;
   message: string;
 };

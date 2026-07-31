@@ -12,7 +12,10 @@ packages/convex/
 │   ├── lib/auth.ts          # requireAdmin — every mutation's first line
 │   ├── lib/validate.ts      # nowIso + the format checks Convex validators cannot express
 │   ├── ingestTokens.ts      # issue / revoke / list / verifyToken (ADR 006a)
-│   ├── contactMessages.ts   # public submit + the admin inbox
+│   ├── contactMessages.ts   # public submit (rate limited) + the admin inbox
+│   ├── knowledge.ts         # publish-time indexer for Ask Corey (ADR 015)
+│   ├── ask.ts               # retrieval + citations + the rate limiter's surface
+│   ├── lib/rateLimit.ts     # the fixed-window counter every public write uses
 │   ├── siteSettings.ts      # the singleton the phone edits
 │   └── _generated/          # written by codegen, NOT by hand
 ├── .env.example
@@ -196,10 +199,135 @@ can read the Clerk session. Convex refuses the token otherwise.
 | `NEXT_PUBLIC_CONVEX_URL`            | `apps/web/.env.local` + Vercel            | The browser client's endpoint. Public by design. |
 | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | `apps/web/.env.local` + Vercel            | Clerk's browser SDK. Public by design. |
 | `CLERK_SECRET_KEY`                  | `apps/web/.env.local` + Vercel            | Server-side Clerk calls in Next. Never `NEXT_PUBLIC_`. |
+| `OPENAI_API_KEY`                    | **Convex dashboard**, per deployment      | Embeddings for Ask Corey. Read by `knowledge.ts` (indexing) and `ask.ts` (the query vector). See below. |
+| `ANTHROPIC_API_KEY`                 | root `.env` + Vercel                      | Answering. Read by the `/ask` route in `apps/web`, **not** by any Convex function. See below. |
+| `ASK_MODEL`                         | root `.env` + Vercel (optional)           | Overrides the answering model id. Defaults to `claude-sonnet-5`. |
+| `RATE_LIMIT_SALT`                   | root `.env` + Vercel                      | Salts the identifier digest in `apps/web/src/lib/requestIdentity.ts`. Never reaches Convex. |
 
 No secret belongs in `packages/convex/.env.local` other than what the CLI puts
 there. Anything a Convex *function* needs at runtime goes in the Convex
 dashboard, because functions do not see this repo's `.env` files at all.
+
+## Ask Corey keys (ADR 015 — build phase 6)
+
+Ask Corey needs **two** keys, and they live in **two different places** because
+two different runtimes read them.
+
+| Key | Set on | Read by | Without it |
+| --- | --- | --- | --- |
+| `OPENAI_API_KEY` | the **Convex deployment** | `knowledge.ts` (indexing) and `ask.ts` (embedding the query) | Rows are indexed with `embedding: []`; retrieval falls back to the lexical index and reports `retrievalMode: 'lexical'`, `reason: 'no-key'` |
+| `ANTHROPIC_API_KEY` | the **web app** (root `.env` + Vercel) | the `/ask` route in `apps/web` | The route cannot answer. It must say so — retrieval still works and can still show citations |
+| `ASK_MODEL` | the **web app**, optional | the `/ask` route | Defaults to `claude-sonnet-5` |
+| `RATE_LIMIT_SALT` | the **web app** | `apps/web/src/lib/requestIdentity.ts` | Counters still work and no raw address is ever stored, but bucket keys become computable by anyone who knows a visitor's IP. A warning is logged once per process |
+
+No Convex function reads `ANTHROPIC_API_KEY`, and the web app never reads
+`OPENAI_API_KEY`. That split is the whole point of retrieval living in Convex
+and answering living in the route: the deployment holds the corpus and the
+embedding key, the route holds the model key and streams tokens.
+
+### Exact commands
+
+```sh
+# Embeddings — set on the Convex deployment. Functions do not read this repo's
+# .env files, so this is the ONLY place that works.
+cd packages/convex
+bunx convex env set OPENAI_API_KEY sk-proj-…
+bunx convex env set OPENAI_API_KEY sk-proj-… --prod
+
+# Confirm. `--names-only` because plain `env list` prints the values.
+bunx convex env list --names-only
+```
+
+```sh
+# Answering + the rate-limit salt — the web side. Root .env for local runs
+# (the root scripts already pass --env-file=.env), Vercel for deployed ones.
+ANTHROPIC_API_KEY=sk-ant-…
+ASK_MODEL=claude-sonnet-5          # optional override
+RATE_LIMIT_SALT=$(openssl rand -hex 32)
+```
+
+```sh
+# …and the same three on Vercel, for preview and production:
+cd apps/web
+bunx vercel env add ANTHROPIC_API_KEY production
+bunx vercel env add RATE_LIMIT_SALT production
+```
+
+### After setting `OPENAI_API_KEY`: backfill
+
+Setting the key does **not** retro-embed anything. Every existing row was
+written with `embedding: []` and `embeddingModel: ''`, which matches no model
+and is therefore invisible to the `by_embedding` vector index. One command
+fixes the whole corpus:
+
+```sh
+cd packages/convex
+bunx convex run knowledge:backfill '{}'
+```
+
+It is an `internalAction`, so the CLI reaches it with the deployment's admin key
+and nothing had to be made public. Sequential by design, and it reports
+honestly:
+
+```jsonc
+// today, with no key — this is the expected output, not a failure
+{ "total": 8, "indexed": 8, "embedded": 0, "notEmbedded": 8,
+  "reasons": { "no-key": 8 } }
+
+// with the key set
+{ "total": 8, "indexed": 8, "embedded": 8, "notEmbedded": 0, "reasons": {} }
+```
+
+`embed()` reads `process.env.OPENAI_API_KEY` **per call**, so the key takes
+effect on the next function invocation — no redeploy, no restart. Confirm the
+index is live with:
+
+```sh
+bunx convex run ask:corpusStats '{}'      # { published: 8, embedded: 8 }
+```
+
+Re-run the backfill after changing `EMBEDDING_MODEL` (and the schema's
+`dimensions` with it), and after any bulk import that bypassed the publish hooks.
+
+### Checking retrieval by hand
+
+```sh
+cd packages/convex
+bunx convex run ask:retrieve '{
+  "query": "What is QuoteCloud?",
+  "identifierHash": "cfe7b5dfcaa238d8f3695dc28f0021f5f048ca560dc8b26d4833f8f0a976ee65"
+}'
+```
+
+`identifierHash` is required and must be 64 lowercase hex characters — it is the
+rate-limit key, and the real one is a **salted digest of the caller** computed in
+`apps/web/src/lib/requestIdentity.ts`. Any digest works from the CLI; a raw IP
+address never does, by design.
+
+Read `retrievalMode` in the response before reading `results`. `'lexical'` means
+the answer is coming from full-text search, which is the class of thing ADR 015
+exists to replace — the route surfaces it to the reader for the same reason.
+
+### Rate limits
+
+| Bucket | Limit | Enforced by |
+| --- | --- | --- |
+| `ask` | 10 / hour | the `/ask` route, via `api.ask.checkRateLimit` |
+| `ask-retrieve` | 30 / hour | `api.ask.retrieve` itself — a backstop on the public action |
+| `contact` | 3 / hour | inside `contactMessages.submit` |
+
+Fixed window, one row per (bucket, identifier), reset in place. The trade-off is
+argued in `convex/lib/rateLimit.ts`; the numbers are mirrored (documentation
+only) as `RATE_LIMIT_POLICY` in `@home/types`.
+
+```sh
+# housekeeping — also runs daily by cron
+bunx convex run ask:pruneRateLimits '{}'
+
+# ops escape hatch: age one counter's window so the rollover can be observed
+# without waiting an hour. Internal — a public version would be a bypass.
+bunx convex run ask:rewindRateLimitWindow '{"bucket":"ask","identifierHash":"…"}'
+```
 
 ## Scripts
 

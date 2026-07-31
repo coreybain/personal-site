@@ -74,13 +74,33 @@ const distDir = resolve(arg('--dist') ?? join(import.meta.dir, '..', '..', 'apps
  * by one person" as visible copy, and a check that fails on the site's own
  * honest description of where a message goes is a check that gets deleted.
  */
-const CONTRABAND: { marker: string; what: string }[] = [
+const CONTRABAND: { marker: string; what: string; allowedOn?: string[] }[] = [
   { marker: 'ConvexReactClient', what: 'the Convex React client' },
   { marker: 'ConvexHttpClient', what: 'the Convex HTTP client' },
   { marker: 'ClerkProvider', what: 'Clerk' },
   { marker: '__clerk', what: 'Clerk' },
   { marker: 'ProseMirror', what: 'Tiptap / ProseMirror' },
   { marker: 'uploadthing', what: 'UploadThing' },
+
+  // ── The AI SDK, and the one route allowed to carry it ────────────────────
+  //
+  // ADR 015 buys `/ask` an exception to the zero-client-JS rule, because a chat
+  // cannot be a form post. An exception nobody measures is an exception that
+  // spreads: the moment a shared layout imports something from `ai`, every
+  // public route pays for the chat runtime and the only symptom is a byte
+  // total drifting up a few KB at a time.
+  //
+  // So the exception is written down as a *scope* rather than a silence. These
+  // markers are contraband everywhere except `/ask`, which means importing the
+  // SDK into a shared component fails the gate by name and points at the route
+  // that regressed. `/ask` itself is still held to its size budget below —
+  // being allowed to carry the SDK is not being allowed to carry any amount
+  // of it.
+  //
+  // Both markers were confirmed present in the emitted `/ask` chunk and absent
+  // from every other chunk in the build, rather than guessed from the source.
+  { marker: 'UIMessageStream', what: 'the AI SDK client runtime', allowedOn: ['/ask'] },
+  { marker: 'ai-sdk', what: 'the AI SDK client runtime', allowedOn: ['/ask'] },
 ];
 
 /* ------------------------------------------------------------------ *
@@ -179,16 +199,21 @@ function measurePage(distRoot: string, appDir: string, page: string): Page {
   const urls = [...new Set([...html.matchAll(SCRIPT_RE)].map((m) => m[1]!))];
   const chunks = urls.map((url) => measureChunk(distRoot, url, url.replace('/_next/', '')));
 
+  // Resolved before the scan because some markers are contraband only on
+  // *some* routes — see the AI SDK entries in `CONTRABAND`.
+  const route = routeOf(appDir, page);
+
   const contraband: Page['contraband'] = [];
   for (const url of urls) {
     const source = readFileSync(join(distRoot, url.replace('/_next/', '')), 'utf8');
-    for (const { marker, what } of CONTRABAND) {
+    for (const { marker, what, allowedOn } of CONTRABAND) {
+      if (allowedOn?.includes(route)) continue;
       if (source.includes(marker)) contraband.push({ marker, what, chunk: url });
     }
   }
 
   return {
-    route: routeOf(appDir, page),
+    route,
     page,
     chunks,
     gzip: chunks.reduce((n, c) => n + c.gzip, 0),

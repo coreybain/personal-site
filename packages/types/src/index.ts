@@ -23,7 +23,13 @@
  * │ gitRepoMap         private    GitRepoMapEntrySchema    stats.ts            │
  * │ knowledgeDocs      table      KnowledgeDocSchema       knowledge.ts        │
  * │ contactMessages    table      ContactMessageSchema     contact.ts          │
+ * │ rateLimits         counter    RateLimitSchema          rateLimit.ts        │
  * └────────────────────────────────────────────────────────────────────────────┘
+ *
+ * `counter` marks the phase 6 rate-limit table: written by the public surfaces
+ * that meter themselves (`ask.retrieve`, `ask.checkRateLimit`,
+ * `contactMessages.submit`), read by nothing else, and never returned to a
+ * caller as a row — only as the `RateLimitDecision` derived from one.
  *
  * `raw` marks a landing zone for a machine push (phase 4 Pipelines): written only
  * by an ingest endpoint, read only by the cron that folds it onto the Snapshot,
@@ -60,6 +66,7 @@ export * from './settings';
 export * from './ingest';
 export * from './knowledge';
 export * from './contact';
+export * from './rateLimit';
 
 import { ContactMessageSchema } from './contact';
 import {
@@ -74,6 +81,7 @@ import {
   IngestTokenSchema,
 } from './ingest';
 import { KnowledgeDocSchema } from './knowledge';
+import { RateLimitSchema } from './rateLimit';
 import { ExperienceEntrySchema, ResumeDocumentSchema } from './resume';
 import { SiteSettingsSchema } from './settings';
 import { SnapshotSchema } from './snapshot';
@@ -101,6 +109,7 @@ export const tableSchemas = {
   gitRepoMap: GitRepoMapEntrySchema,
   knowledgeDocs: KnowledgeDocSchema,
   contactMessages: ContactMessageSchema,
+  rateLimits: RateLimitSchema,
 } as const;
 
 /** Convex table name. */

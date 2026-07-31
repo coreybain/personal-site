@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as ask from "../ask.js";
 import type * as contactMessages from "../contactMessages.js";
 import type * as crons from "../crons.js";
 import type * as experienceEntries from "../experienceEntries.js";
@@ -20,6 +21,7 @@ import type * as knowledge from "../knowledge.js";
 import type * as labs from "../labs.js";
 import type * as lib_auth from "../lib/auth.js";
 import type * as lib_days from "../lib/days.js";
+import type * as lib_rateLimit from "../lib/rateLimit.js";
 import type * as lib_validate from "../lib/validate.js";
 import type * as migrations from "../migrations.js";
 import type * as posts from "../posts.js";
@@ -38,6 +40,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  ask: typeof ask;
   contactMessages: typeof contactMessages;
   crons: typeof crons;
   experienceEntries: typeof experienceEntries;
@@ -50,6 +53,7 @@ declare const fullApi: ApiFromModules<{
   labs: typeof labs;
   "lib/auth": typeof lib_auth;
   "lib/days": typeof lib_days;
+  "lib/rateLimit": typeof lib_rateLimit;
   "lib/validate": typeof lib_validate;
   migrations: typeof migrations;
   posts: typeof posts;

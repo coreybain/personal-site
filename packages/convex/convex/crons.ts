@@ -1,5 +1,6 @@
 /**
- * crons.ts — the schedule. One job, and this file exists to say why it is one.
+ * crons.ts — the schedule. One job that matters, and this file exists to say
+ * why it is one.
  *
  * ADR 004: "A dashboard that calls GitHub on page load costs seconds. One
  * denormalised row, refreshed on a schedule, keeps loads sub-second." This is
@@ -74,6 +75,33 @@ crons.hourly(
   'rebuild the snapshot from GitHub and the ingest tables',
   { minuteUTC: 7 },
   internal.gitStats.rebuild,
+  {},
+);
+
+/**
+ * Sweep spent rate-limit counters (build phase 6).
+ *
+ * ── Why this is not "a second job" in the sense the header argues against ──
+ *
+ * The paragraph above is about the *Snapshot*: rebuilding one row in pieces
+ * would let a reader see this hour's calendar beside last hour's AI numbers.
+ * Nothing about that applies here. `rateLimits` is not read by any page, is not
+ * part of any consistent view, and — crucially — **the limiter does not need
+ * this job to be correct**. A counter from an old window is reset in place by
+ * the next request that touches it, so a stale row and no row behave
+ * identically. This reclaims space, nothing more.
+ *
+ * Daily, not hourly, because that is the frequency the amount of space at stake
+ * deserves: a personal site's distinct callers per day, one small row each.
+ *
+ * 03:20 UTC is early afternoon in Sydney and unremarkable everywhere; the
+ * minute is off the hour for the same "stay out of the :00 crowd" reason the
+ * snapshot job gives, though here it costs nothing either way.
+ */
+crons.daily(
+  'sweep spent rate-limit counters',
+  { hourUTC: 3, minuteUTC: 20 },
+  internal.ask.pruneRateLimits,
   {},
 );
 

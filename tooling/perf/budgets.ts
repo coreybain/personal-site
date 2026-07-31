@@ -116,6 +116,48 @@ export const BUDGETS: Budget[] = [
   { route: '/resume', budget: 172, plan: null, note: 'web resume + PDF link' },
   { route: '/contact', budget: 180, plan: null, note: 'contact form' },
   {
+    route: '/ask',
+    budget: 298,
+    plan: null,
+    // MEASURED, and the number is bad. 290.3 KB gzipped on the build that
+    // landed the route; 298 is that plus the table's standard headroom
+    // (`measured + max(4 KB, 2.5%)`, rounded up to an even KB). It replaces the
+    // 200 KB placeholder that was written here before anyone had built the page
+    // — that guess was 90 KB optimistic.
+    //
+    // ── Where the 290 KB goes, measured rather than assumed ─────────────────
+    //
+    //   144.9 KB   the framework floor, identical to every other route
+    //   122.6 KB   ONE chunk (515.9 KB raw): the AI SDK's client runtime
+    //    ~22.8 KB  everything else this route adds — the console, the
+    //              markdown-lite renderer, the notices, the page's own CSS-in-
+    //              JS-free components
+    //
+    // The 122.6 KB is not an import that could have been written more tightly.
+    // It was verified by deleting the `import { DefaultChatTransport } from
+    // 'ai'` entirely and building again: **290.1 KB**, a 0.2 KB difference.
+    // `@ai-sdk/react` depends on `ai` and pulls the same graph through
+    // `useChat` whatever the calling code imports, and the barrel does not
+    // shake down under Turbopack. Nothing in `components/site/ask` can move
+    // this number materially; only a different chat client could.
+    //
+    // ── Two things that would actually reduce it, neither done here ─────────
+    //
+    //   1. Defer the island (`next/dynamic`, load on first interaction). The
+    //      122.6 KB stops being *first-load* JS and becomes on-demand JS. That
+    //      is a real improvement for a reader who never types anything — and it
+    //      is also the move that makes this row look good without the page
+    //      getting lighter, so it should be taken deliberately, for the reader,
+    //      and the note here should say the total is unchanged.
+    //   2. Hand-write a transport against the SSE protocol and drop `useChat`.
+    //      Cheaper bytes, considerably more code to own, and the streaming
+    //      protocol becomes this repo's problem on every SDK release.
+    //
+    // Until one of those is chosen, this route is 1.7× the floor and the number
+    // is written down where a reviewer has to look at it.
+    note: 'Ask Corey — the one public route with chat JS (ADR 015). 122.6 KB of it is the AI SDK client runtime',
+  },
+  {
     route: '/variants',
     budget: 154,
     plan: null,

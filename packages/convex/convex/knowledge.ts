@@ -167,14 +167,14 @@ const OPENAI_EMBEDDINGS_URL = 'https://api.openai.com/v1/embeddings';
  * to be set, a retry, a provider bug report, or a dimension mismatch that means
  * the schema and this file have drifted.
  */
-type NotEmbeddedReason =
+export type NotEmbeddedReason =
   | 'no-key'
   | 'request-failed'
   | 'http-error'
   | 'bad-response'
   | 'wrong-dimensions';
 
-type EmbedResult =
+export type EmbedResult =
   | { ok: true; embedding: number[] }
   | { ok: false; reason: NotEmbeddedReason; detail: string };
 
@@ -192,8 +192,16 @@ type EmbedResult =
  * (it is only `v.array(v.float64())`) and the vector index silently ignores —
  * a row that looks embedded, is not, and never gets re-indexed because its
  * `embeddingModel` matches. That bug is worth the twenty lines to prevent.
+ *
+ * **Exported for `ask.ts` (phase 6).** A query and a document must be embedded
+ * by the same model, through the same request shape, with the same validation —
+ * a second implementation in the retrieval file would be two ways of producing
+ * vectors that are then compared against each other, which is the one place a
+ * subtle difference is guaranteed to matter. Retrieval imports this rather than
+ * copying it, and `EMBEDDING_MODEL` above stays the single declaration of which
+ * model the index holds.
  */
-async function embed(text: string): Promise<EmbedResult> {
+export async function embed(text: string): Promise<EmbedResult> {
   const apiKey = process.env.OPENAI_API_KEY;
 
   // The expected branch on this deployment. See the file header.

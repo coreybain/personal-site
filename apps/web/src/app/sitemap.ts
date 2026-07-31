@@ -91,6 +91,24 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.7,
     },
     {
+      /**
+       * Ask Corey (ADR 015). Submitted unconditionally, unlike `/blog`: the
+       * page is complete prose in every state it can be in — it explains what
+       * it is, what it is grounded in and what it will not do, and it renders
+       * all of that server-side with no keys set. There is no soft-404 shape
+       * here to protect a crawler from.
+       *
+       * `weekly` because what the page *can answer* changes whenever something
+       * is published — the corpus is the site — even though the page's own
+       * copy is stable. The snapshot stamp is the right last-modified for the
+       * same reason it is right for /work.
+       */
+      url: absoluteUrl("/ask"),
+      lastModified: snapshotStamp,
+      changeFrequency: "weekly",
+      priority: 0.7,
+    },
+    {
       url: absoluteUrl("/contact"),
       lastModified: snapshotStamp,
       changeFrequency: "monthly",

@@ -7,11 +7,17 @@
  * untrusted input, `ContactMessageSchema` is the row after the server has added
  * what the client must not control), and the same split is enforced here:
  *
- *   • `submit` accepts exactly `name`, `email`, `company`, `message`. `status`
- *     and `createdAt` are server-owned. Convex rejects an argument the validator
- *     does not name, so an injected `status: 'replied'` fails at the boundary
- *     rather than being quietly stripped — the `strictObject` behaviour
- *     `ContactFormSchema` asks for, for free.
+ *   • `submit` accepts exactly `name`, `email`, `company`, `message` and (since
+ *     build phase 6) `identifierHash`. `status` and `createdAt` are
+ *     server-owned. Convex rejects an argument the validator does not name, so
+ *     an injected `status: 'replied'` fails at the boundary rather than being
+ *     quietly stripped — the `strictObject` behaviour `ContactFormSchema` asks
+ *     for, for free.
+ *   • `identifierHash` is the rate-limit key: a **salted digest** of the caller,
+ *     computed in the Next.js Server Action because that is the only layer that
+ *     can see an IP address. It is caller-supplied and therefore forgeable by
+ *     design — the salt is what stops it being forgeable *as somebody else* —
+ *     and it is stored only in `rateLimits`, never on the message.
  *   • Everything else calls `requireAdmin`.
  *
  * The email notification is a side effect that does not live here. A mutation
@@ -25,6 +31,7 @@
 import { v } from 'convex/values';
 import { mutation, query } from './_generated/server';
 import { requireAdmin } from './lib/auth';
+import { RATE_LIMITS, consumeRateLimit } from './lib/rateLimit';
 import { assertEmail, assertText, invalid, nowIso } from './lib/validate';
 import { contactStatus } from './schema';
 
@@ -49,25 +56,50 @@ const MAX_MESSAGE = 5000;
  * Store a contact form submission. **The one deliberately public mutation in
  * this package.**
  *
- * ⚠️ RATE LIMITING IS NOT IMPLEMENTED HERE, AND THAT IS ON PURPOSE.
+ * ── RATE LIMITED as of build phase 6 ──────────────────────────────────────
  *
- * It belongs to build phase 6 (hardening), alongside the honeypot/turnstile
- * decision, because doing it properly needs a store for counters keyed on
- * something the client cannot forge — and a Convex mutation cannot see the
- * caller's IP (the request never passes through a Next route). The two shapes
- * that can work are a Next.js Route Handler in front of this mutation, which can
- * read the IP header and rate limit there, or a proof-of-work / Turnstile token
- * validated in an action. Both are phase 6 decisions. What this function does
- * today is bound every field so that abuse costs a row, not a database:
- * `assertText` below is the standing mitigation, not a placeholder.
+ * This docblock used to say rate limiting was deferred, because "doing it
+ * properly needs a store for counters keyed on something the client cannot
+ * forge — and a Convex mutation cannot see the caller's IP". Both halves are
+ * still true and both are now answered:
+ *
+ *   • the store is the `rateLimits` table (`lib/rateLimit.ts`);
+ *   • the key is `identifierHash`, a **salted SHA-256 computed in the Next.js
+ *     Server Action**, where the IP does exist. Convex still never sees an
+ *     address, which is why the argument is a required digest and not an
+ *     optional convenience — an optional one would silently degrade to no
+ *     limiting the moment a caller omitted it, which is the version of this
+ *     feature that is worse than none.
+ *
+ * The limit is **three an hour** per identifier. A real sender writes once; a
+ * second and third are the corrections a real sender sometimes needs. Refusal
+ * is a `ConvexError` with `code: 'rate-limited'` and a sentence naming the
+ * wait, so the form can print it under the composer rather than showing a
+ * generic failure — and the message never implies the submission was malformed.
+ *
+ * The field bounds below remain the standing mitigation they always were: the
+ * limiter caps how often abuse can happen, `assertText` caps how much it costs
+ * when it does.
+ *
+ * ⚠️ The counter is consumed **after** validation and **before** the insert. A
+ * malformed submission therefore does not burn a slot (it never reached the
+ * inbox), and a well-formed one burns exactly one whether or not the insert
+ * then succeeds. Convex mutations are transactional, so a later failure rolls
+ * the counter back with everything else.
  *
  * Status starts at `'new'` and `createdAt` comes from the server — a submission
  * that could set either could hide itself from the inbox.
  *
+ * @param identifierHash - lowercase hex SHA-256 of `salt + caller identity`,
+ *   from `apps/web/src/lib/requestIdentity.ts`. ⛔ Never a raw IP address.
+ *
  * @returns `null`. Nothing about stored state is echoed back to an anonymous
  *   caller: the mutation resolving IS the receipt, and returning an id or a count
  *   would tell a stranger something about the inbox they have no business
- *   knowing. The form renders its thank-you on resolve.
+ *   knowing. The form renders its thank-you on resolve. Note that the rate-limit
+ *   decision is deliberately *not* returned either — a caller who is inside the
+ *   limit learns nothing about how close they are, because the only use for that
+ *   number is pacing an abuser.
  */
 export const submit = mutation({
   args: {
@@ -75,6 +107,7 @@ export const submit = mutation({
     email: v.string(),
     company: v.optional(v.string()),
     message: v.string(),
+    identifierHash: v.string(),
   },
   handler: async (ctx, args) => {
     assertText(args.name, 'name', MAX_NAME);
@@ -89,6 +122,20 @@ export const submit = mutation({
         code: 'out-of-range',
         field: 'company',
         message: `company must be ${MAX_COMPANY} characters or fewer.`,
+      });
+    }
+
+    const decision = await consumeRateLimit(ctx, 'contact', args.identifierHash);
+    if (!decision.allowed) {
+      // Minutes, not seconds: "try again in 43 minutes" is a sentence, "in 2,580
+      // seconds" is a number the reader has to do arithmetic on. Rounded up so
+      // the advice is never early.
+      const minutes = Math.max(1, Math.ceil(decision.retryAfterSeconds / 60));
+      invalid({
+        code: 'rate-limited',
+        message:
+          `That is ${RATE_LIMITS.contact.limit} messages in an hour, which is the limit. ` +
+          `Try again in ${minutes} minute${minutes === 1 ? '' : 's'} — or email direct, which is not limited.`,
       });
     }
 

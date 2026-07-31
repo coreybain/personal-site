@@ -50,12 +50,24 @@
  * caller reaching this action can do precisely what an anonymous caller reaching
  * the form can do.
  *
- * ⚠️ NO RATE LIMITING, and it is not this file's to add. `contactMessages.ts`
- * sets out why: doing it properly needs the caller's IP, which a Convex mutation
- * cannot see, so the shape is either a Route Handler in front of the mutation or
- * a Turnstile token validated in an action. Both are phase 6. A Server Action
- * *can* read headers, so this file is where that will eventually live — the
- * bounds below are the standing mitigation until it does.
+ * ── Rate limiting — landed in phase 6 ──────────────────────────────────────
+ *
+ * This docblock used to end "NO RATE LIMITING, and it is not this file's to
+ * add… a Server Action *can* read headers, so this file is where that will
+ * eventually live". It now lives here, in the sense that matters: the digest is
+ * computed here, because this is the layer where an IP address exists at all.
+ *
+ * The *decision* is made in `contactMessages.submit`, not in this file, and the
+ * split is not arbitrary. A limit enforced in front of the mutation would be
+ * bypassed by anything that called the mutation directly — and it is a public
+ * mutation, reachable by anyone holding the deployment URL. Enforced inside, it
+ * cannot be routed around. What this file contributes is the one thing Convex
+ * genuinely cannot obtain: who is asking, hashed so that neither the database
+ * nor the log ever holds an address. See `@/lib/requestIdentity`.
+ *
+ * Three an hour. A refusal comes back as a `ConvexError` with
+ * `code: 'rate-limited'`, which the existing error path below already renders —
+ * the server's own sentence, unmodified, under the composer.
  */
 
 import { fetchMutation } from "convex/nextjs";
@@ -64,6 +76,7 @@ import { ConvexError } from "convex/values";
 import { api } from "@home/convex/api";
 
 import type { ContactField, ContactState } from "@/components/site/contact/transport";
+import { requestIdentifierHash } from "@/lib/requestIdentity";
 
 /* ------------------------------------------------------------------ *
  * Bounds — mirrored from `contactMessages.ts`, which mirrors
@@ -164,9 +177,19 @@ export async function submitContactMessage(
   }
 
   try {
+    /* Computed after the field checks, so a blank form does not read headers —
+       and, more usefully, so a malformed submission never reaches the limiter
+       and cannot spend one of the sender's three attempts on a typo. */
+    const identifierHash = await requestIdentifierHash();
+
     // `company` is omitted, not sent empty: the mutation normalises a blank
     // company away, and this form does not ask for one.
-    await fetchMutation(api.contactMessages.submit, { name, email, message });
+    await fetchMutation(api.contactMessages.submit, {
+      name,
+      email,
+      message,
+      identifierHash,
+    });
     return { status: "sent" };
   } catch (error) {
     // Loud on the server. The reader gets a sentence; the operator gets the
