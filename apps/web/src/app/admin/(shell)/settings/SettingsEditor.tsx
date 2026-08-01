@@ -75,6 +75,7 @@ import { linesToList, listToLines } from "@/components/admin/profile/lines";
  */
 type Draft = {
   headline: string;
+  availabilityVisible: boolean;
   identity: {
     name: string;
     role: string;
@@ -109,6 +110,7 @@ type Draft = {
  */
 const EMPTY_DRAFT: Draft = {
   headline: "",
+  availabilityVisible: true,
   identity: {
     name: "",
     role: "",
@@ -139,6 +141,7 @@ function draftFrom(stored: Doc<"siteSettings"> | null): Draft {
 
   return {
     headline: stored.headline,
+    availabilityVisible: stored.availabilityVisible ?? true,
     identity: {
       name: stored.identity.name,
       role: stored.identity.role,
@@ -276,6 +279,7 @@ function SettingsForm({ initial }: { initial: Doc<"siteSettings"> | null }) {
     const result = await upsert({
       expectedRevision,
       headline: draft.headline,
+      availabilityVisible: draft.availabilityVisible,
       identity: {
         ...identity,
         ...(x.trim().length > 0 ? { x: x.trim() } : {}),
@@ -311,23 +315,30 @@ function SettingsForm({ initial }: { initial: Doc<"siteSettings"> | null }) {
       <AvailabilityPanel
         value={draft.identity.availability}
         onValueChange={(value) => setIdentity("availability", value)}
+        visible={draft.availabilityVisible}
+        onVisibleChange={(availabilityVisible) =>
+          setDraft({ ...draft, availabilityVisible })
+        }
         settingsExist={initial !== null}
         expectedRevision={expectedRevision}
         action={write}
-        onSaved={(submitted, availability, revision) =>
+        onSaved={(submitted, submittedVisible, availability, availabilityVisible, revision) =>
           setState((current) => {
             const draftStillMatches =
-              current.draft.identity.availability === submitted;
+              current.draft.identity.availability === submitted &&
+              current.draft.availabilityVisible === submittedVisible;
             return {
               ...current,
               draft: draftStillMatches
                 ? {
                     ...current.draft,
+                    availabilityVisible,
                     identity: { ...current.draft.identity, availability },
                   }
                 : current.draft,
               savedDraft: {
                 ...current.savedDraft,
+                availabilityVisible,
                 identity: { ...current.savedDraft.identity, availability },
               },
               expectedRevision: revision,
@@ -613,6 +624,8 @@ function SettingsForm({ initial }: { initial: Doc<"siteSettings"> | null }) {
 function AvailabilityPanel({
   value,
   onValueChange,
+  visible,
+  onVisibleChange,
   settingsExist,
   expectedRevision,
   action,
@@ -620,10 +633,18 @@ function AvailabilityPanel({
 }: {
   value: string;
   onValueChange: (value: string) => void;
+  visible: boolean;
+  onVisibleChange: (visible: boolean) => void;
   settingsExist: boolean;
   expectedRevision: number;
   action: PendingAction;
-  onSaved: (submitted: string, availability: string, revision: number) => void;
+  onSaved: (
+    submitted: string,
+    submittedVisible: boolean,
+    availability: string,
+    availabilityVisible: boolean,
+    revision: number,
+  ) => void;
 }) {
   const setAvailability = useMutation(api.siteSettings.setAvailability);
 
@@ -632,11 +653,10 @@ function AvailabilityPanel({
       title="Availability"
       info={
         <>
-          The hiring signal, rendered on the homepage, <code>/about</code> and{" "}
-          <code>/contact</code>. It is the same value the Identity block below would
-          hold, and it has its own mutation so that taking the banner down is one
-          button rather than a trip through a form that also wants a nav
-          configuration.
+          The hiring signal, rendered on the homepage, <code>/contact</code>, the
+          résumé and the generated PDF. Its wording stays stored when visibility is
+          switched off, so publishing or removing the signal is one focused save
+          rather than a trip through the rest of the site configuration.
         </>
       }
       infoLabel="About the availability line"
@@ -649,6 +669,13 @@ function AvailabilityPanel({
           required
           maxLength={200}
           placeholder="Open to Principal Engineer roles"
+        />
+
+        <ToggleField
+          label="Show availability across the public site"
+          checked={visible}
+          onCheckedChange={onVisibleChange}
+          description="Switch this off to hide the hiring signal without deleting its wording."
         />
 
         <AdminButtonRow>
@@ -665,9 +692,16 @@ function AvailabilityPanel({
             onAction={async () => {
               const result = await setAvailability({
                 availability: value,
+                availabilityVisible: visible,
                 expectedRevision,
               });
-              onSaved(value, result.availability, result.revision);
+              onSaved(
+                value,
+                visible,
+                result.availability,
+                result.availabilityVisible,
+                result.revision,
+              );
               return result;
             }}
           />

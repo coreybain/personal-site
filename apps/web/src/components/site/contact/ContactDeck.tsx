@@ -40,7 +40,9 @@ export function ContactDeck({
 }) {
   /** Directory — every value read from `identity`, none typed here. */
   const directory: { label: string; value: ReactNode }[] = [
-    { label: "Open to", value: identity.availability },
+    ...(identity.availabilityVisible
+      ? [{ label: "Open to", value: identity.availability }]
+      : []),
     {
       label: "Email",
       value: (

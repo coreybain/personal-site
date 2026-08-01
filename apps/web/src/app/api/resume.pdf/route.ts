@@ -124,6 +124,7 @@ export async function GET(): Promise<Response> {
    */
   const props: ResumePdfProps = {
     identity,
+    availabilityVisible: identity.availabilityVisible,
     resume: resumeDocument,
     gitStats,
     computedAt,

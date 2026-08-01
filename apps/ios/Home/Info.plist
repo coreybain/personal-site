@@ -56,7 +56,7 @@
 	<key>NSCameraUsageDescription</key>
 	<string>Home uses the camera to photograph a beer, coffee, walk or pub as you log it. Photos you capture are uploaded to your own site and are used nowhere else.</string>
 	<key>NSHealthShareUsageDescription</key>
-	<string>Home reads your daily step count and walking distance so the site's homepage can show a live activity signal. Only the daily totals leave this phone — no workouts, no heart rate, no location, and nothing that identifies you.</string>
+	<string>Home reads your daily steps, walking distance, and workout sessions so your site can show a live activity signal. Only workout type, time, duration, and optional distance leave this phone — never routes, heart rate, energy, or raw samples.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Home lets you attach a photo you have already taken to a fun entry or a project. It reads only the images you pick.</string>
 	<key>UILaunchScreen</key>

@@ -14,7 +14,7 @@
  *
  *     deriveWork(projects)                     → WorkDerived
  *     deriveLabs(labs)                         → LabsDerived
- *     deriveFun(funLog, computedAt)            → FunDerived
+ *     deriveFun(funLog, computedAt, health)    → FunDerived
  *     deriveResume({ gitStats, aiUsage, … })   → ResumeDerived
  *
  * Every field on the returned objects keeps the **name and the semantics** of
@@ -48,6 +48,9 @@ import type {
   AiUsage,
   FunLogEntry,
   GitStats,
+  HealthActivity,
+  HealthActivityKind,
+  HealthStats,
   Lab,
   Post,
   Project,
@@ -387,12 +390,17 @@ const BAND_SPEC: { id: string; label: string; blurb: string; upTo: number }[] = 
 
 export type FunTally = {
   entries: number;
+  /** Discrete workouts read from HealthKit in the rolling window. */
+  healthActivities: number;
   /** Oldest entry in the log, in days before the snapshot. */
   spanDays: number;
+  /** Number of daily HealthKit summaries in the snapshot's rolling window. */
+  healthDays: number;
   km: number;
   steps: number;
   longestKm: number;
   counts: Record<FunKind, number>;
+  activityCounts: Record<HealthActivityKind, number>;
 };
 
 export type FunDerived = {
@@ -404,6 +412,8 @@ export type FunDerived = {
   isoDaysAgo: (daysAgo: number) => string;
   hueFor: (entry: FunLogEntry) => number;
   tally: FunTally;
+  /** Newest first; distinct from manually published Fun entries. */
+  healthActivities: HealthActivity[];
   /** ISO date of the newest and oldest entries — the log's actual extent. */
   logRange: { newest: string; oldest: string };
   /**
@@ -424,6 +434,7 @@ const DAY_MS = 86_400_000;
 export function deriveFun(
   log: readonly FunLogEntry[],
   computedAt: string,
+  healthStats: HealthStats | null = null,
 ): FunDerived {
   const computedMs = Date.parse(computedAt);
 
@@ -448,21 +459,40 @@ export function deriveFun(
   })();
 
   const walks = log.filter(isWalk);
+  const healthDays = healthStats?.recentDays ?? [];
+  const healthActivities = healthDays
+    .flatMap((day) => day.activities)
+    .toSorted((a, b) => b.startedAt.localeCompare(a.startedAt));
 
   const countOf = (kind: FunKind): number =>
     log.filter((entry) => entry.type === kind).length;
 
   const tally: FunTally = {
     entries: log.length,
+    healthActivities: healthActivities.length,
     spanDays: log.reduce((max, e) => Math.max(max, e.daysAgo), 0),
-    km: Math.round(walks.reduce((sum, w) => sum + w.km, 0) * 10) / 10,
-    steps: walks.reduce((sum, w) => sum + w.steps, 0),
+    healthDays: healthDays.length,
+    // Public movement totals come only from the phone. Walk entries retain
+    // their own per-card values below, but never act as a HealthKit fallback or
+    // get added to these figures a second time.
+    km:
+      Math.round(
+        healthDays.reduce((sum, day) => sum + day.distanceKm, 0) * 10,
+      ) / 10,
+    steps: healthDays.reduce((sum, day) => sum + day.steps, 0),
     longestKm: walks.reduce((max, w) => Math.max(max, w.km), 0),
     counts: {
       beer: countOf("beer"),
       coffee: countOf("coffee"),
       walk: countOf("walk"),
       pub: countOf("pub"),
+    },
+    activityCounts: {
+      walking: healthActivities.filter((activity) => activity.kind === "walking").length,
+      running: healthActivities.filter((activity) => activity.kind === "running").length,
+      cycling: healthActivities.filter((activity) => activity.kind === "cycling").length,
+      gym: healthActivities.filter((activity) => activity.kind === "gym").length,
+      other: healthActivities.filter((activity) => activity.kind === "other").length,
     },
   };
 
@@ -478,6 +508,7 @@ export function deriveFun(
     },
 
     tally,
+    healthActivities,
 
     logRange: {
       newest: isoDaysAgo(newestDaysAgo),

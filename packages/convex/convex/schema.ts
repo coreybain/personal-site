@@ -370,10 +370,26 @@ const funEntryFields = {
  * day", `by_day` and "upsert by day" the same word throughout. The rename
  * happens once, in the fold, which is already reshaping.
  */
+const healthActivity = v.object({
+  id: v.string(),
+  kind: v.union(
+    v.literal("walking"),
+    v.literal("running"),
+    v.literal("cycling"),
+    v.literal("gym"),
+    v.literal("other"),
+  ),
+  title: v.string(),
+  startedAt: isoDateTime,
+  durationMinutes: v.number(),
+  distanceKm: v.optional(v.number()),
+});
+
 const healthDay = v.object({
   date: isoDate,
   steps: v.number(),
   distanceKm: v.number(),
+  activities: v.array(healthActivity),
 });
 
 /**
@@ -1020,8 +1036,8 @@ export default defineSchema({
    *
    * ── Written by ──  Pipeline 3, `POST /ingest/health`, scope `health:write`.
    *                   Producer is the iOS app: `HKObserverQuery` with background
-   *                   delivery on step count and walking/running distance, plus
-   *                   a foreground sync on app open as the fallback.
+   *                   delivery on step count, walking/running distance and
+   *                   workouts, plus a foreground sync on app open.
    * ── Folded by ──   The hourly snapshot cron, into `snapshot.healthStats`:
    *                   newest row → `latestDay`, trailing seven → `recentDays`,
    *                   their mean → `sevenDayAverageSteps`, newest `ingestedAt`
@@ -1032,9 +1048,8 @@ export default defineSchema({
    * purpose — `snapshot.healthStats` is nullable precisely so the life signal
    * strip degrades to the Fun Entry alone rather than rendering zeroes.
    *
-   * Steps and distance only. The iOS app requests HealthKit read scopes for
-   * nothing else, and a table that cannot express heart rate is a stronger
-   * guarantee than a policy promising not to ask for it.
+   * Workout summaries contain only category, time, duration and optional
+   * distance. Routes, heart rate, energy and raw samples cannot be stored here.
    */
   healthDays: defineTable({
     /** The user's local HealthKit calendar day. The upsert key. */
@@ -1042,6 +1057,12 @@ export default defineSchema({
     steps: v.number(),
     /** Walking + running distance, kilometres. Fractional. */
     distanceKm: v.number(),
+    /**
+     * Discrete workouts that began on this local day. Optional only while rows
+     * written by the steps-only phone build are being replaced; every new push
+     * writes the array, including an honest empty one.
+     */
+    activities: v.optional(v.array(healthActivity)),
     /**
      * Who measured it. A `manual` backfill must stay distinguishable from a day
      * the watch actually recorded, or the numbers stop being evidence.
@@ -1344,6 +1365,12 @@ export default defineSchema({
      * `snapshot.identity`.
      */
     availability: v.string(),
+    /**
+     * Whether the hiring signal is rendered publicly. Optional only so an
+     * existing deployment can roll forward without hiding or rejecting its
+     * pre-toggle settings row; every current writer persists the value.
+     */
+    availabilityVisible: v.optional(v.boolean()),
     /** Carries the plan's `socials`, spread flat — see `identity` above. */
     identity,
     /**

@@ -86,8 +86,13 @@ struct SiteSettingsEditorScreen: View {
                 )
                 .lineLimit(2...4)
 
+                Toggle("Show availability badges", isOn: $draft.availabilityVisible)
+                    .accessibilityHint(
+                        "Controls the hiring signal across the public site"
+                    )
+
                 Text(
-                    "Use the Profile screen’s quick action when availability is the only field that changed."
+                    "Use the Profile screen’s quick action when the availability text or visibility is the only thing that changed."
                 )
                 .font(.caption)
                 .foregroundStyle(.secondary)

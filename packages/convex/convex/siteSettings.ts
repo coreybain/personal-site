@@ -128,6 +128,7 @@ export const upsert = mutation({
   args: {
     expectedRevision: v.optional(v.number()),
     headline: v.string(),
+    availabilityVisible: v.boolean(),
     identity,
     featured: featuredSelections,
     nav: navVisibility,
@@ -194,6 +195,7 @@ export const upsert = mutation({
       headline: args.headline.trim(),
       // Both copies, from one input. See the file header.
       availability: args.identity.availability.trim(),
+      availabilityVisible: args.availabilityVisible,
       identity: trim(args.identity),
       featured: args.featured,
       nav: args.nav,
@@ -202,6 +204,7 @@ export const upsert = mutation({
       existing === null ||
       existing.headline !== content.headline ||
       existing.availability !== content.availability ||
+      (existing.availabilityVisible ?? true) !== content.availabilityVisible ||
       JSON.stringify(existing.identity) !== JSON.stringify(content.identity) ||
       JSON.stringify(existing.featured) !== JSON.stringify(content.featured) ||
       JSON.stringify(existing.nav) !== JSON.stringify(content.nav);
@@ -277,7 +280,7 @@ export const remove = mutation({
 });
 
 /**
- * Update the availability line on its own. Admin-only.
+ * Update the availability line and its public visibility on their own. Admin-only.
  *
  * The single most load-bearing string on the site (the goal is landing a
  * Principal Engineer role), the one that goes stale in a way that costs
@@ -290,11 +293,12 @@ export const remove = mutation({
  * other field to be invented here, and inventing an identity is not this
  * function's business.
  *
- * @returns `{ settingsId, availability, updatedAt, changed, revision }`
+ * @returns `{ settingsId, availability, availabilityVisible, updatedAt, changed, revision }`
  */
 export const setAvailability = mutation({
   args: {
     availability: v.string(),
+    availabilityVisible: v.boolean(),
     expectedRevision: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
@@ -315,12 +319,14 @@ export const setAvailability = mutation({
     const availability = args.availability.trim();
     const changed =
       existing.availability !== availability ||
-      existing.identity.availability !== availability;
+      existing.identity.availability !== availability ||
+      (existing.availabilityVisible ?? true) !== args.availabilityVisible;
 
     if (!changed) {
       return {
         settingsId: existing._id,
         availability,
+        availabilityVisible: args.availabilityVisible,
         updatedAt: existing.updatedAt,
         changed: false,
         revision: currentRevision(existing.revision),
@@ -332,6 +338,7 @@ export const setAvailability = mutation({
     const nextIdentity = { ...existing.identity, availability };
     await ctx.db.patch(existing._id, {
       availability,
+      availabilityVisible: args.availabilityVisible,
       identity: nextIdentity,
       updatedAt,
       revision,
@@ -341,6 +348,7 @@ export const setAvailability = mutation({
     return {
       settingsId: existing._id,
       availability,
+      availabilityVisible: args.availabilityVisible,
       updatedAt,
       changed: true,
       revision,

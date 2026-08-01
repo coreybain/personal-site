@@ -130,6 +130,8 @@ export const SiteSettingsSchema = z.object({
    * breaks. Collapse to one when apps/web stops reading `snapshot.identity`.
    */
   availability: NonEmptyStringSchema,
+  /** Whether the hiring signal is rendered on public site surfaces. */
+  availabilityVisible: z.boolean().default(true),
   /**
    * Carries the plan's `socials` — `IdentitySchema` spreads `SocialsSchema` flat
    * rather than nesting it, matching what the archived variants already read.

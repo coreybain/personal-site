@@ -140,9 +140,11 @@ function SectionHead({ children }: { children: string }) {
  */
 function Header({
   identity,
+  availabilityVisible,
   siteUrl,
 }: {
   identity: ResumePdfIdentity;
+  availabilityVisible: boolean;
   siteUrl: string;
 }) {
   const contact = [
@@ -176,7 +178,9 @@ function Header({
           {identity.role} · {identity.company}
         </Text>
         <Text style={styles.location}>{identity.location}</Text>
-        <Text style={styles.availability}>{identity.availability}</Text>
+        {availabilityVisible ? (
+          <Text style={styles.availability}>{identity.availability}</Text>
+        ) : null}
       </View>
 
       <View style={styles.headerAside}>
@@ -413,6 +417,7 @@ function Capabilities({
  */
 export function ResumePdf({
   identity,
+  availabilityVisible,
   resume,
   gitStats,
   computedAt,
@@ -449,7 +454,11 @@ export function ResumePdf({
           />
         </View>
 
-        <Header identity={identity} siteUrl={siteUrl} />
+        <Header
+          identity={identity}
+          availabilityVisible={availabilityVisible}
+          siteUrl={siteUrl}
+        />
 
         <View style={styles.summaryRule} />
         <Text style={styles.summary} orphans={3} widows={3}>

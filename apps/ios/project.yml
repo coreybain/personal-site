@@ -232,17 +232,17 @@ targets:
         # ── HealthKit ─────────────────────────────────────────────────────
         #
         # Only NSHealthShareUsageDescription (READ) is declared, and its absence
-        # is as deliberate as its presence: the app reads step count and walking
-        # distance and pushes a daily summary to Convex. It never writes a
-        # sample back into HealthKit, so NSHealthUpdateUsageDescription would be
-        # a permission prompt for a capability that does not exist. If a feature
-        # agent ever needs to write, that is a change to this file plus a line
-        # in the README, not a silent addition.
+        # is as deliberate as its presence: the app reads step count, walking
+        # distance and workouts and pushes a daily summary to Convex. It never
+        # writes a sample back into HealthKit, so NSHealthUpdateUsageDescription
+        # would be a permission prompt for a capability that does not exist. If
+        # a feature agent ever needs to write, that is a change to this file plus
+        # a line in the README, not a silent addition.
         NSHealthShareUsageDescription: >-
-          Home reads your daily step count and walking distance so the site's
-          homepage can show a live activity signal. Only the daily totals leave
-          this phone — no workouts, no heart rate, no location, and nothing that
-          identifies you.
+          Home reads your daily steps, walking distance, and workout sessions so
+          your site can show a live activity signal. Only workout type, time,
+          duration, and optional distance leave this phone — never routes, heart
+          rate, energy, or raw samples.
 
         # ── Camera and photo library ──────────────────────────────────────
         #

@@ -17,6 +17,7 @@ nonisolated struct BusinessCardIdentity: Hashable, Sendable {
     let company: String
     let location: String
     let availability: String
+    let availabilityVisible: Bool
     let github: String
     let linkedin: URL
     let x: URL?
@@ -28,6 +29,7 @@ nonisolated struct BusinessCardIdentity: Hashable, Sendable {
         company: String,
         location: String,
         availability: String,
+        availabilityVisible: Bool = true,
         github: String,
         linkedin: URL,
         x: URL? = nil,
@@ -38,6 +40,7 @@ nonisolated struct BusinessCardIdentity: Hashable, Sendable {
         self.company = company
         self.location = location
         self.availability = availability
+        self.availabilityVisible = availabilityVisible
         self.github = github
         self.linkedin = linkedin
         self.x = x

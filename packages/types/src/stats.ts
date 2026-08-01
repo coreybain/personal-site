@@ -411,9 +411,8 @@ export type HealthSource = z.infer<typeof HealthSourceSchema>;
  * in `HealthStats` on the Snapshot. The stored row is `HealthDaySummarySchema`
  * in ingest.ts, which adds `source` and `ingestedAt`.
  *
- * Only step count and walking/running distance are read (pipeline 3) — the
- * scopes requested from HealthKit are deliberately the two least sensitive
- * metrics that still say something true about the life signal strip.
+ * Step count, walking/running distance and discrete workouts are read. Workout
+ * summaries deliberately exclude routes, heart rate, energy and raw samples.
  *
  * The key is `date` here and `day` on the stored row, and the difference is
  * load-bearing rather than sloppy: on the Snapshot this is one field of a dated
@@ -427,18 +426,30 @@ export const HealthDaySchema = z.object({
   date: IsoDateSchema,
   steps: CountSchema,
   distanceKm: NonNegativeNumberSchema,
+  /** Discrete workout sessions HealthKit assigned to this local day. */
+  activities: z.array(
+    z.object({
+      /** Stable HealthKit workout UUID, used only to reconcile repeat syncs. */
+      id: NonEmptyStringSchema,
+      kind: z.enum(['walking', 'running', 'cycling', 'gym', 'other']),
+      title: NonEmptyStringSchema,
+      startedAt: IsoDateTimeSchema,
+      durationMinutes: NonNegativeNumberSchema,
+      distanceKm: NonNegativeNumberSchema.optional(),
+    }),
+  ),
 });
 export type HealthDay = z.infer<typeof HealthDaySchema>;
 
 /**
  * Movement aggregates for the dashboard's life signal.
  *
- * DIVERGENCE — the plan names `healthStats` on the snapshot but does not list
- * its fields, and apps/web/src/lib/snapshot.ts has no equivalent at all. This
- * shape is inferred from pipeline 3 (`HKObserverQuery` on step count and
- * walking distance, posted as a daily summary) and is the least-committal thing
- * that renders: the latest day, a rolling average for context, and the sync
- * time so the UI can admit when the phone has been offline.
+ * The plan named `healthStats` without listing its fields. This shape is the
+ * implemented pipeline 3 contract (`HKObserverQuery` on daily movement and
+ * workouts, posted as a daily summary) and is mirrored by the web Snapshot:
+ * the latest day, a rolling average for context, and the sync time so the UI
+ * can admit when the phone has been offline instead of implying today had no
+ * steps.
  *
  * Folded from `healthDays` by the hourly cron: `latestDay` is the newest row,
  * `recentDays` the trailing seven, `sevenDayAverageSteps` their mean, and

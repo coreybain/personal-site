@@ -2,8 +2,9 @@
 //  HealthSyncService.swift
 //  Home
 //
-//  Read-only HealthKit aggregation and scoped bearer-token ingest. Only daily
-//  steps and walking/running distance leave the device.
+//  Read-only HealthKit aggregation and scoped bearer-token ingest. Daily
+//  movement totals and privacy-bounded workout summaries leave the device;
+//  routes, heart rate, energy and raw samples do not.
 //
 
 import Foundation
@@ -98,10 +99,65 @@ nonisolated enum HealthTokenStore {
     }
 }
 
+nonisolated enum HealthActivityKind: String, Codable, Hashable, Sendable {
+    case walking
+    case running
+    case cycling
+    case gym
+    case other
+}
+
+nonisolated struct HealthActivityPayload: Codable, Hashable, Sendable {
+    let id: String
+    let kind: HealthActivityKind
+    let title: String
+    let startedAt: String
+    let durationMinutes: Double
+    let distanceKm: Double?
+}
+
 nonisolated struct HealthDayPayload: Codable, Hashable, Sendable {
     let day: String
     let steps: Double
     let distanceKm: Double
+    let activities: [HealthActivityPayload]
+}
+
+nonisolated enum HealthWorkoutPresentation {
+    static func values(for type: HKWorkoutActivityType) -> (kind: HealthActivityKind, title: String) {
+        switch type {
+        case .walking:
+            (.walking, "Walking")
+        case .running:
+            (.running, "Running")
+        case .cycling:
+            (.cycling, "Cycling")
+        case .traditionalStrengthTraining:
+            (.gym, "Strength training")
+        case .functionalStrengthTraining:
+            (.gym, "Functional strength training")
+        case .crossTraining:
+            (.gym, "Cross training")
+        case .coreTraining:
+            (.gym, "Core training")
+        case .highIntensityIntervalTraining:
+            (.gym, "High-intensity interval training")
+        case .mixedCardio:
+            (.gym, "Mixed cardio")
+        case .flexibility:
+            (.gym, "Flexibility")
+        case .pilates:
+            (.gym, "Pilates")
+        case .yoga:
+            (.gym, "Yoga")
+        case .hiking:
+            (.other, "Hiking")
+        case .swimming:
+            (.other, "Swimming")
+        default:
+            (.other, "Workout")
+        }
+    }
 }
 
 nonisolated enum HealthMetricNormalizer {
@@ -219,6 +275,10 @@ final class HealthSyncService {
         HKObjectType.quantityType(forIdentifier: .distanceWalkingRunning)
     }
 
+    private var workoutType: HKWorkoutType {
+        HKObjectType.workoutType()
+    }
+
     func requestAccessAndSync() async {
         guard HKHealthStore.isHealthDataAvailable() else {
             report(HealthSyncError.unavailable)
@@ -230,7 +290,10 @@ final class HealthSyncService {
         }
 
         do {
-            try await store.requestAuthorization(toShare: [], read: [stepType, distanceType])
+            try await store.requestAuthorization(
+                toShare: [],
+                read: [stepType, distanceType, workoutType]
+            )
             UserDefaults.standard.set(true, forKey: Self.accessRequestedKey)
             await startBackgroundMonitoring()
             await syncToday()
@@ -257,8 +320,10 @@ final class HealthSyncService {
         do {
             try await store.enableBackgroundDelivery(for: stepType, frequency: .daily)
             try await store.enableBackgroundDelivery(for: distanceType, frequency: .daily)
+            try await store.enableBackgroundDelivery(for: workoutType, frequency: .immediate)
             installObserver(for: stepType)
             installObserver(for: distanceType)
+            installObserver(for: workoutType)
             monitoringEnabled = true
         } catch {
             stopObserverQueries()
@@ -350,6 +415,7 @@ final class HealthSyncService {
                 if let distanceType {
                     try? await store.disableBackgroundDelivery(for: distanceType)
                 }
+                try? await store.disableBackgroundDelivery(for: workoutType)
             }
         } catch {
             report(error)
@@ -402,11 +468,16 @@ final class HealthSyncService {
                 start: dayStart,
                 end: end
             )
-            let (stepTotal, metreTotal) = try await (steps, metres)
+            async let activities = workouts(
+                start: dayStart,
+                end: end,
+                distanceType: distanceType
+            )
+            let (stepTotal, metreTotal, activityList) = try await (steps, metres, activities)
             // A denied HealthKit read and a genuinely empty day both produce no
             // statistics. Do not turn that absence into authoritative zeroes
             // that overwrite an already-ingested day.
-            guard stepTotal != nil || metreTotal != nil else {
+            guard stepTotal != nil || metreTotal != nil || !activityList.isEmpty else {
                 cursor = nextDay
                 continue
             }
@@ -414,7 +485,8 @@ final class HealthSyncService {
                 HealthDayPayload(
                     day: HealthCalendarDay.string(from: dayStart, timeZone: timeZone),
                     steps: HealthMetricNormalizer.steps(stepTotal ?? 0),
-                    distanceKm: (metreTotal ?? 0) / 1_000
+                    distanceKm: (metreTotal ?? 0) / 1_000,
+                    activities: activityList
                 )
             )
             cursor = nextDay
@@ -449,6 +521,56 @@ final class HealthSyncService {
                 }
             }
             store.execute(query)
+        }
+    }
+
+    private func workouts(
+        start: Date,
+        end: Date,
+        distanceType: HKQuantityType
+    ) async throws -> [HealthActivityPayload] {
+        let samples: [HKWorkout] = try await withCheckedThrowingContinuation { continuation in
+            let predicate = HKQuery.predicateForSamples(
+                withStart: start,
+                end: end,
+                options: [.strictStartDate]
+            )
+            let query = HKSampleQuery(
+                sampleType: workoutType,
+                predicate: predicate,
+                limit: HKObjectQueryNoLimit,
+                sortDescriptors: [
+                    NSSortDescriptor(
+                        key: HKSampleSortIdentifierStartDate,
+                        ascending: true
+                    )
+                ]
+            ) { _, samples, error in
+                if let error {
+                    continuation.resume(throwing: error)
+                } else {
+                    continuation.resume(returning: samples as? [HKWorkout] ?? [])
+                }
+            }
+            store.execute(query)
+        }
+
+        return samples.map { workout in
+            let presentation = HealthWorkoutPresentation.values(
+                for: workout.workoutActivityType
+            )
+            let metres = workout.statistics(for: distanceType)?
+                .sumQuantity()?
+                .doubleValue(for: .meter())
+
+            return HealthActivityPayload(
+                id: workout.uuid.uuidString.lowercased(),
+                kind: presentation.kind,
+                title: presentation.title,
+                startedAt: BackendTimestamp.string(from: workout.startDate),
+                durationMinutes: workout.duration / 60,
+                distanceKm: metres.map { $0 / 1_000 }
+            )
         }
     }
 
@@ -488,7 +610,7 @@ final class HealthSyncService {
         }
     }
 
-    private func installObserver(for type: HKQuantityType) {
+    private func installObserver(for type: HKSampleType) {
         let query = HKObserverQuery(sampleType: type, predicate: nil) { [weak self] _, completion, error in
             if let error {
                 let message = error.localizedDescription

@@ -67,6 +67,92 @@
   box-shadow: inset 0 0 0 1px var(--hor-art-line-2);
 }
 
+.hor .fun-key-icon {
+  width: 15px;
+  height: 15px;
+  flex: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.hor .fun-key-icon[data-kind="walking"] {
+  color: hsl(268 66% 56%);
+}
+
+.hor .fun-key-icon[data-kind="gym"] {
+  color: hsl(350 68% 52%);
+}
+
+.hor .fun-swatch[data-kind="walking"],
+.hor .fun-health-mark[data-kind="walking"] {
+  background: linear-gradient(145deg, hsl(256 72% 68%), hsl(280 66% 54%));
+}
+
+.hor .fun-swatch[data-kind="gym"],
+.hor .fun-health-mark[data-kind="gym"] {
+  background: linear-gradient(145deg, hsl(18 82% 64%), hsl(342 70% 52%));
+}
+
+/* ------------------------------------------------------------------ *
+ * Apple Health workout feed
+ * ------------------------------------------------------------------ */
+
+.hor .fun-health-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+
+@media (min-width: 720px) {
+  .hor .fun-health-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.hor .fun-health-card {
+  padding: 1rem;
+  border-radius: 16px;
+}
+
+.hor .fun-health-mark {
+  width: 32px;
+  height: 32px;
+  flex: none;
+  border-radius: 10px;
+  box-shadow: inset 0 0 0 1px var(--hor-art-line-2);
+}
+
+.hor .fun-health-mark[data-kind="running"],
+.hor .fun-health-mark[data-kind="cycling"],
+.hor .fun-health-mark[data-kind="other"] {
+  background: linear-gradient(145deg, hsl(208 70% 61%), hsl(240 58% 52%));
+}
+
+.hor .fun-health-readout {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem 1.5rem;
+  margin-top: 1rem;
+  padding-top: 0.8rem;
+  border-top: 1px solid var(--hor-line-soft);
+}
+
+.hor .fun-health-readout dt {
+  font-family: var(--font-hor-mono), ui-monospace, SFMono-Regular, monospace;
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--hor-ink-3);
+}
+
+.hor .fun-health-readout dd {
+  margin-top: 0.3rem;
+  font-size: 0.75rem;
+  color: var(--hor-ink-2);
+}
+
 /* ------------------------------------------------------------------ *
  * The seam — a horizon rule of the page's own, sky to sky.
  *

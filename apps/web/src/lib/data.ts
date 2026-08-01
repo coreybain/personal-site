@@ -127,6 +127,7 @@ import type {
   FunEntry,
   FunLogEntry,
   GitStats,
+  HealthStats,
   Identity,
   Lab,
   Post,
@@ -344,13 +345,17 @@ const readSettings = cache(async (): Promise<SettingsRow | null> => {
  * public contract. Missing it is incomplete live configuration, not a reason to
  * borrow a profile URL from a design-study fixture.
  */
-function mapIdentity(source: IdentityRow): Identity {
+function mapIdentity(
+  source: IdentityRow,
+  availabilityVisible: boolean | undefined,
+): Identity {
   return {
     name: source.name,
     role: source.role,
     company: source.company,
     location: source.location,
     availability: source.availability,
+    availabilityVisible: availabilityVisible ?? true,
     github: source.github,
     linkedin: source.linkedin,
     x: requireValue(source.x, "siteSettings.identity.x"),
@@ -441,6 +446,33 @@ function mapAiUsage(source: SnapshotRow["aiUsage"]): AiUsage {
       name: p.name,
       sessions: p.sessions,
     })),
+  };
+}
+
+/**
+ * `healthStats` — the iPhone's HealthKit totals, or `null` before first sync.
+ *
+ * This is copied rather than passed through so the public Snapshot remains a
+ * Convex-free value contract and cannot accidentally grow storage-only fields.
+ */
+function mapHealthStats(source: SnapshotRow["healthStats"]): HealthStats | null {
+  if (source === null) return null;
+
+  return {
+    latestDay: {
+      date: source.latestDay.date,
+      steps: source.latestDay.steps,
+      distanceKm: source.latestDay.distanceKm,
+      activities: source.latestDay.activities.map((activity) => ({ ...activity })),
+    },
+    sevenDayAverageSteps: source.sevenDayAverageSteps,
+    recentDays: source.recentDays.map((day) => ({
+      date: day.date,
+      steps: day.steps,
+      distanceKm: day.distanceKm,
+      activities: day.activities.map((activity) => ({ ...activity })),
+    })),
+    syncedAt: source.syncedAt,
   };
 }
 
@@ -724,7 +756,10 @@ export const getSiteData = cache(async (): Promise<Snapshot> => {
    * what makes `setAvailability` ("I just accepted an offer, take the
    * banner down") visible within one ISR window instead of at the next
    * tick of a job nobody has written. */
-  const identity = mapIdentity(settingsRow.identity);
+  const identity = mapIdentity(
+    settingsRow.identity,
+    settingsRow.availabilityVisible,
+  );
 
   /* ---- fun -------------------------------------------------------- *
    * One table, two views. `funEntries.list` returns all four kinds
@@ -746,6 +781,7 @@ export const getSiteData = cache(async (): Promise<Snapshot> => {
 
     gitStats: mapGitStats(snapshotRow.gitStats),
     aiUsage: mapAiUsage(snapshotRow.aiUsage),
+    healthStats: mapHealthStats(snapshotRow.healthStats),
     projects: projectRows.map(mapProject),
     labs: labRows.map((row) => mapLab(row, computedAt)),
     resumeDocument: mapResume(resumeRow),
@@ -800,7 +836,7 @@ export const getSettingsIdentity = cache(async (): Promise<Identity> => {
     await readSettings(),
     "the siteSettings singleton",
   );
-  return mapIdentity(settings.identity);
+  return mapIdentity(settings.identity, settings.availabilityVisible);
 });
 
 /** Published case studies, in display order (`by_published_sortOrder`). */

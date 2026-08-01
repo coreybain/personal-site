@@ -4,6 +4,7 @@ import Link from "next/link";
 import { stamp } from "@/components/site/format";
 import { FunBands } from "@/components/site/fun/FunBands";
 import { FunHeader } from "@/components/site/fun/FunHeader";
+import { HealthActivityFeed } from "@/components/site/fun/HealthActivityFeed";
 import { getSiteData } from "@/lib/data";
 import { deriveFun } from "@/lib/derive";
 
@@ -29,12 +30,17 @@ export const revalidate = 300;
  * "— Corey Baines" suffix once, from live identity.
  */
 export async function generateMetadata(): Promise<Metadata> {
-  const { identity, funLog, computedAt } = await getSiteData();
-  const { tally } = deriveFun(funLog, computedAt);
+  const { identity, funLog, computedAt, healthStats } = await getSiteData();
+  const { tally } = deriveFun(funLog, computedAt, healthStats);
+
+  const healthDescription =
+    tally.healthDays > 0
+      ? ` HealthKit has synced ${tally.steps.toLocaleString("en-AU")} steps and ${tally.km.toFixed(1)} km across ${tally.healthDays} recent days.`
+      : "";
 
   return {
     title: "Off the clock",
-    description: `${tally.entries} logged moments from the last ${tally.spanDays} days in ${identity.location}: ${tally.counts.coffee} coffees, ${tally.counts.beer} beers, ${tally.counts.pub} pub nights and ${tally.counts.walk} walks covering ${tally.km.toFixed(1)} km.`,
+    description: `${tally.entries} logged moments from the last ${tally.spanDays} days in ${identity.location}: ${tally.counts.coffee} coffees, ${tally.counts.beer} beers, ${tally.counts.pub} pub nights and ${tally.counts.walk} walks.${healthDescription}`,
     alternates: { canonical: "/fun" },
   };
 }
@@ -55,16 +61,17 @@ export async function generateMetadata(): Promise<Metadata> {
  * Server component, no client JS, no images. **One read**: `getSiteData()` is
  * called once here and the result is passed down as props — no component under
  * this page fetches, and none of them import the snapshot. Every figure comes
- * from `deriveFun(funLog, computedAt)`; the prose is draft copy.
+ * from `deriveFun(funLog, computedAt, healthStats)`; the prose is draft copy.
  *
  * An empty feed is rendered as an explicit state. It is never filled with the
  * committed design-study entries.
  */
 export default async function FunPage() {
-  const { identity, labs, funLog, computedAt } = await getSiteData();
-  const { bands, hueFor, isoDaysAgo, logRange, tally } = deriveFun(
+  const { identity, labs, funLog, computedAt, healthStats } = await getSiteData();
+  const { bands, healthActivities, hueFor, isoDaysAgo, logRange, tally } = deriveFun(
     funLog,
     computedAt,
+    healthStats,
   );
 
   /* The header's cross-link. Looked up here rather than in the header so this
@@ -89,7 +96,9 @@ export default async function FunPage() {
           <span className="hor-label">
             {funLog.length > 0
               ? `${stamp(logRange.oldest)} — ${stamp(logRange.newest)}`
-              : "Live log · no entries"}
+              : healthActivities.length > 0
+                ? `Health activities · ${healthActivities.length}`
+                : "Live log · no entries"}
           </span>
           <span className="hor-tick" />
         </div>
@@ -97,6 +106,8 @@ export default async function FunPage() {
 
       {/* ── the log ───────────────────────────────────────────────── */}
       <section className="hor-shell pb-16 sm:pb-20">
+        <HealthActivityFeed activities={healthActivities} />
+
         <FunBands
           bands={bands}
           hueFor={hueFor}
@@ -104,7 +115,7 @@ export default async function FunPage() {
           longestKm={tally.longestKm}
         />
 
-        {funLog.length === 0 ? (
+        {funLog.length === 0 && healthActivities.length === 0 ? (
           <div className="hor-card hor-rise mt-10 p-6 sm:p-8">
             <span className="hor-eyebrow">Live feed</span>
             <h2 className="hor-h3 mt-3.5">No moments have been published yet.</h2>

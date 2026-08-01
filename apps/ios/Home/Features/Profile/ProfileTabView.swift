@@ -45,6 +45,7 @@ struct ProfileTabView: View {
                         if let settings = model.siteSettings {
                             QuickAvailabilityEditor(
                                 initialValue: settings.identity.availability,
+                                initialVisible: settings.availabilityVisible ?? true,
                                 initialRevision: settings.revision ?? 0
                             )
                         } else {
@@ -150,44 +151,60 @@ struct ProfileTabView: View {
 }
 
 private struct QuickAvailabilityEditor: View {
+    private struct AvailabilityDraft: Equatable {
+        var value: String
+        var visible: Bool
+    }
+
     @Environment(HomeAppModel.self) private var model
 
     let liveValue: String
+    let liveVisible: Bool
     let liveRevision: Double
 
     @State private var value: String
-    @State private var savedValue: String
+    @State private var visible: Bool
+    @State private var saved: AvailabilityDraft
     @State private var baseRevision: Double
     @State private var savedConfirmation: String?
-    @State private var pendingExternalValue: String?
+    @State private var pendingExternal: AvailabilityDraft?
     @State private var pendingExternalRevision: Double?
 
-    init(initialValue: String, initialRevision: Double) {
+    init(initialValue: String, initialVisible: Bool, initialRevision: Double) {
         liveValue = initialValue
+        liveVisible = initialVisible
         liveRevision = initialRevision
         _value = State(initialValue: initialValue)
-        _savedValue = State(initialValue: initialValue.profileTrimmed)
+        _visible = State(initialValue: initialVisible)
+        _saved = State(
+            initialValue: AvailabilityDraft(
+                value: initialValue.profileTrimmed,
+                visible: initialVisible
+            )
+        )
         _baseRevision = State(initialValue: initialRevision)
     }
 
     var body: some View {
         TextField("Availability line", text: $value, axis: .vertical)
             .lineLimit(2...4)
-            .onChange(of: value) { _, newValue in
-                if let pendingExternalValue,
-                   newValue.profileTrimmed == pendingExternalValue {
-                    savedValue = pendingExternalValue
-                    self.pendingExternalValue = nil
-                }
-                if newValue.profileTrimmed != savedValue {
-                    savedConfirmation = nil
-                }
+            .onChange(of: value) {
+                reconcilePendingState()
             }
             .onChange(of: liveValue) { _, newValue in
-                receive(newValue, revision: liveRevision)
+                receive(newValue, visible: liveVisible, revision: liveRevision)
+            }
+            .onChange(of: liveVisible) { _, newVisible in
+                receive(liveValue, visible: newVisible, revision: liveRevision)
             }
             .onChange(of: liveRevision) { _, newRevision in
-                receive(liveValue, revision: newRevision)
+                receive(liveValue, visible: liveVisible, revision: newRevision)
+            }
+
+        Toggle("Show availability badges", isOn: $visible)
+            .accessibilityHint("Controls the hiring signal across the public site")
+            .onChange(of: visible) {
+                reconcilePendingState()
             }
 
         Button("Publish availability", systemImage: "bolt.fill") {
@@ -195,7 +212,7 @@ private struct QuickAvailabilityEditor: View {
         }
         .disabled(!canSave)
 
-        if let pendingExternalValue {
+        if let pendingExternal {
             Label(
                 "Availability changed elsewhere while you were editing.",
                 systemImage: "arrow.trianglehead.2.clockwise.rotate.90"
@@ -205,10 +222,10 @@ private struct QuickAvailabilityEditor: View {
 
             ViewThatFits(in: .horizontal) {
                 HStack {
-                    conflictButtons(pendingExternalValue)
+                    conflictButtons(pendingExternal)
                 }
                 VStack(alignment: .leading) {
-                    conflictButtons(pendingExternalValue)
+                    conflictButtons(pendingExternal)
                 }
             }
         }
@@ -228,8 +245,12 @@ private struct QuickAvailabilityEditor: View {
     private var canSave: Bool {
         !model.isBusy
             && !value.profileIsBlank
-            && value.profileTrimmed != savedValue
-            && pendingExternalValue == nil
+            && current != saved
+            && pendingExternal == nil
+    }
+
+    private var current: AvailabilityDraft {
+        AvailabilityDraft(value: value.profileTrimmed, visible: visible)
     }
 
     private func save() {
@@ -237,16 +258,17 @@ private struct QuickAvailabilityEditor: View {
         Task {
             let result = await model.setAvailability(
                 availability,
+                visible: visible,
                 expectedRevision: baseRevision
             )
             guard result.succeeded else { return }
             value = availability
-            savedValue = availability
+            saved = AvailabilityDraft(value: availability, visible: visible)
             if let revision = result.outcome?.revision {
                 baseRevision = revision
                 if pendingExternalRevision == revision,
-                   pendingExternalValue?.profileTrimmed == availability {
-                    pendingExternalValue = nil
+                   pendingExternal == saved {
+                    pendingExternal = nil
                     pendingExternalRevision = nil
                 }
             }
@@ -255,40 +277,56 @@ private struct QuickAvailabilityEditor: View {
     }
 
     @ViewBuilder
-    private func conflictButtons(_ latestValue: String) -> some View {
+    private func conflictButtons(_ latest: AvailabilityDraft) -> some View {
         Button("Use latest") {
-            value = latestValue
-            savedValue = latestValue
+            value = latest.value
+            visible = latest.visible
+            saved = latest
             baseRevision = pendingExternalRevision ?? baseRevision
-            pendingExternalValue = nil
+            pendingExternal = nil
             pendingExternalRevision = nil
             savedConfirmation = nil
         }
 
         Button("Keep mine") {
-            savedValue = latestValue
+            saved = latest
             baseRevision = pendingExternalRevision ?? baseRevision
-            pendingExternalValue = nil
+            pendingExternal = nil
             pendingExternalRevision = nil
             savedConfirmation = nil
         }
     }
 
-    private func receive(_ newValue: String, revision: Double) {
-        let incoming = newValue.profileTrimmed
-        guard incoming != savedValue else {
+    private func receive(_ newValue: String, visible: Bool, revision: Double) {
+        let incoming = AvailabilityDraft(
+            value: newValue.profileTrimmed,
+            visible: visible
+        )
+        guard incoming != saved else {
             baseRevision = revision
             return
         }
 
-        if value.profileTrimmed == savedValue {
-            value = incoming
-            savedValue = incoming
+        if current == saved {
+            value = incoming.value
+            self.visible = incoming.visible
+            saved = incoming
             baseRevision = revision
             savedConfirmation = nil
         } else {
-            pendingExternalValue = incoming
+            pendingExternal = incoming
             pendingExternalRevision = revision
+        }
+    }
+
+    private func reconcilePendingState() {
+        if let pendingExternal, current == pendingExternal {
+            saved = pendingExternal
+            self.pendingExternal = nil
+            pendingExternalRevision = nil
+        }
+        if current != saved {
+            savedConfirmation = nil
         }
     }
 }

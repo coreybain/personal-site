@@ -109,6 +109,37 @@ export type AgentUsage = { name: string; sessions: number };
 
 export type ProjectUsage = { name: string; sessions: number };
 
+export type HealthActivityKind = "walking" | "running" | "cycling" | "gym" | "other";
+
+/** A privacy-bounded workout summary read from Apple Health. */
+export type HealthActivity = {
+  /** Stable HealthKit UUID, used to reconcile repeat syncs. */
+  id: string;
+  kind: HealthActivityKind;
+  title: string;
+  startedAt: string;
+  durationMinutes: number;
+  distanceKm?: number;
+};
+
+/** One local calendar day's movement totals, read from Apple Health. */
+export type HealthDay = {
+  date: string;
+  steps: number;
+  distanceKm: number;
+  activities: HealthActivity[];
+};
+
+/** The HealthKit summary folded onto the live Convex snapshot. */
+export type HealthStats = {
+  latestDay: HealthDay;
+  sevenDayAverageSteps: number;
+  /** The days currently exposed to the site, oldest first. */
+  recentDays: HealthDay[];
+  /** The last time the iPhone successfully posted health totals. */
+  syncedAt: string;
+};
+
 /** Agent sessions and wall-clock hours spent building one thing. */
 export type AiBuildStats = { sessions: number; hours: number };
 
@@ -734,6 +765,7 @@ export const snapshot = {
     company: 'Corporate Interactive',
     location: 'Sydney, Australia',
     availability: 'Open to Principal Engineer roles',
+    availabilityVisible: true,
     github: 'coreybain',
     linkedin: 'https://www.linkedin.com/in/coreybaines/',
     x: 'https://x.com/coreybaines',
@@ -771,6 +803,11 @@ export const snapshot = {
       { name: 'ZeroRisk', sessions: 221 },
     ] as ProjectUsage[],
   },
+
+  /* Archived variants do not render the phone's live HealthKit signal. Keep
+     their deterministic fixture explicitly empty while widening the property
+     to the same nullable contract the public site receives from Convex. */
+  healthStats: null as HealthStats | null,
 
   /*
    * ⚠️ DRAFT COPY — every `problem` / `approach` / `outcomes` string below is
@@ -913,7 +950,7 @@ export const snapshot = {
       title: 'coreybaines.com',
       summary:
         'This site. Eight full-fidelity design explorations, one shared snapshot, and a build log kept in the open — including the parts that did not work.',
-      repoFullName: 'coreybain/home',
+      repoFullName: 'coreybain/personal-site',
       language: 'TypeScript',
       liveStats: { stars: 3, forks: 1, commitsYear: 186, lastPushDaysAgo: 0 },
       featured: true,

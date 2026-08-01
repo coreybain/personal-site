@@ -132,6 +132,7 @@ const siteSettings = {
   // Both copies, from one input — the same invariant `siteSettings.upsert`
   // maintains. See that file's header for why the field is stored twice.
   availability: mock.identity.availability,
+  availabilityVisible: true,
   identity: { ...mock.identity },
   featured: {
     /**

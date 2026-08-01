@@ -458,7 +458,7 @@ const aiUsageIngest = httpAction(async (ctx, request) => {
 /**
  * `POST /ingest/health` — the phone's daily movement push (Pipeline 3).
  *
- * Body: `{ days: [{ day, steps, distanceKm }], source: 'healthkit' | 'manual', postedAt }`.
+ * Body: `{ days: [{ day, steps, distanceKm, activities }], source: 'healthkit' | 'manual', postedAt }`.
  *
  * Upserts by `day`; a re-post replaces the day, which is the normal case rather
  * than the exception — HealthKit revises today's step count continuously, and

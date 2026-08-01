@@ -57,7 +57,9 @@ export function ResumeHeader({
       href: `https://github.com/${identity.github}`,
     },
     { label: "Location", value: identity.location, href: null },
-    { label: "Status", value: identity.availability, href: null },
+    ...(identity.availabilityVisible
+      ? [{ label: "Status", value: identity.availability, href: null }]
+      : []),
   ] as const;
 
   return (

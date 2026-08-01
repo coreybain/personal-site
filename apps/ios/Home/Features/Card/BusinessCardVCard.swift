@@ -53,7 +53,9 @@ nonisolated struct BusinessCardVCard: Transferable {
             lines.append("PHOTO:data:image/jpeg;base64,\(portraitJPEG.base64EncodedString())")
         }
 
-        lines.append("NOTE:\(Self.escape(identity.availability))")
+        if identity.availabilityVisible {
+            lines.append("NOTE:\(Self.escape(identity.availability))")
+        }
         lines.append("END:VCARD")
 
         // RFC 6350 uses CRLF and folds content lines after 75 UTF-8 octets.

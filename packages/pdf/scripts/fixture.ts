@@ -68,6 +68,7 @@ export const resumeFixture: ResumePdfProps = {
     github: 'coreybain',
     linkedin: 'https://www.linkedin.com/in/coreybaines/',
   },
+  availabilityVisible: true,
 
   resume: {
     summary:

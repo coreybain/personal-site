@@ -26,15 +26,19 @@ function delay(ms: number): CSSProperties {
 export function ContactHero({ identity }: { identity: Identity }) {
   return (
     <header className="pt-24 pb-14 sm:pt-28 sm:pb-16 lg:pt-36 lg:pb-20">
-      <div className="hor-rise" style={delay(40)}>
-        <span className="hor-pill">
-          <span className="hor-live" aria-hidden="true" />
-          {identity.availability}
-        </span>
-      </div>
+      {identity.availabilityVisible ? (
+        <div className="hor-rise" style={delay(40)}>
+          <span className="hor-pill">
+            <span className="hor-live" aria-hidden="true" />
+            {identity.availability}
+          </span>
+        </div>
+      ) : null}
 
       <h1
-        className="contact-display hor-rise mt-8 text-balance sm:mt-10"
+        className={`contact-display hor-rise text-balance ${
+          identity.availabilityVisible ? "mt-8 sm:mt-10" : "mt-0"
+        }`}
         style={delay(110)}
       >
         Start a conversation.

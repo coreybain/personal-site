@@ -131,6 +131,8 @@ export type ResumePdfDocument = ResumeDocument;
 
 export type ResumePdfProps = {
   identity: ResumePdfIdentity;
+  /** Matches the public-site hiring-signal toggle. */
+  availabilityVisible: boolean;
 
   /** The Resume Document. `experience` is printed in the order it arrives. */
   resume: ResumePdfDocument;

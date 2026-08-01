@@ -50,15 +50,19 @@ export function Hero({
     <header className="pt-24 pb-16 sm:pt-28 sm:pb-20 lg:pt-36 lg:pb-24">
       <div className="flex flex-col lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:items-center lg:gap-x-14 xl:gap-x-20">
         <div className="order-last lg:order-none">
-          <div className="hor-rise" style={delay(40)}>
-            <span className="hor-pill">
-              <span className="hor-live" aria-hidden="true" />
-              {identity.availability}
-            </span>
-          </div>
+          {identity.availabilityVisible ? (
+            <div className="hor-rise" style={delay(40)}>
+              <span className="hor-pill">
+                <span className="hor-live" aria-hidden="true" />
+                {identity.availability}
+              </span>
+            </div>
+          ) : null}
 
           <h1
-            className="hor-display hor-rise mt-8 text-balance sm:mt-10"
+            className={`hor-display hor-rise text-balance ${
+              identity.availabilityVisible ? "mt-8 sm:mt-10" : "mt-0"
+            }`}
             style={delay(110)}
           >
             {identity.name}

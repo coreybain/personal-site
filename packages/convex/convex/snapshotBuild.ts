@@ -426,6 +426,9 @@ async function foldHealth(
     date: row.day,
     steps: row.steps,
     distanceKm: row.distanceKm,
+    // Old rows from the steps-only iPhone build remain readable during the
+    // rollout. Every new push writes an explicit array, including `[]`.
+    activities: row.activities ?? [],
   });
 
   let syncedAt = rows[0].ingestedAt;

@@ -685,12 +685,17 @@ nonisolated struct SiteIdentity: Codable, Hashable, Sendable {
     }
 
     var businessCardIdentity: BusinessCardIdentity {
+        businessCardIdentity(availabilityVisible: true)
+    }
+
+    func businessCardIdentity(availabilityVisible: Bool) -> BusinessCardIdentity {
         BusinessCardIdentity(
             name: name,
             role: role,
             company: company,
             location: location,
             availability: availability,
+            availabilityVisible: availabilityVisible,
             github: github,
             linkedin: URL(string: linkedin) ?? BusinessCardIdentity.siteURL,
             x: x.flatMap(URL.init(string:)),
@@ -749,6 +754,7 @@ nonisolated struct SiteSettingsRecord: Codable, Hashable, Identifiable, Sendable
     var revision: Double?
     var headline: String
     var availability: String
+    var availabilityVisible: Bool?
     var identity: SiteIdentity
     var featured: FeaturedSelections
     var nav: NavVisibility
@@ -757,13 +763,14 @@ nonisolated struct SiteSettingsRecord: Codable, Hashable, Identifiable, Sendable
     private enum CodingKeys: String, CodingKey {
         case id = "_id"
         case creationTime = "_creationTime"
-        case revision, headline, availability, identity, featured, nav, updatedAt
+        case revision, headline, availability, availabilityVisible, identity, featured, nav, updatedAt
     }
 }
 
 nonisolated struct SiteSettingsDraft: Hashable, Sendable {
     var baseRevision: Double = 0
     var headline = ""
+    var availabilityVisible = true
     var identity = SiteIdentity()
     var featured = FeaturedSelections()
     var nav = NavVisibility()
@@ -773,6 +780,7 @@ nonisolated struct SiteSettingsDraft: Hashable, Sendable {
     init(record: SiteSettingsRecord) {
         baseRevision = record.revision ?? 0
         headline = record.headline
+        availabilityVisible = record.availabilityVisible ?? true
         identity = record.identity
         featured = record.featured
         nav = record.nav

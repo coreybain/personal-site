@@ -310,8 +310,8 @@ export type AiUsageDay = z.infer<typeof AiUsageDaySchema>;
 /* ------------------------------------------------------------------ *
  * Health — Pipeline 3
  *
- * Producer  the iOS app: `HKObserverQuery` + background delivery on step count
- *           and walking/running distance, with a foreground sync on app open.
+ * Producer  the iOS app: `HKObserverQuery` + background delivery on step count,
+ *           walking/running distance and workouts, with a foreground sync.
  * Transport POST /ingest/health, scope `health:write`.
  * Stored in `healthDays`, upserted on `day`.
  * Folded by the hourly snapshot cron into `snapshot.healthStats`.
@@ -325,16 +325,26 @@ export type AiUsageDay = z.infer<typeof AiUsageDaySchema>;
 /**
  * One day of movement as the phone reports it.
  *
- * Steps and distance only. These are the two least sensitive HealthKit metrics
- * that still say something true about the life signal, and the iOS app requests
- * read scopes for nothing else — a schema that cannot express heart rate is a
- * stronger guarantee than a policy that says we won't ask for it.
+ * Daily step/distance totals plus privacy-bounded workout summaries. The app
+ * sends the workout category, time, duration and optional distance; routes,
+ * heart rate, energy and raw samples remain outside this contract.
  */
 export const HealthDayIngestSchema = z.strictObject({
   /** The user's local HealthKit calendar day. The upsert key. */
   day: IsoDateSchema,
   steps: CountSchema,
   distanceKm: NonNegativeNumberSchema,
+  /** Workouts that started on this local day; routes and samples never leave the phone. */
+  activities: z.array(
+    z.strictObject({
+      id: NonEmptyStringSchema,
+      kind: z.enum(['walking', 'running', 'cycling', 'gym', 'other']),
+      title: NonEmptyStringSchema,
+      startedAt: IsoDateTimeSchema,
+      durationMinutes: NonNegativeNumberSchema,
+      distanceKm: NonNegativeNumberSchema.optional(),
+    }),
+  ),
 });
 export type HealthDayIngest = z.infer<typeof HealthDayIngestSchema>;
 
@@ -346,7 +356,7 @@ export type HealthDayIngest = z.infer<typeof HealthDayIngestSchema>;
  * — so the handler upserts by `day` rather than appending.
  */
 export const HealthIngestSchema = z.strictObject({
-  /** One or more daily summaries, oldest first. Steps and distance only. */
+  /** One or more daily summaries, oldest first. */
   days: z.array(HealthDayIngestSchema).nonempty(),
   /**
    * Who measured these. One value for the whole push, because one push comes
@@ -375,6 +385,7 @@ export const HealthDaySummarySchema = z.object({
   day: IsoDateSchema,
   steps: CountSchema,
   distanceKm: NonNegativeNumberSchema,
+  activities: HealthDayIngestSchema.shape.activities,
   source: HealthSourceSchema,
   /**
    * When this row was last written. The newest value across the table becomes

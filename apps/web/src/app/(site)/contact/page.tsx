@@ -48,7 +48,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     // Bare — the `(site)` layout's `title.template` supplies "— Corey Baines".
     title: "Contact",
-    description: `${identity.availability}. Write to ${identity.name}, ${identity.role} at ${identity.company} in ${identity.location} — principal roles and hard platform problems both welcome. Email ${identity.email}.`,
+    description: `${identity.availabilityVisible ? `${identity.availability}. ` : ""}Write to ${identity.name}, ${identity.role} at ${identity.company} in ${identity.location} — principal roles and hard platform problems both welcome. Email ${identity.email}.`,
     alternates: { canonical: "/contact" },
   };
 }

@@ -31,6 +31,11 @@ struct HealthTabView: View {
                             .font(HorizonStyle.mono())
                             .horizonNumerals()
                     }
+                    LabeledContent("Activities") {
+                        Text(day.activities.count, format: .number)
+                            .font(HorizonStyle.mono())
+                            .horizonNumerals()
+                    }
                 } else {
                     ContentUnavailableView(
                         "No local summary yet",

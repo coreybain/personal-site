@@ -51,12 +51,12 @@ export function ContactTopics({
         eyebrow="Before you write"
         title="Three messages that always get an answer."
         lede="No template required — this is only what makes a reply fast."
-        aside={
+        aside={identity.availabilityVisible ? (
           <span className="hor-pill">
             <span className="hor-live" aria-hidden="true" />
             {identity.availability}
           </span>
-        }
+        ) : undefined}
       />
 
       <div className="grid gap-4 sm:grid-cols-3">

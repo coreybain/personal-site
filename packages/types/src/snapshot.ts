@@ -25,11 +25,11 @@
  * collections — but individual fields are the documented superset, so the mock
  * is missing several of them: `funEntries` have no `photo` or `occurredAt`,
  * `projects` have no `attribution` / `media` / `links` / `published` /
- * `featured` / `sortOrder`, `labs` have no `links` or `coverImage`, and there is
- * no `healthStats`. Each gap is marked `DIVERGENCE` at the field that has it.
- * This schema is therefore aspirational until the mock grows those fields (or is
- * replaced by the Convex query), and it is not a drift test today — wiring it up
- * as one means fixing the mock first, not the schema.
+ * `featured` / `sortOrder`, and `labs` have no `links` or `coverImage`. Each gap
+ * is marked `DIVERGENCE` at the field that has it. This schema is therefore
+ * aspirational until the mock grows those fields (or is replaced by the Convex
+ * query), and it is not a drift test today — wiring it up as one means fixing
+ * the mock first, not the schema.
  *
  * DIVERGENCE — the plan's `snapshot` does not embed collections; the implemented
  * mock does, because a mock has nowhere else to put them. When Convex lands, the

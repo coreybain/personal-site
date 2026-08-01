@@ -95,7 +95,12 @@ final class HomeAppModel {
     }
 
     var businessCardIdentity: BusinessCardIdentity {
-        siteSettings?.identity.businessCardIdentity ?? SiteIdentity().businessCardIdentity
+        guard let siteSettings else {
+            return SiteIdentity().businessCardIdentity(availabilityVisible: true)
+        }
+        return siteSettings.identity.businessCardIdentity(
+            availabilityVisible: siteSettings.availabilityVisible ?? true
+        )
     }
 
     var hasLoadedSiteSettings: Bool { loadedSiteSettings }
@@ -929,6 +934,7 @@ final class HomeAppModel {
             return try await self.call("siteSettings:upsert", args: [
                 "expectedRevision": draft.baseRevision,
                 "headline": draft.headline,
+                "availabilityVisible": draft.availabilityVisible,
                 "identity": ConvexJSON(draft.identity),
                 "featured": ConvexJSON(draft.featured),
                 "nav": ConvexJSON(draft.nav),
@@ -938,6 +944,7 @@ final class HomeAppModel {
 
     func setAvailability(
         _ availability: String,
+        visible: Bool,
         expectedRevision: Double
     ) async -> MutationResult {
         await mutate {
@@ -945,6 +952,7 @@ final class HomeAppModel {
                 "siteSettings:setAvailability",
                 args: [
                     "availability": availability,
+                    "availabilityVisible": visible,
                     "expectedRevision": expectedRevision,
                 ]
             )
@@ -1154,6 +1162,7 @@ final class HomeAppModel {
             revision: nil,
             headline: "I build products, platforms and the teams behind them.",
             availability: "Open to product-minded engineering leadership roles",
+            availabilityVisible: true,
             identity: SiteIdentity(
                 company: "Independent",
                 availability: "Open to product-minded engineering leadership roles"

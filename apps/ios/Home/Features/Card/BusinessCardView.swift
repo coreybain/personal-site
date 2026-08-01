@@ -81,11 +81,13 @@ struct BusinessCardView: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
 
-                Label(identity.availability, systemImage: "circle.fill")
-                    .font(.callout.weight(.medium))
-                    .foregroundStyle(HorizonStyle.accent)
-                    .multilineTextAlignment(.center)
-                    .accessibilityElement(children: .combine)
+                if identity.availabilityVisible {
+                    Label(identity.availability, systemImage: "circle.fill")
+                        .font(.callout.weight(.medium))
+                        .foregroundStyle(HorizonStyle.accent)
+                        .multilineTextAlignment(.center)
+                        .accessibilityElement(children: .combine)
+                }
             }
             .accessibilityElement(children: .combine)
 

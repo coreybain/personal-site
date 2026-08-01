@@ -223,6 +223,12 @@ const MAX_STEPS_PER_DAY = 500_000;
 /** Kilometres in a day. */
 const MAX_DISTANCE_KM_PER_DAY = 1_000;
 
+/** More than this many completed workouts in one calendar day is malformed. */
+const MAX_HEALTH_ACTIVITIES_PER_DAY = 100;
+
+/** A workout may span midnight, but two full days is beyond a useful session. */
+const MAX_WORKOUT_MINUTES = 2_880;
+
 /**
  * Earliest calendar day either pipeline may report.
  *
@@ -252,12 +258,21 @@ type AiAgentId = Doc<'aiUsageDays'>['agent'];
 
 /** `'healthkit' | 'manual'`, likewise. */
 type HealthSourceId = Doc<'healthDays'>['source'];
+type HealthActivityInput = NonNullable<Doc<'healthDays'>['activities']>[number];
+type HealthActivityKindId = HealthActivityInput['kind'];
 
 const AI_AGENTS = ['claude', 'codex'] as const satisfies readonly AiAgentId[];
 const HEALTH_SOURCES = [
   'healthkit',
   'manual',
 ] as const satisfies readonly HealthSourceId[];
+const HEALTH_ACTIVITY_KINDS = [
+  'walking',
+  'running',
+  'cycling',
+  'gym',
+  'other',
+] as const satisfies readonly HealthActivityKindId[];
 
 /**
  * Compile-time exhaustiveness.
@@ -274,8 +289,13 @@ const _healthSourcesAreExhaustive: Unlisted<
   HealthSourceId,
   (typeof HEALTH_SOURCES)[number]
 > = true;
+const _healthActivityKindsAreExhaustive: Unlisted<
+  HealthActivityKindId,
+  (typeof HEALTH_ACTIVITY_KINDS)[number]
+> = true;
 void _aiAgentsAreExhaustive;
 void _healthSourcesAreExhaustive;
+void _healthActivityKindsAreExhaustive;
 
 /* ------------------------------------------------------------------ *
  * Parse results
@@ -747,6 +767,7 @@ export type HealthDayInput = {
   day: string;
   steps: number;
   distanceKm: number;
+  activities: HealthActivityInput[];
 };
 
 /** The whole `POST /ingest/health` body. Mirrors `HealthIngestSchema`. */
@@ -757,7 +778,15 @@ export type HealthIngestInput = {
 };
 
 const HEALTH_BODY_KEYS = ['days', 'source', 'postedAt'] as const;
-const HEALTH_DAY_KEYS = ['day', 'steps', 'distanceKm'] as const;
+const HEALTH_DAY_KEYS = ['day', 'steps', 'distanceKm', 'activities'] as const;
+const HEALTH_ACTIVITY_KEYS = [
+  'id',
+  'kind',
+  'title',
+  'startedAt',
+  'durationMinutes',
+  'distanceKm',
+] as const;
 
 /**
  * Parse a decoded `POST /ingest/health` body. Pure, as above.
@@ -808,6 +837,7 @@ export function parseHealthBody(raw: unknown): ParseResult<HealthIngestInput> {
 
   const days: HealthDayInput[] = [];
   const seenDays = new Set<string>();
+  const seenActivityIDs = new Set<string>();
 
   for (const [index, entry] of raw.days.entries()) {
     const at = `days[${index}]`;
@@ -844,7 +874,99 @@ export function parseHealthBody(raw: unknown): ParseResult<HealthIngestInput> {
     );
     if (!distanceKm.ok) return distanceKm;
 
-    days.push({ day: day.value, steps: steps.value, distanceKm: distanceKm.value });
+    // Missing means an older steps-only iPhone build. It remains accepted
+    // during rollout and is normalised to the target contract's honest `[]`.
+    const rawActivities = entry.activities ?? [];
+    if (!Array.isArray(rawActivities)) {
+      return fail(`${at}.activities`, `Expected an array, got ${describe(rawActivities)}.`);
+    }
+    if (rawActivities.length > MAX_HEALTH_ACTIVITIES_PER_DAY) {
+      return fail(
+        `${at}.activities`,
+        `At most ${MAX_HEALTH_ACTIVITIES_PER_DAY} workouts per day (got ${rawActivities.length}).`,
+      );
+    }
+
+    const activities: HealthActivityInput[] = [];
+    for (const [activityIndex, activity] of rawActivities.entries()) {
+      const activityAt = `${at}.activities[${activityIndex}]`;
+      if (!isPlainObject(activity)) {
+        return fail(activityAt, `Expected an object, got ${describe(activity)}.`);
+      }
+      const activityStrayKey = rejectUnknownKeys(
+        activity,
+        HEALTH_ACTIVITY_KEYS,
+        activityAt,
+      );
+      if (activityStrayKey !== null) {
+        return { ok: false, problem: activityStrayKey };
+      }
+
+      if (
+        typeof activity.id !== 'string' ||
+        activity.id.length === 0 ||
+        activity.id.length > 128
+      ) {
+        return fail(`${activityAt}.id`, 'Expected a stable workout id of 1–128 characters.');
+      }
+      if (seenActivityIDs.has(activity.id)) {
+        return fail(`${activityAt}.id`, `Duplicate workout id ${JSON.stringify(activity.id)}.`);
+      }
+      seenActivityIDs.add(activity.id);
+
+      if (
+        typeof activity.kind !== 'string' ||
+        !(HEALTH_ACTIVITY_KINDS as readonly string[]).includes(activity.kind)
+      ) {
+        return fail(
+          `${activityAt}.kind`,
+          `Expected one of ${HEALTH_ACTIVITY_KINDS.join(' | ')}, got ${describe(activity.kind)}.`,
+        );
+      }
+      if (
+        typeof activity.title !== 'string' ||
+        activity.title.trim().length === 0 ||
+        activity.title.length > 80
+      ) {
+        return fail(`${activityAt}.title`, 'Expected a workout title of 1–80 characters.');
+      }
+
+      const startedAt = parseIsoDateTime(activity.startedAt, `${activityAt}.startedAt`);
+      if (!startedAt.ok) return startedAt;
+      const durationMinutes = parseAmount(
+        activity.durationMinutes,
+        `${activityAt}.durationMinutes`,
+        MAX_WORKOUT_MINUTES,
+      );
+      if (!durationMinutes.ok) return durationMinutes;
+
+      let workoutDistanceKm: number | undefined;
+      if (activity.distanceKm !== undefined) {
+        const parsedDistance = parseAmount(
+          activity.distanceKm,
+          `${activityAt}.distanceKm`,
+          MAX_DISTANCE_KM_PER_DAY,
+        );
+        if (!parsedDistance.ok) return parsedDistance;
+        workoutDistanceKm = parsedDistance.value;
+      }
+
+      activities.push({
+        id: activity.id,
+        kind: activity.kind as HealthActivityKindId,
+        title: activity.title.trim(),
+        startedAt: startedAt.value,
+        durationMinutes: durationMinutes.value,
+        ...(workoutDistanceKm === undefined ? {} : { distanceKm: workoutDistanceKm }),
+      });
+    }
+
+    days.push({
+      day: day.value,
+      steps: steps.value,
+      distanceKm: distanceKm.value,
+      activities,
+    });
   }
 
   return { ok: true, value: { days, source, postedAt: postedAt.value } };
@@ -1188,6 +1310,22 @@ export const recordHealth = internalMutation({
         day: v.string(),
         steps: v.number(),
         distanceKm: v.number(),
+        activities: v.array(
+          v.object({
+            id: v.string(),
+            kind: v.union(
+              v.literal('walking'),
+              v.literal('running'),
+              v.literal('cycling'),
+              v.literal('gym'),
+              v.literal('other'),
+            ),
+            title: v.string(),
+            startedAt: v.string(),
+            durationMinutes: v.number(),
+            distanceKm: v.optional(v.number()),
+          }),
+        ),
       }),
     ),
     source: healthSource,
@@ -1218,6 +1356,7 @@ export const recordHealth = internalMutation({
         day: day.day,
         steps: day.steps,
         distanceKm: day.distanceKm,
+        activities: day.activities,
         source: args.source,
         ingestedAt: args.postedAt,
       };

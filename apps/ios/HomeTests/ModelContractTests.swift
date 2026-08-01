@@ -224,6 +224,17 @@ struct ModelContractTests {
         #expect(HealthMetricNormalizer.steps(12_345.4) == 12_345)
     }
 
+    @Test func healthWorkoutsMapToThePublicActivityBuckets() {
+        #expect(HealthWorkoutPresentation.values(for: .walking).kind == .walking)
+        #expect(HealthWorkoutPresentation.values(for: .running).kind == .running)
+        #expect(HealthWorkoutPresentation.values(for: .cycling).kind == .cycling)
+        #expect(
+            HealthWorkoutPresentation.values(for: .traditionalStrengthTraining).kind == .gym
+        )
+        #expect(HealthWorkoutPresentation.values(for: .yoga).kind == .gym)
+        #expect(HealthWorkoutPresentation.values(for: .swimming).kind == .other)
+    }
+
     @Test func collectorStatsDoNotMasqueradeAsEditorialChanges() {
         var project = ProjectDraft()
         project.title = "Project"
@@ -441,6 +452,25 @@ struct ModelContractTests {
         presentation = .issued(token)
 
         #expect(presentation.id == "issued-token_123")
+    }
+
+    @Test func hiddenAvailabilityIsNotExportedInTheBusinessCard() {
+        let identity = BusinessCardIdentity(
+            name: "Corey Baines",
+            role: "Principal Engineer",
+            company: "Corporate Interactive",
+            location: "Sydney, Australia",
+            availability: "Open to Principal Engineer roles",
+            availabilityVisible: false,
+            github: "coreybain",
+            linkedin: URL(string: "https://www.linkedin.com/in/coreybaines/")!,
+            email: "corey@spiritdevs.com"
+        )
+
+        let vCard = String(decoding: BusinessCardVCard(identity: identity).data, as: UTF8.self)
+
+        #expect(!vCard.contains("Open to Principal Engineer roles"))
+        #expect(!vCard.contains("NOTE:"))
     }
 
     @Test @MainActor func clearingSessionDropsIdentityScopedData() {
