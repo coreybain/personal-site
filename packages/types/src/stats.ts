@@ -202,7 +202,10 @@ export const GitStatsSchema = z.object({
   /** The private/restricted slice of the above. Count only, never named. */
   privateContributions: CountSchema,
   publicCommits: CountSchema,
+  /** Public repositories with contribution activity in the trailing window. */
   publicRepoCount: CountSchema,
+  /** Every public repository owned by the account, including forks. */
+  totalPublicRepoCount: CountSchema,
   /** Consecutive days with at least one contribution, up to `computedAt`. */
   currentStreakDays: CountSchema,
   calendar: ContributionCalendarSchema,

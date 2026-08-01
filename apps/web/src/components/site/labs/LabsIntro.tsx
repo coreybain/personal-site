@@ -3,7 +3,7 @@ import type { CSSProperties } from "react";
 import { num } from "@/components/site/format";
 import type { LabsDerived } from "@/lib/derive";
 import { activePhrase } from "@/lib/derive";
-import type { Identity } from "@/lib/snapshot";
+import type { GitStats, Identity } from "@/lib/snapshot";
 
 /**
  * Sky zone. One calm paragraph whose only job is to say *these are not client
@@ -32,9 +32,9 @@ const COUNT_WORDS = [
   "Ten",
 ] as const;
 
-type LabsIntroProps = { identity: Identity } & Pick<
+type LabsIntroProps = { identity: Identity; gitStats: GitStats } & Pick<
   LabsDerived,
-  "freshest" | "labs" | "totalCommits"
+  "freshest" | "labs"
 >;
 
 function delay(ms: number): CSSProperties {
@@ -43,21 +43,24 @@ function delay(ms: number): CSSProperties {
 
 export function LabsIntro({
   identity,
+  gitStats,
   freshest,
   labs,
-  totalCommits,
 }: LabsIntroProps) {
   const labCount = COUNT_WORDS[labs.length] ?? String(labs.length);
 
   const skyline = [
-    { value: num(totalCommits), label: "Commits, 12 mo" },
-    { value: String(labs.length), label: "Personal repositories" },
     {
-      value:
-        freshest.liveStats.lastPushDaysAgo <= 0
-          ? "Today"
-          : `${freshest.liveStats.lastPushDaysAgo}d`,
-      label: "Newest push",
+      value: num(gitStats.publicCommits),
+      label: "Public commits, 12 mo",
+    },
+    {
+      value: String(gitStats.publicRepoCount),
+      label: "Active repositories",
+    },
+    {
+      value: String(gitStats.totalPublicRepoCount),
+      label: "Total public repositories",
     },
   ];
 

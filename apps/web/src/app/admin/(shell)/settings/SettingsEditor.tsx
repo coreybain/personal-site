@@ -302,8 +302,9 @@ function SettingsForm({ initial }: { initial: Doc<"siteSettings"> | null }) {
     <>
       {initial === null ? (
         <AdminNotice tone="warn" title="No settings row exists yet">
-          The public site is rendering its static fallbacks. Saving this form
-          creates the row — every field below is written, including the blank ones.
+          The public site cannot render live content until this row exists. Saving
+          this form creates it — every field below is written, including the blank
+          ones.
         </AdminNotice>
       ) : null}
 

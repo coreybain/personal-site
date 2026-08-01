@@ -8,7 +8,7 @@
 Corey's trailing-year contribution figure is **6,434**, of which **5,792 are private or
 restricted** — the public number is 573 across 14 repos. Showing only public activity
 understates the work by an order of magnitude and is the least accurate thing the site could
-say. But the private work is client-owned: QuoteCloud, TravelDocs, ZeroRisk and SoldOnline all
+say. But the private work is client-owned: QuoteCloud, TravelDocs, ZeroRisk, SoldOnline and Visual Editor all
 belong to Corporate Interactive, and their repos, names and commit history are not Corey's to
 publish.
 

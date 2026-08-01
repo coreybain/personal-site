@@ -44,13 +44,19 @@ export function GitSignal({ gitStats }: { gitStats: GitStats }) {
   const privatePct = pct(gitStats.privateContributions, gitStats.totalContributionsYear);
   const publicContributions =
     gitStats.totalContributionsYear - gitStats.privateContributions;
-  const perActiveDay = (gitStats.totalContributionsYear / activeDays).toFixed(1);
+  const perActiveDay =
+    activeDays === 0
+      ? "0.0"
+      : (gitStats.totalContributionsYear / activeDays).toFixed(1);
   const perWeek = Math.round(gitStats.totalContributionsYear / calendar.length);
 
   /** How many of every 100 contributions land in a private repository. */
-  const privateSquares = Math.round(
-    (gitStats.privateContributions / gitStats.totalContributionsYear) * 100,
-  );
+  const privateSquares =
+    gitStats.totalContributionsYear === 0
+      ? 0
+      : Math.round(
+          (gitStats.privateContributions / gitStats.totalContributionsYear) * 100,
+        );
 
   const SUBSTATS = [
     {
@@ -103,7 +109,7 @@ export function GitSignal({ gitStats }: { gitStats: GitStats }) {
 
           <div className="mt-4 flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
             <span className="hor-label">
-              {stamp(firstDay)} — {stamp(lastDay)} · 52 × 7
+              {stamp(firstDay)} — {stamp(lastDay)} · {calendar.length} × 7
             </span>
             <HeatmapLegend />
           </div>

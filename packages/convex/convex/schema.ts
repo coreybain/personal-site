@@ -507,7 +507,10 @@ export default defineSchema({
       /** The private/restricted slice of the above. A count, never names. */
       privateContributions: v.number(),
       publicCommits: v.number(),
+      /** Public repositories with contributions in the trailing window. */
       publicRepoCount: v.number(),
+      /** Every public repository owned by the account, including forks. */
+      totalPublicRepoCount: v.number(),
       currentStreakDays: v.number(),
       /**
        * 52 columns × 7 rows, oldest week first, Sunday-first within a week. Fed
@@ -1085,7 +1088,8 @@ export default defineSchema({
    * The heatmap's day popup answers "which projects, and how many commits
    * each". Most of Corey's commits are in private repositories, and ADR 008 is
    * absolute that a private repo *name* never reaches a stored public field —
-   * yet the named case studies (QuoteCloud, TravelDocs, ZeroRisk, SoldOnline)
+   * yet the named case studies (QuoteCloud, TravelDocs, ZeroRisk, SoldOnline,
+   * Visual Editor)
    * are published, attributed work whose titles are already on the site. The
    * gap between those two facts is exactly this table: an operator states, by
    * hand, that `<some private repo>` is the thing the site already calls

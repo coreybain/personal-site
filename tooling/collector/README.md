@@ -178,10 +178,10 @@ collector.config.json`. That is the entire cost.
 
 ### Slugs with no local checkout
 
-Some seeded slugs have no matching directory on this machine — `traveldocs`,
-`soldonline`, `statline` and `pintlog` at the time of writing. They will report
-no AI usage, correctly, because none was measured here. Add an entry to `repos`
-if a checkout appears.
+Some seeded slugs have no matching directory on this machine — `soldonline`,
+`statline` and `pintlog` at the time of writing. They will report no AI usage,
+correctly, because none was measured here. Add an entry to `repos` if a checkout
+appears.
 
 ---
 

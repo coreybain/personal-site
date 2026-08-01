@@ -174,6 +174,7 @@ const snapshotRow = {
     privateContributions: mock.gitStats.privateContributions,
     publicCommits: mock.gitStats.publicCommits,
     publicRepoCount: mock.gitStats.publicRepoCount,
+    totalPublicRepoCount: mock.gitStats.totalPublicRepoCount,
     currentStreakDays: mock.gitStats.currentStreakDays,
     calendar: mock.gitStats.calendar,
     languages: mock.gitStats.languages,

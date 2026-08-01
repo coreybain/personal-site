@@ -87,19 +87,28 @@ function WorkCard({ project, index }: { project: Project; index: number }) {
  * list here — /work's intro prints the same sentence about the same array, and
  * two ladders of number words is one too many to keep in step.
  *
- * `projects[0].client` is safe: `getSiteData()` falls back to the mock for the
- * whole projects domain when Convex has none, so the array is never empty.
+ * An empty published collection is rendered as an explicit live-data state;
+ * the section never borrows case studies from the design-study fixture.
  */
 export function FeaturedWork({ projects }: { projects: Project[] }) {
   const projectCount = countWord(projects.length);
+  const leadClient = projects[0]?.client;
 
   return (
     <section id="work" className="scroll-mt-20 pt-16 sm:pt-20 lg:pt-24">
       <SkyHead
         index="03"
         eyebrow="Featured work"
-        title={`${projectCount} platforms carrying real load.`}
-        lede={`Principal Engineer on each — architecture, delivery and the teams around them. All ${projectCount.toLowerCase()} for ${projects[0].client}.`}
+        title={
+          projects.length > 0
+            ? `${projectCount} platforms carrying real load.`
+            : "No published platforms yet."
+        }
+        lede={
+          leadClient
+            ? `Principal Engineer on each — architecture, delivery and the teams around them. All ${projectCount.toLowerCase()} for ${leadClient}.`
+            : "The live case-study collection is empty. Published work will appear here automatically."
+        }
         aside={
           <span className="hor-pill">
             <span
@@ -107,7 +116,7 @@ export function FeaturedWork({ projects }: { projects: Project[] }) {
               style={{ background: "var(--hor-accent)" }}
               aria-hidden="true"
             />
-            Procedural artwork
+            {projects.length > 0 ? "Procedural artwork" : "Live collection"}
           </span>
         }
       />

@@ -24,12 +24,9 @@ export const revalidate = 300;
 /**
  * The published platforms, prerendered at build time.
  *
- * The empty-list guard this needs already lives in the read layer, and lives
- * there only once: `getSiteData()` substitutes `mock.projects` whenever the
- * Convex `projects` query is empty or fails, so `getProjects()` cannot return an
- * empty array and leave the whole route unprerendered. Repeating the fallback
- * here would be a second copy of the per-domain rule that could drift from the
- * first — the read layer owns it.
+ * An empty live collection produces no build-time params, which is honest: no
+ * case studies are currently published. `dynamicParams` below still allows a
+ * project published after the build to render on demand.
  *
  * This is the *build-time* list, not the whole list. `generateStaticParams` is
  * not re-run by ISR (it runs during `next build` only), so anything published

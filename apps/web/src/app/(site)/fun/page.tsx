@@ -57,11 +57,8 @@ export async function generateMetadata(): Promise<Metadata> {
  * this page fetches, and none of them import the snapshot. Every figure comes
  * from `deriveFun(funLog, computedAt)`; the prose is draft copy.
  *
- * Fun entries are the domain most likely to still be the mock: the seeder skips
- * photo-less entries and `FunEntry` in the `Snapshot` contract has nowhere to
- * put a photo, so `funEntries` is often empty and `getSiteData()` falls back for
- * that domain alone. Nothing below can tell — the mock and a Convex row arrive
- * through the same `FunLogEntry[]`.
+ * An empty feed is rendered as an explicit state. It is never filled with the
+ * committed design-study entries.
  */
 export default async function FunPage() {
   const { identity, labs, funLog, computedAt } = await getSiteData();
@@ -90,7 +87,9 @@ export default async function FunPage() {
         <div className="hor-boundary-chip">
           <span className="hor-tick" />
           <span className="hor-label">
-            {stamp(logRange.oldest)} — {stamp(logRange.newest)}
+            {funLog.length > 0
+              ? `${stamp(logRange.oldest)} — ${stamp(logRange.newest)}`
+              : "Live log · no entries"}
           </span>
           <span className="hor-tick" />
         </div>
@@ -105,13 +104,24 @@ export default async function FunPage() {
           longestKm={tally.longestKm}
         />
 
+        {funLog.length === 0 ? (
+          <div className="hor-card hor-rise mt-10 p-6 sm:p-8">
+            <span className="hor-eyebrow">Live feed</span>
+            <h2 className="hor-h3 mt-3.5">No moments have been published yet.</h2>
+            <p className="hor-body mt-3 max-w-[52ch] text-pretty">
+              This is the current Convex result, not placeholder content. The page
+              will populate on its next revalidation after the first entry arrives.
+            </p>
+          </div>
+        ) : null}
+
         <div className="mt-14 sm:mt-16">
           <div className="hor-rule" />
           <div className="fun-signoff">
             <p className="hor-body max-w-[46ch] text-pretty">
-              None of this ships, none of it is instrumented, and the walks are
-              the only part with a number attached. That is rather the point of
-              it.
+              {funLog.length > 0
+                ? "None of this ships, none of it is instrumented, and the walks are the only part with a number attached. That is rather the point of it."
+                : "Nothing has been backfilled to make this page look busy. Empty is the honest state."}
             </p>
             <Link href="/" className="hor-link text-[13px] font-medium">
               Back to the telemetry

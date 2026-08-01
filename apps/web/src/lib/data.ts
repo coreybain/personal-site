@@ -1,6 +1,6 @@
 /**
- * data.ts — the public site's read layer. Convex where there is data, the mock
- * everywhere else, one `Snapshot` out either way.
+ * data.ts — the public site's live read layer. Convex is the only runtime data
+ * source; missing or failed reads never substitute committed fixture content.
  *
  * ═══════════════════════════════════════════════════════════════════════════
  *  SERVER ONLY. The `import "server-only"` below is load-bearing.
@@ -23,28 +23,22 @@
  *
  * ── The contract ───────────────────────────────────────────────────────────
  *
- * `Snapshot` in `@/lib/snapshot` stays the contract. This module does not widen
- * it, does not narrow it, and does not invent fields: it returns the same object
- * shape the mock has always returned, assembled from Convex rows where they
- * exist. Every consumer — pages, components, `@/lib/derive` — is written against
- * `Snapshot` and cannot tell which source it got.
+ * `Snapshot` in `@/lib/snapshot` stays the contract. This module maps live
+ * Convex rows into that shape without inventing content. Every consumer —
+ * pages, components, `@/lib/derive` — receives one coherent live assembly.
  *
- * ── Per-domain fallback ────────────────────────────────────────────────────
+ * ── Failure and empty-data semantics ───────────────────────────────────────
  *
- * Fallback is **per domain**, not all-or-nothing. An empty table, a `null`
- * singleton, or a query that throws falls back to the mock for *that domain
- * only*, so a deployment with case studies seeded but no snapshot row renders
- * real projects against mock telemetry rather than nothing at all:
+ * Missing configuration, a failed query, or a missing required singleton is a
+ * render failure. Under ISR, a failed revalidation leaves the last successful
+ * live page in place; on a fresh deployment it produces an explicit server
+ * error instead of a convincing page made from dummy numbers.
  *
- *     identity      siteSettings.identity → snapshot.identity → mock
- *     gitStats      snapshot row → mock
- *     aiUsage       snapshot row → mock
- *     computedAt    snapshot row → mock
- *     projects      projects.list (published) → mock
- *     labs          labs.list (published) → mock
- *     funEntries    funEntries.list → mock
- *     funLog        funEntries.list → mock
- *     resumeDocument  resume.get → mock
+ * Empty published collections are different: `projects`, `labs`, `funEntries`
+ * and `posts` return `[]` exactly as Convex returned them. Their pages own the
+ * corresponding empty state. The required `snapshot`, `siteSettings`, and
+ * `resumeDocument` singletons must exist because the shared shell and multiple
+ * page contracts cannot truthfully render without them.
  *
  * ── The two readers outside the Snapshot ───────────────────────────────────
  *
@@ -52,19 +46,16 @@
  * `Snapshot`. Both are deliberate exceptions and both are documented at the
  * function:
  *
- *   posts   ADR 018 — a blog may launch empty, so posts have **no mock
- *           fallback**. An empty table means an empty blog, and `/blog` renders
- *           an empty state rather than fabricated writing. `Post` is declared in
- *           snapshot.ts (the types are the contract) with no data behind it.
+ *   posts   ADR 018 — a blog may launch empty. An empty table means an empty
+ *           blog, and `/blog` renders that state rather than fabricated writing.
  *   nav     `siteSettings.nav` decides which routes appear in the nav pill, so
  *           it is chrome rather than content and never belonged in a snapshot of
  *           the site's *data*. It shares the one `siteSettings.get` read with
  *           the assembler — see `readSettings()`.
  *
- * With no `NEXT_PUBLIC_CONVEX_URL` at all, nothing is queried and the result is
- * the mock object itself — byte-identical to what the site rendered before this
- * module existed. That is the zero-env rule, and it is a `return` on line one of
- * the assembler rather than a series of `??`s, so it cannot rot.
+ * With no `NEXT_PUBLIC_CONVEX_URL`, public data reads throw a configuration
+ * error. This is intentional: a deployment cannot claim to be live while it is
+ * disconnected from its source of truth.
  *
  * ── Reads per page ─────────────────────────────────────────────────────────
  *
@@ -143,7 +134,6 @@ import type {
   ResumeDocument,
   Snapshot,
 } from "@/lib/snapshot";
-import { snapshot as mock } from "@/lib/snapshot";
 
 /* ------------------------------------------------------------------ *
  * Configuration
@@ -157,7 +147,7 @@ import { snapshot as mock } from "@/lib/snapshot";
 export const REVALIDATE_SECONDS = 300;
 
 /**
- * The deployment URL, or `undefined` on a zero-env checkout.
+ * The deployment URL. Public reads fail explicitly when it is absent.
  *
  * `NEXT_PUBLIC_` because it is the same variable the admin's browser client
  * reads (`ConvexClientProvider`), and a second name for one deployment is a
@@ -172,6 +162,41 @@ export const REVALIDATE_SECONDS = 300;
  * site perfectly.
  */
 const CONVEX_URL = process.env.NEXT_PUBLIC_CONVEX_URL;
+
+/** A public page could not obtain truthful live data. */
+export class SiteDataUnavailableError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "SiteDataUnavailableError";
+  }
+}
+
+function requireConvexUrl(): string {
+  if (!CONVEX_URL) {
+    throw new SiteDataUnavailableError(
+      "NEXT_PUBLIC_CONVEX_URL is required to render live public-site data.",
+    );
+  }
+  return CONVEX_URL;
+}
+
+function requireRow<T>(row: T | null, label: string): T {
+  if (row === null) {
+    throw new SiteDataUnavailableError(
+      `Live data is unavailable because ${label} has not been created.`,
+    );
+  }
+  return row;
+}
+
+function requireValue<T>(value: T | null | undefined, label: string): T {
+  if (value === null || value === undefined) {
+    throw new SiteDataUnavailableError(
+      `Live data is incomplete because ${label} is missing.`,
+    );
+  }
+  return value;
+}
 
 /* ------------------------------------------------------------------ *
  * Row types
@@ -250,21 +275,19 @@ function daysAgo(occurredAt: string, computedAt: string): number {
  * ------------------------------------------------------------------ */
 
 /**
- * One query, or `null` if it cannot be answered.
+ * One live query, with its operation named if it fails.
  *
  * Every read below goes through this. A query that throws — deployment asleep,
- * network gone, a function renamed under us — degrades to the mock for its own
- * domain instead of 500-ing a page whose entire job is being read by a stranger
- * who may be about to offer Corey a job. The warning is deliberately loud in the
- * server log, because the *silent* version of this is the failure mode: a site
- * that has served mock data for three weeks and looks fine.
+ * network gone, a function renamed under us — fails the render. ISR keeps the
+ * previous successfully generated live page available while logging the named
+ * operation; it never replaces that page with fixture content.
  */
-async function read<T>(label: string, run: () => Promise<T>): Promise<T | null> {
+async function read<T>(label: string, run: () => Promise<T>): Promise<T> {
   try {
     return await run();
   } catch (error) {
-    console.warn(`[data] Convex read "${label}" failed; falling back to mock.`, error);
-    return null;
+    console.error(`[data] Live Convex read "${label}" failed.`, error);
+    throw new SiteDataUnavailableError(`Live data read "${label}" failed.`);
   }
 }
 
@@ -279,12 +302,12 @@ async function read<T>(label: string, run: () => Promise<T>): Promise<T | null> 
  * request. Nothing here authenticates or mutates, so there is no state worth
  * carrying anyway; the point is that there is no module-scope mutable object.
  *
- * Callers guard `CONVEX_URL` themselves and return their zero-env value before
- * reaching this, which is why the non-null assertion is safe and why this does
- * not try to have an opinion about what "no deployment" means — that answer
- * differs per reader (the mock, or an empty list).
+ * `requireConvexUrl()` makes missing configuration fail before a client can be
+ * constructed; no non-null assertion or alternate data source is involved.
  */
-const httpClient = cache(() => new ConvexHttpClient(CONVEX_URL!, { logger: false }));
+const httpClient = cache(
+  () => new ConvexHttpClient(requireConvexUrl(), { logger: false }),
+);
 
 /**
  * The `siteSettings` singleton, or `null`.
@@ -297,7 +320,7 @@ const httpClient = cache(() => new ConvexHttpClient(CONVEX_URL!, { logger: false
  * other five reads, so extracting it costs no latency either.
  */
 const readSettings = cache(async (): Promise<SettingsRow | null> => {
-  if (!CONVEX_URL) return null;
+  requireConvexUrl();
   return await read("siteSettings.get", () =>
     httpClient().query(api.siteSettings.get, {}),
   );
@@ -315,12 +338,11 @@ const readSettings = cache(async (): Promise<SettingsRow | null> => {
  * ------------------------------------------------------------------ */
 
 /**
- * `identity` — a straight copy, with one repair.
+ * `identity` — a straight copy from the live settings row.
  *
- * `x` is optional on the Convex row and required (`string`) on the mock's
- * inferred type, so an absent handle borrows the mock's rather than widening the
- * contract to `string | undefined` and breaking eight archived variants that
- * read `identity.x`.
+ * `x` is optional in storage for backwards compatibility but required by the
+ * public contract. Missing it is incomplete live configuration, not a reason to
+ * borrow a profile URL from a design-study fixture.
  */
 function mapIdentity(source: IdentityRow): Identity {
   return {
@@ -331,20 +353,18 @@ function mapIdentity(source: IdentityRow): Identity {
     availability: source.availability,
     github: source.github,
     linkedin: source.linkedin,
-    x: source.x ?? mock.identity.x,
+    x: requireValue(source.x, "siteSettings.identity.x"),
     email: source.email,
   };
 }
 
 /**
- * `gitStats` — field-for-field, with the calendar guarded and normalised.
+ * `gitStats` — field-for-field, with the live calendar normalised.
  *
- * The one substitution: an *empty* `calendar` borrows the mock's grid. A snapshot
- * row written before the git cron exists (phase 4) has real totals and no grid,
- * and `deriveResume` reads `calendar[0][0].date` — so the honest-looking option
- * here is a thrown exception on /resume, which is worse than an obviously
- * placeholder heatmap next to real numbers. Everything else is passed straight
- * through, including a `languages` list that may legitimately be empty.
+ * An empty calendar cannot satisfy the page contract: `GitSignal`, the resume
+ * cadence and the AI reporting window all require it. It fails the render
+ * instead of pairing live totals with a fixture heatmap. A languages list may
+ * legitimately be empty and is passed through as such.
  *
  * ── Why the grid is rebuilt rather than handed over ────────────────────────
  *
@@ -370,58 +390,49 @@ function mapIdentity(source: IdentityRow): Identity {
  * and a whole-grid decision gets wrong.
  */
 function mapGitStats(source: SnapshotRow["gitStats"]): GitStats {
+  if (source.calendar.length === 0) {
+    throw new SiteDataUnavailableError(
+      "Live snapshot.gitStats.calendar is empty; the GitHub rebuild has not completed.",
+    );
+  }
+  if (source.totalPublicRepoCount === undefined) {
+    throw new SiteDataUnavailableError(
+      "Live snapshot.gitStats.totalPublicRepoCount is missing; the GitHub rebuild has not completed.",
+    );
+  }
+
   return {
     totalContributionsYear: source.totalContributionsYear,
     privateContributions: source.privateContributions,
     publicCommits: source.publicCommits,
     publicRepoCount: source.publicRepoCount,
+    totalPublicRepoCount: source.totalPublicRepoCount,
     currentStreakDays: source.currentStreakDays,
-    calendar:
-      source.calendar.length > 0
-        ? source.calendar.map((week) =>
-            week.map((day) => ({
-              date: day.date,
-              count: day.count,
-              level: day.level,
-              project: day.project,
-              // The producer owns the ordering and the invariants (sorted
-              // descending, names unique, `sum ≤ count`). This does not re-sort
-              // or re-check: a reader that quietly repairs its input is a reader
-              // that hides a broken producer.
-              byProject: day.byProject ?? [],
-            })),
-          )
-        : mock.gitStats.calendar,
+    calendar: source.calendar.map((week) =>
+      week.map((day) => ({
+        date: day.date,
+        count: day.count,
+        level: day.level,
+        project: day.project,
+        // The producer owns the ordering and the invariants (sorted
+        // descending, names unique, `sum ≤ count`). This does not re-sort
+        // or re-check: a reader that quietly repairs its input is a reader
+        // that hides a broken producer.
+        byProject: day.byProject ?? [],
+      })),
+    ),
     languages: source.languages.map((l) => ({ name: l.name, pct: l.pct })),
   };
 }
 
 /**
- * `aiUsage` — field-for-field, with an empty fold treated as "no data".
+ * `aiUsage` — field-for-field, including an honest zero-row fold.
  *
- * Aggregates only; there is nothing to drop. The one substitution mirrors the
- * `calendar` guard above, for the same reason and with a sharper edge.
- *
- * Phase 4 landed the git half of the hourly cron before the AI Collector that
- * fills `aiUsageDays`, so the Snapshot row now legitimately carries
- * `{ totalSessions: 0, agents: [], topProjects: [] }` — the fold reporting,
- * correctly, that nothing has been ingested yet. That is not a number the site
- * can render: `AiSignal` computes `(totalHours * 60) / totalSessions` (NaN) and
- * `Math.max(...topProjects.map(…))` (`-Infinity`) on an empty fold, and
- * `deriveResume` divides by `totalSessions` too. So an all-zero fold falls back
- * to the mock for this domain, exactly as an empty `projects` table does.
- *
- * The test is `totalSessions === 0 && agents.length === 0`, not `totalHours`:
- * "zero sessions and no agent has ever been seen" is only producible by an empty
- * raw table. A real day with sessions but no measurable hours still renders.
- * The moment the Collector posts once, this substitution stops happening on its
- * own and never happens again.
+ * Aggregates only; there is nothing to drop. Zero sessions and empty breakdowns
+ * mean the collector has not ingested a row in the current window, and that is
+ * the live value the UI receives.
  */
 function mapAiUsage(source: SnapshotRow["aiUsage"]): AiUsage {
-  if (source.totalSessions === 0 && source.agents.length === 0) {
-    return mock.aiUsage;
-  }
-
   return {
     totalSessions: source.totalSessions,
     totalHours: source.totalHours,
@@ -484,12 +495,15 @@ function mapProject(row: ProjectRow): Project {
  * DIVERGENCE and says which side is the fact: "`lastPushedAt` is the fact,
  * `lastPushDaysAgo` is the precomputed display value", one that "silently rots if
  * the cron stalls". So when the row carries the absolute timestamp it wins,
- * measured against the same `computedAt` every other relative figure on the page
- * is measured against; the stored integer is the fallback for rows written
- * before the cron set one.
+ * measured against the same `computedAt` every other relative figure on the
+ * page is measured against. A row without that timestamp is incomplete live
+ * telemetry and fails rather than exposing its stale stored presentation value.
  */
 function mapLab(row: LabRow, computedAt: string): Lab {
-  const { lastPushedAt } = row.liveStats;
+  const lastPushedAt = requireValue(
+    row.liveStats.lastPushedAt,
+    `labs.${row.slug}.liveStats.lastPushedAt`,
+  );
 
   return {
     slug: row.slug,
@@ -501,10 +515,7 @@ function mapLab(row: LabRow, computedAt: string): Lab {
       stars: row.liveStats.stars,
       forks: row.liveStats.forks,
       commitsYear: row.liveStats.commitsYear,
-      lastPushDaysAgo:
-        lastPushedAt !== undefined
-          ? daysAgo(lastPushedAt, computedAt)
-          : row.liveStats.lastPushDaysAgo,
+      lastPushDaysAgo: daysAgo(lastPushedAt, computedAt),
     },
     featured: row.featured,
   };
@@ -519,10 +530,9 @@ function mapLab(row: LabRow, computedAt: string): Lab {
  * is that /fun has images — so widening the contract to carry it is the obvious
  * next change, and deliberately not this agent's to make.
  *
- * `note` and the walk metrics are optional on the row and required on the mock's
- * union (`note` for beer/coffee/pub, `steps`/`km` for walks), so they take empty
- * defaults. A walk never gets a `note` key at all: the mock's walk member does
- * not declare one, and adding it would fail the union's excess-property check.
+ * `note` and the walk metrics are optional in the shared row validator but
+ * required by their rendered union member. Missing values fail as incomplete
+ * live content instead of becoming invented zeroes or empty prose.
  *
  * `id` is the row's `_id`, widened to a plain `string` by `FunLogEntry`. This is
  * the *only* Convex document id that crosses into the `Snapshot` contract, and
@@ -539,8 +549,8 @@ function mapFunEntry(row: FunRow, computedAt: string): FunLogEntry {
       id: row._id,
       type: "walk",
       title: row.title,
-      steps: row.steps ?? 0,
-      km: row.km ?? 0,
+      steps: requireValue(row.steps, `funEntries.${row._id}.steps`),
+      km: requireValue(row.km, `funEntries.${row._id}.km`),
       daysAgo: when,
     };
   }
@@ -549,7 +559,7 @@ function mapFunEntry(row: FunRow, computedAt: string): FunLogEntry {
     id: row._id,
     type: row.type,
     title: row.title,
-    note: row.note ?? "",
+    note: requireValue(row.note, `funEntries.${row._id}.note`),
     daysAgo: when,
   };
 }
@@ -662,30 +672,29 @@ function mapResume(row: ResumeRow): ResumeDocument {
  * window (see the file header) — `cache()` only makes one render coherent, which
  * also means every figure on a page is measured against a single `computedAt`.
  *
- * ── The zero-env path ──────────────────────────────────────────────────────
+ * ── Required live configuration ───────────────────────────────────────────
  *
- * No `NEXT_PUBLIC_CONVEX_URL` returns the mock object itself — not a copy, not a
- * rebuild. That keeps a checkout with no environment rendering byte-identical
- * output to what it rendered before this module existed, which is the property
- * the whole build is held to.
+ * No `NEXT_PUBLIC_CONVEX_URL` means there is no source of truth, so the read
+ * fails before constructing a client. Local development and builds load the
+ * repository's `.env`; deployments must configure the same variable.
  */
 export const getSiteData = cache(async (): Promise<Snapshot> => {
-  if (!CONVEX_URL) return mock;
+  requireConvexUrl();
 
   // One client per request, shared with the readers below the assembler. See
   // `httpClient` for why that is `cache()` and not a module-scope constant.
   const client = httpClient();
 
-  // One round trip's worth of latency, not six. Each read fails independently —
-  // `read()` maps a rejection to `null`, so `Promise.all` cannot reject and one
-  // sick table cannot take the page down.
+  // One round trip's worth of latency, not six. Any failed read rejects the
+  // coherent assembly, allowing ISR to retain the last successfully generated
+  // live page rather than mixing timestamps or sources.
   //
   // `readSettings()` is the odd one out: it is its own `cache()`d function
   // rather than an inline `read()`, because `getNav()` needs the same row and a
   // second query for a document this render already has would be a read the page
   // is not getting anything for. It is still started here, in parallel with the
   // rest, so the shape of this call is unchanged.
-  const [snapshotRow, settingsRow, projectRows, labRows, funRows, resumeRow] =
+  const [snapshotResult, settingsResult, projectRows, labRows, funRows, resumeResult] =
     await Promise.all([
       read("snapshot.get", () => client.query(api.snapshot.get, {})),
       readSettings(),
@@ -695,34 +704,32 @@ export const getSiteData = cache(async (): Promise<Snapshot> => {
       read("resume.get", () => client.query(api.resume.get, {})),
     ]);
 
+  const snapshotRow = requireRow(snapshotResult, "the snapshot singleton");
+  const settingsRow = requireRow(settingsResult, "the siteSettings singleton");
+  const resumeRow = requireRow(resumeResult, "the resumeDocument singleton");
+
   /* ---- the clock -------------------------------------------------- *
    * Every relative figure below (`daysAgo`, `lastPushDaysAgo`, the /fun
    * date stamps) is measured against this one instant, so a stalled cron
    * produces stale-but-consistent output rather than a page that
-   * contradicts itself. Without a snapshot row there is no such instant,
-   * and the mock's own `computedAt` stands in — which is right, because
-   * without a snapshot row the telemetry is the mock's too. */
-  const computedAt = snapshotRow?.computedAt ?? mock.computedAt;
+   * contradicts itself. Without a snapshot row there is no honest clock, so
+   * `requireRow` rejects the assembly above. */
+  const computedAt = snapshotRow.computedAt;
 
   /* ---- identity --------------------------------------------------- *
    * `siteSettings` first. schema.ts is explicit that it is the source of
    * truth and that `snapshot.identity` is a denormalised copy rebuilt by
-   * the hourly cron — a cron that does not exist until phase 4, so the
-   * copy is the *staler* of the two today. Reading settings first is also
+   * the hourly cron, so the copy is the *staler* of the two. Reading settings
+   * first is also
    * what makes `setAvailability` ("I just accepted an offer, take the
    * banner down") visible within one ISR window instead of at the next
    * tick of a job nobody has written. */
-  const identity =
-    settingsRow !== null
-      ? mapIdentity(settingsRow.identity)
-      : snapshotRow !== null
-        ? mapIdentity(snapshotRow.identity)
-        : mock.identity;
+  const identity = mapIdentity(settingsRow.identity);
 
   /* ---- fun -------------------------------------------------------- *
    * One table, two views. `funEntries.list` returns all four kinds
    * newest-first off `by_occurredAt`; `funLog` is that list, and
-   * `funEntries` is the same list with pubs removed — the mock's split,
+   * `funEntries` is the same list with pubs removed — the narrower split is
    * kept because eight archived variants build an exhaustive
    * `Record<FunEntry['type'], …>` and widening that union breaks them.
    *
@@ -730,33 +737,20 @@ export const getSiteData = cache(async (): Promise<Snapshot> => {
    * instant, the page groups by calendar day, and two entries on the same
    * day must not swap places between renders. `sort` is stable in every
    * runtime this ships to, so same-day entries keep the index's order. */
-  const funLog: FunLogEntry[] | null =
-    funRows !== null && funRows.length > 0
-      ? funRows
-          .map((row) => mapFunEntry(row, computedAt))
-          .sort((a, b) => a.daysAgo - b.daysAgo)
-      : null;
+  const funLog: FunLogEntry[] = funRows
+    .map((row) => mapFunEntry(row, computedAt))
+    .sort((a, b) => a.daysAgo - b.daysAgo);
 
   return {
     identity,
 
-    gitStats: snapshotRow !== null ? mapGitStats(snapshotRow.gitStats) : mock.gitStats,
-    aiUsage: snapshotRow !== null ? mapAiUsage(snapshotRow.aiUsage) : mock.aiUsage,
-
-    projects:
-      projectRows !== null && projectRows.length > 0
-        ? projectRows.map(mapProject)
-        : mock.projects,
-
-    labs:
-      labRows !== null && labRows.length > 0
-        ? labRows.map((row) => mapLab(row, computedAt))
-        : mock.labs,
-
-    resumeDocument: resumeRow !== null ? mapResume(resumeRow) : mock.resumeDocument,
-
-    funEntries: funLog !== null ? funLog.filter(isFunEntry) : mock.funEntries,
-    funLog: funLog ?? mock.funLog,
+    gitStats: mapGitStats(snapshotRow.gitStats),
+    aiUsage: mapAiUsage(snapshotRow.aiUsage),
+    projects: projectRows.map(mapProject),
+    labs: labRows.map((row) => mapLab(row, computedAt)),
+    resumeDocument: mapResume(resumeRow),
+    funEntries: funLog.filter(isFunEntry),
+    funLog,
 
     computedAt,
   };
@@ -795,21 +789,18 @@ export async function getIdentity(): Promise<Identity> {
  * assembler has already started it in the same request, so both awaits resolve
  * the same promise. On `/admin` and `/v/*` it is one.
  *
- * ── The tier it drops, named ───────────────────────────────────────────────
+ * ── Required source-of-truth row ───────────────────────────────────────────
  *
- * The assembler resolves identity `siteSettings → snapshot.identity → mock`.
- * This drops the middle tier. `snapshot.identity` is a denormalised *copy* that
- * the hourly cron writes from `siteSettings` (schema.ts says so at the field),
- * so the only state where the two disagree is "settings row missing, snapshot
- * row present" — a deployment seeded backwards. In that state the root layout's
- * `<head>` would carry the mock's name while the page body carried the copy's.
- * Both say "Corey Baines"; neither is wrong enough to justify five more reads on
- * every authenticated request. If that ever stops being true, the fix is to give
- * the cron's snapshot a settings row, not to widen this.
+ * `siteSettings` is the editable source of truth. The snapshot's identity is a
+ * denormalised hourly copy, so using it here would make metadata lag an admin
+ * edit. A missing settings singleton is a deployment error and fails explicitly.
  */
 export const getSettingsIdentity = cache(async (): Promise<Identity> => {
-  const settings = await readSettings();
-  return settings !== null ? mapIdentity(settings.identity) : mock.identity;
+  const settings = requireRow(
+    await readSettings(),
+    "the siteSettings singleton",
+  );
+  return mapIdentity(settings.identity);
 });
 
 /** Published case studies, in display order (`by_published_sortOrder`). */
@@ -859,11 +850,10 @@ export async function getResume(): Promise<ResumeDocument> {
 }
 
 /* ------------------------------------------------------------------ *
- * The blog — outside the Snapshot, and outside the mock
+ * The blog — outside the Snapshot
  *
- * Everything above this line falls back to `@/lib/snapshot`'s mock when
- * Convex has nothing to say. Nothing below it does. See ADR 018, the
- * `Post` docblock in snapshot.ts, and the file header.
+ * Posts have their own live query because they are not part of the denormalised
+ * Snapshot contract. See ADR 018 and the `Post` docblock in snapshot.ts.
  * ------------------------------------------------------------------ */
 
 /**
@@ -871,13 +861,9 @@ export async function getResume(): Promise<ResumeDocument> {
  *
  * ── The empty array is the whole design ────────────────────────────────────
  *
- * Zero env, an empty `posts` table, a query that throws: all three return `[]`,
- * and `/blog` renders its empty state for all three. That is the opposite of
- * every other getter in this file and it is ADR 018 in code — "the blog may
- * launch empty, with its nav entry hidden until it has content". Mock posts
- * would put fabricated writing on a site whose argument is that its numbers are
- * real, and would do it on the one page where the reader is being asked to
- * judge the author's thinking rather than their throughput.
+ * An empty `posts` table returns `[]` and `/blog` renders its designed empty
+ * state. Missing configuration and failed queries reject like every other live
+ * read; they are not indistinguishable from a genuinely empty publication.
  *
  * ── Draft safety ───────────────────────────────────────────────────────────
  *
@@ -900,13 +886,11 @@ export async function getResume(): Promise<ResumeDocument> {
  * de-duplicated across the nav pill, the page body and `generateMetadata`.
  */
 export const getPosts = cache(async (): Promise<Post[]> => {
-  if (!CONVEX_URL) return [];
+  requireConvexUrl();
 
   const rows = await read("posts.list", () =>
     httpClient().query(api.posts.list, {}),
   );
-
-  if (rows === null) return [];
 
   return rows.filter(filterPublished).map(mapPost);
 });
@@ -939,19 +923,14 @@ export async function getPostBySlug(slug: string): Promise<Post | undefined> {
 }
 
 /**
- * Which top-level routes the nav may show, or `null` when there is no settings
- * row to ask.
+ * Which top-level routes the live settings row allows the nav to show.
  *
- * `null` rather than a default object on purpose: "no deployment / no settings"
- * and "settings that say `blog: false`" are the same *outcome* but not the same
- * *fact*, and a caller that wants a default can write one in the one line it
- * takes. `<NavPill>` treats both as hidden, which is the right default under ADR
- * 018 — a nav entry is opt-in.
- *
- * Costs nothing: `readSettings()` is the same memoised read the assembler made.
+ * A missing row rejects rather than looking like a deliberate set of disabled
+ * links. Costs nothing: `readSettings()` is the same memoised read the assembler
+ * made.
  */
-export async function getNav(): Promise<NavVisibility | null> {
-  return (await readSettings())?.nav ?? null;
+export async function getNav(): Promise<NavVisibility> {
+  return requireRow(await readSettings(), "the siteSettings singleton").nav;
 }
 
 /**

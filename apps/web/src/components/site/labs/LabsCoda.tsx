@@ -7,9 +7,8 @@ import type { GitStats, Identity } from "@/lib/snapshot";
  * The page surfaces one last time. Sky material — rounded glass, sans face — so
  * the closing note reads as an aside rather than another instrument.
  *
- * Prop-fed: the "N of M public repositories" line pairs the written-up labs
- * with `gitStats.publicRepoCount`, and both halves have to come from the same
- * fetched snapshot or the sentence stops being true.
+ * Prop-fed: active and total repository counts come from the same hourly GitHub
+ * snapshot, while `labs.length` is the smaller editorial set written up here.
  */
 export function LabsCoda({
   identity,
@@ -28,7 +27,8 @@ export function LabsCoda({
             The rest of the shelf is public too.
           </p>
           <p className="hor-body mt-3 max-w-[54ch] text-pretty">
-            {labs.length} of {gitStats.publicRepoCount} public repositories are
+            {gitStats.publicRepoCount} of {gitStats.totalPublicRepoCount} public
+            repositories were active in the last 12 months. {labs.length} are
             written up here — the ones with something to say. The remainder are
             forks, spikes and half-finished ideas, and they are all on GitHub in
             the same state I left them.

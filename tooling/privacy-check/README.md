@@ -99,9 +99,9 @@ It also probes three things that are not name matching:
 ## The part that needs a human: `REVIEW`
 
 ADR 008 does not say "no client names". It says the opposite — "**named CI
-projects**", "Named case studies only". QuoteCloud, TravelDocs, ZeroRisk and
-SoldOnline are each *also* the name of a private repository, so a naive grep
-fails on a correct site.
+projects**", "Named case studies only". QuoteCloud, TravelDocs, ZeroRisk,
+SoldOnline and Visual Editor are each *also* the name of a private repository,
+so a naive grep fails on a correct site.
 
 So the check draws the same line the ADR draws:
 

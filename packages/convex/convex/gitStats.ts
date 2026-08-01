@@ -580,6 +580,13 @@ query Languages($repos: Int!, $languages: Int!) {
         }
       }
     }
+    publicRepositories: repositories(
+      first: 1
+      ownerAffiliations: [OWNER]
+      privacy: PUBLIC
+    ) {
+      totalCount
+    }
   }
 }`;
 
@@ -695,6 +702,7 @@ type LanguagesResponse = {
         languages: { edges: Array<{ size: number; node: { name: string } }> };
       }>;
     };
+    publicRepositories: { totalCount: number };
   };
 };
 
@@ -1244,6 +1252,7 @@ type FetchedGitStats = {
     privateContributions: number;
     publicCommits: number;
     publicRepoCount: number;
+    totalPublicRepoCount: number;
     currentStreakDays: number;
     calendar: CalendarDay[][];
     languages: Array<{ name: string; pct: number }>;
@@ -1589,6 +1598,7 @@ async function fetchGitStats(
       // repositories".
       publicCommits,
       publicRepoCount: observedRepos.size,
+      totalPublicRepoCount: languageResponse.viewer.publicRepositories.totalCount,
       currentStreakDays: currentStreak(grid, todayIso),
       calendar: grid,
       languages: toLanguageShares(sizes),
@@ -1640,6 +1650,7 @@ export type RebuildSummary = {
   privateContributions: number;
   publicCommits: number;
   publicRepoCount: number;
+  totalPublicRepoCount: number;
   currentStreakDays: number;
   calendarWeeks: number;
   languages: Array<{ name: string; pct: number }>;
@@ -1699,6 +1710,7 @@ export const rebuild = internalAction({
       privateContributions: fetched.gitStats.privateContributions,
       publicCommits: fetched.gitStats.publicCommits,
       publicRepoCount: fetched.gitStats.publicRepoCount,
+      totalPublicRepoCount: fetched.gitStats.totalPublicRepoCount,
       currentStreakDays: fetched.gitStats.currentStreakDays,
       calendarWeeks: fetched.gitStats.calendar.length,
       languages: fetched.gitStats.languages,
@@ -1755,6 +1767,7 @@ export const preview = internalAction({
       privateContributions: fetched.gitStats.privateContributions,
       publicCommits: fetched.gitStats.publicCommits,
       publicRepoCount: fetched.gitStats.publicRepoCount,
+      totalPublicRepoCount: fetched.gitStats.totalPublicRepoCount,
       currentStreakDays: fetched.gitStats.currentStreakDays,
       languages: fetched.gitStats.languages,
 

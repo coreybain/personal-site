@@ -62,10 +62,9 @@ export const metadata: Metadata = {
  *
  * ── Where the numbers come from ────────────────────────────────────────────
  *
- * `getSiteData()` — Convex where there is a row, the mock per domain where
- * there is not, one `Snapshot` either way. It is read **once, here**, and passed
- * down as props; no section below reaches for data itself. That rule is the
- * whole reason the sections take props at all, and it is what keeps a homepage
+ * `getSiteData()` assembles live Convex rows only. It is read **once, here**,
+ * and passed down as props; no section below reaches for data itself. That rule
+ * is the whole reason the sections take props at all, and it keeps a homepage
  * request at one round of queries no matter how many panels get added.
  *
  * The read is shared with the layout and with `generateMetadata` through
@@ -73,12 +72,8 @@ export const metadata: Metadata = {
  * measured against the same `computedAt` — a page that contradicts itself is the
  * failure mode a per-component fetch produces.
  *
- * PHASE 4 (ADR 004) — the target is *one* document read. It is six today because
- * the denormalising cron does not exist yet: the snapshot row already embeds
- * `identity` and `latestFunEntry`, and the same cron is what will let this page
- * stop reaching for projects, labs, fun entries and the resume separately. When
- * it lands the extra queries collapse into the singleton inside `@/lib/data`,
- * and nothing on this page changes.
+ * The hourly denormalising cron supplies telemetry in the Snapshot singleton;
+ * published content remains separate live reads assembled coherently here.
  */
 export default async function HomePage() {
   const { identity, gitStats, aiUsage, projects, funEntries, computedAt } =

@@ -39,10 +39,9 @@
  *     `isoDaysAgo`, `hueFor`, `axisPos`, `tenureYears`). Those are derived
  *     *behaviour*, so they stay behind the derive call and are never passed
  *     across a server/client boundary — pass the plain values instead.
- *   • Callers pass non-empty collections. `getSiteData()` in `@/lib/data`
- *     guarantees that by falling back to the mock per domain, so the guards
- *     below are belt-and-braces against a half-seeded deployment rather than a
- *     supported mode.
+ *   • Empty collections are live states. Derivations either reduce them to
+ *     zeroes or are called only after the owning page has rendered its explicit
+ *     empty state.
  */
 
 import type {
@@ -112,7 +111,7 @@ export type WorkDerived = {
   projectIndex: (slug: string) => number;
   /**
    * The two projects either side of `index`, wrapping at both ends so a case
-   * study always has somewhere to go next. With four platforms the pair is
+   * study always has somewhere to go next. With multiple platforms the pair is
    * always distinct from each other and from the current page.
    */
   neighbours: (index: number) => { prev: Project; next: Project };
@@ -245,11 +244,8 @@ export type LabsDerived = {
  * Every derived figure /labs prints, from the lab list.
  *
  * ⚠️ `freshest` and `stalest` are typed as `Lab`, not `Lab | undefined`, because
- * that is what the page and its metadata already read. Pass a non-empty list —
- * `getLabs()` guarantees one by falling back to the mock when the `labs` table
- * is empty. The numeric reductions below are written to survive an empty list
- * anyway, so a half-seeded deployment degrades to zeroes rather than to
- * `-Infinity`.
+ * that is what the telemetry panels read. The owning page renders its explicit
+ * live empty state before calling this function.
  */
 export function deriveLabs(source: readonly Lab[]): LabsDerived {
   const labs: Lab[] = [...source].sort(

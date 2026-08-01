@@ -17,7 +17,7 @@ import type { Project } from "@/lib/snapshot";
 
 const ART_CLASS = ["hor-art-0", "hor-art-1", "hor-art-2", "hor-art-3"] as const;
 
-/** Altitudes rise across the set, so the four tiles read as a sequence. */
+/** Altitudes rise across the set, so the tiles read as a sequence. */
 const ART_HORIZON = ["68%", "60%", "52%", "44%"] as const;
 
 export type ArtSize = "wide" | "tile" | "mini";

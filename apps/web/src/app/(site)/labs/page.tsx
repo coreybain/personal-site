@@ -8,7 +8,7 @@ import { LabsCoda } from "@/components/site/labs/LabsCoda";
 import { LabsIntro } from "@/components/site/labs/LabsIntro";
 import { RecencyWindow } from "@/components/site/labs/RecencyWindow";
 import { getSiteData } from "@/lib/data";
-import { activePhrase, deriveLabs } from "@/lib/derive";
+import { deriveLabs } from "@/lib/derive";
 
 import "./labs.css";
 
@@ -21,8 +21,8 @@ import "./labs.css";
  * horizon, as a telemetry wall.
  *
  * Server component end to end; every number comes from Convex by way of
- * `@/lib/data` — with the mock as a per-domain fallback — and is reduced by
- * `deriveLabs()`. The snapshot is read **once**, here, and passed down as props;
+ * `@/lib/data` and is reduced by `deriveLabs()`. The snapshot is read **once**,
+ * here, and passed down as props;
  * nothing below this function fetches. Colour is `--hor-*` only, so both themes
  * are handled by the two THEME blocks in horizon.css.
  */
@@ -48,25 +48,72 @@ export const revalidate = 300;
  */
 export async function generateMetadata(): Promise<Metadata> {
   const snapshot = await getSiteData();
-  const { labs, totalCommits, combinedCadence, freshest } = deriveLabs(
-    snapshot.labs,
-  );
+  if (snapshot.labs.length === 0) {
+    return {
+      title: "Labs",
+      description: `No personal repositories are currently published for ${snapshot.identity.name}.`,
+      alternates: { canonical: "/labs" },
+    };
+  }
+
+  const { labs } = deriveLabs(snapshot.labs);
 
   return {
     title: "Labs",
-    description: `${labs.length} personal repositories, built outside client work: ${num(
-      totalCommits,
-    )} commits in the last 12 months at ${combinedCadence.toFixed(
-      1,
-    )} a week, most recent push ${activePhrase(
-      freshest.liveStats.lastPushDaysAgo,
-    )} on ${freshest.title}.`,
+    description: `${snapshot.gitStats.publicRepoCount} active repositories and ${num(
+      snapshot.gitStats.publicCommits,
+    )} public commits in the last 12 months, from ${snapshot.gitStats.totalPublicRepoCount} public repositories on ${snapshot.identity.name}'s GitHub account. ${labs.length} selected Labs are written up here.`,
     alternates: { canonical: "/labs" },
   };
 }
 
 export default async function LabsPage() {
   const snapshot = await getSiteData();
+
+  if (snapshot.labs.length === 0) {
+    return (
+      <main>
+        <section className="hor-sky">
+          <div className="hor-wash" aria-hidden="true" />
+          <div className="hor-shell">
+            <header className="pt-24 pb-14 sm:pt-28 sm:pb-16 lg:pt-32 lg:pb-20">
+              <span className="hor-eyebrow">Personal work</span>
+              <h1 className="hor-display mt-8 sm:mt-10">Labs</h1>
+              <p className="hor-lede mt-7 max-w-[52ch] text-pretty">
+                No repositories are currently published in the live Labs collection.
+                New entries will appear here automatically after they are published.
+              </p>
+              <div className="mt-12 sm:mt-14">
+                <div className="hor-rule" />
+                <dl className="pt-7">
+                  <div className="flex flex-col-reverse">
+                    <dt className="hor-eyebrow mt-2.5">Published repositories</dt>
+                    <dd className="hor-stat-sky">0</dd>
+                  </div>
+                </dl>
+              </div>
+            </header>
+          </div>
+        </section>
+
+        <Boundary label={`Labs · ${stampTime(snapshot.computedAt)}`} />
+
+        <div className="hor-deck-zone">
+          <div className="hor-deck-grid" aria-hidden="true" />
+          <div className="hor-shell pb-16 sm:pb-20">
+            <div className="hor-panel p-6 sm:p-8">
+              <span className="hor-label">Live collection</span>
+              <p className="hor-body mt-3 max-w-[52ch]">
+                This empty state is the current Convex result; no fixture repositories
+                are being substituted.
+              </p>
+            </div>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
   const derived = deriveLabs(snapshot.labs);
 
   return (
@@ -75,7 +122,11 @@ export default async function LabsPage() {
       <section className="hor-sky">
         <div className="hor-wash" aria-hidden="true" />
         <div className="hor-shell">
-          <LabsIntro identity={snapshot.identity} {...derived} />
+          <LabsIntro
+            identity={snapshot.identity}
+            gitStats={snapshot.gitStats}
+            {...derived}
+          />
         </div>
       </section>
 

@@ -25,12 +25,19 @@ export function AiSignal({
   /** Weeks in the contribution window — `gitStats.calendar.length`. */
   weeks: number;
 }) {
-  const sessionsPerWeek = Math.round(aiUsage.totalSessions / weeks);
-  const hoursPerWeek = Math.round(aiUsage.totalHours / weeks);
-  const avgMinutes = Math.round((aiUsage.totalHours * 60) / aiUsage.totalSessions);
+  const sessionsPerWeek =
+    weeks === 0 ? 0 : Math.round(aiUsage.totalSessions / weeks);
+  const hoursPerWeek = weeks === 0 ? 0 : Math.round(aiUsage.totalHours / weeks);
+  const avgMinutes =
+    aiUsage.totalSessions === 0
+      ? 0
+      : Math.round((aiUsage.totalHours * 60) / aiUsage.totalSessions);
 
   const agentTotal = aiUsage.agents.reduce((sum, a) => sum + a.sessions, 0);
-  const projectPeak = Math.max(...aiUsage.topProjects.map((p) => p.sessions));
+  const projectPeak = aiUsage.topProjects.reduce(
+    (peak, project) => Math.max(peak, project.sessions),
+    0,
+  );
   const inTopThree = aiUsage.topProjects.reduce((sum, p) => sum + p.sessions, 0);
 
   const CADENCE = [
@@ -45,7 +52,7 @@ export function AiSignal({
       <DeckHead
         index="02"
         title="AI-native delivery"
-        meta="Same 52 weeks · measured, not estimated"
+        meta={`Same ${weeks} weeks · measured, not estimated`}
       />
 
       <div className="grid gap-3 lg:grid-cols-12">
@@ -89,17 +96,21 @@ export function AiSignal({
           className="lg:col-span-3"
           delay={100}
         >
-          <div className="hor-split">
-            {aiUsage.agents.map((agent, i) => (
-              <span
-                key={agent.name}
-                style={{
-                  width: `${pct(agent.sessions, agentTotal)}%`,
-                  background: AGENT_FILL[i % AGENT_FILL.length],
-                }}
-              />
-            ))}
-          </div>
+          {aiUsage.agents.length > 0 ? (
+            <div className="hor-split">
+              {aiUsage.agents.map((agent, i) => (
+                <span
+                  key={agent.name}
+                  style={{
+                    width: `${pct(agent.sessions, agentTotal)}%`,
+                    background: AGENT_FILL[i % AGENT_FILL.length],
+                  }}
+                />
+              ))}
+            </div>
+          ) : (
+            <p className="hor-micro">No agent sessions recorded in this window.</p>
+          )}
 
           <ul className="mt-4 grid gap-3">
             {aiUsage.agents.map((agent, i) => (
@@ -126,7 +137,7 @@ export function AiSignal({
             <div className="hor-row">
               <span className="hor-label">Combined per week</span>
               <span className="hor-mono hor-micro" style={{ color: "var(--hor-ink)" }}>
-                {num(Math.round(agentTotal / weeks))}
+                {num(weeks === 0 ? 0 : Math.round(agentTotal / weeks))}
               </span>
             </div>
           </div>
@@ -141,26 +152,36 @@ export function AiSignal({
           className="lg:col-span-4"
           delay={150}
         >
-          <div className="grid gap-3.5">
-            {aiUsage.topProjects.map((project, i) => (
-              <Meter
-                key={project.name}
-                name={project.name}
-                value={`${num(project.sessions)} · ${pct(
-                  project.sessions,
-                  aiUsage.totalSessions,
-                )}%`}
-                share={Math.round((project.sessions / projectPeak) * 100)}
-                hot={i === 0}
-                delay={320 + i * 80}
-              />
-            ))}
-          </div>
+          {aiUsage.topProjects.length > 0 ? (
+            <div className="grid gap-3.5">
+              {aiUsage.topProjects.map((project, i) => (
+                <Meter
+                  key={project.name}
+                  name={project.name}
+                  value={`${num(project.sessions)} · ${pct(
+                    project.sessions,
+                    aiUsage.totalSessions,
+                  )}%`}
+                  share={
+                    projectPeak === 0
+                      ? 0
+                      : Math.round((project.sessions / projectPeak) * 100)
+                  }
+                  hot={i === 0}
+                  delay={320 + i * 80}
+                />
+              ))}
+            </div>
+          ) : (
+            <p className="hor-micro">No project-attributed sessions recorded yet.</p>
+          )}
 
-          <p className="hor-micro mt-5 border-t border-[var(--hor-line-soft)] pt-3.5">
-            Bars are scaled to the busiest platform ({num(projectPeak)} sessions);
-            percentages are of the full {num(aiUsage.totalSessions)}.
-          </p>
+          {aiUsage.topProjects.length > 0 ? (
+            <p className="hor-micro mt-5 border-t border-[var(--hor-line-soft)] pt-3.5">
+              Bars are scaled to the busiest platform ({num(projectPeak)} sessions);
+              percentages are of the full {num(aiUsage.totalSessions)}.
+            </p>
+          ) : null}
         </Panel>
       </div>
     </section>

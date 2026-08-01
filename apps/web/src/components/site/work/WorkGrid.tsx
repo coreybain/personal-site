@@ -119,10 +119,8 @@ function WorkTile({ project, index }: { project: Project; index: number }) {
 export function WorkGrid({ projects }: { projects: Project[] }) {
   const [lead, ...rest] = projects;
 
-  // `getSiteData()` falls back to the mock per domain, so this list is never
-  // empty in practice. The guard is here because the lead tile is destructured
-  // rather than mapped, and a half-seeded deployment should not render a blank
-  // card — it should render nothing at all.
+  // The live published collection may be empty. The guard prevents a blank lead
+  // tile; the page's intro and counters still render the honest zero state.
   if (!lead) return null;
 
   return (

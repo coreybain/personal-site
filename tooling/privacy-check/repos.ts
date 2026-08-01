@@ -41,8 +41,9 @@
  *
  * ADR 008 does not say "no client names". It says the opposite — "aggregate
  * totals **and named CI projects**", "Named case studies only, as the current
- * site already does". The case studies are QuoteCloud, TravelDocs, ZeroRisk and
- * SoldOnline, and each of those is *also* the name of a private repository. A
+ * site already does". The case studies are QuoteCloud, TravelDocs, ZeroRisk,
+ * SoldOnline and Visual Editor, and each of those is *also* the name of a
+ * private repository. A
  * naive grep for private repo names therefore fails on a correct site, which is
  * the kind of check that gets deleted within a week.
  *

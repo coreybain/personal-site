@@ -57,10 +57,9 @@ export function RecencyWindow({
 }: RecencyWindowProps) {
   const stepPct = `${(100 / (axisTicks.length - 1)).toFixed(4)}%`;
 
-  // Seeded, unlike the original module-scope reduce: `getLabs()` guarantees a
-  // non-empty list by falling back to the mock, but a seedless `reduce` on an
-  // empty array is a TypeError rather than a bad number, and this panel is not
-  // worth 500-ing the page for.
+  // Seeded because the page guards the empty collection before rendering this
+  // panel, and a seedless reduction would turn a future contract regression
+  // into an opaque TypeError.
   const busiest = labs.reduce(
     (a, b) => (b.liveStats.commitsYear > a.liveStats.commitsYear ? b : a),
     freshest,

@@ -23,8 +23,8 @@ import { query } from './_generated/server';
  * The current Snapshot, or `null` if the cron has never run.
  *
  * `null` is a real state, not an edge case: a fresh deployment has no snapshot
- * until the first cron tick, and preview deployments may never get one. Callers
- * render the static fallback rather than throwing.
+ * until the first cron tick. Public callers reject that incomplete deployment
+ * rather than rendering fixture telemetry.
  *
  * There should only ever be one row (`snapshot` is a singleton — see schema.ts),
  * but the read is ordered newest-first rather than using `.unique()`: if a

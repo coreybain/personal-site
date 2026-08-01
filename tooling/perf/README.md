@@ -308,7 +308,7 @@ the tree sweep only greps files. It needs two:
    nothing can match, and the check prints `PASS` — a green tick that proves
    nothing, which is worse than a red one.
 2. **The sanction list.** ADR 008 *requires* the site to name its case studies,
-   and QuoteCloud, TravelDocs, ZeroRisk and SoldOnline are each also the name of
+   and QuoteCloud, TravelDocs, ZeroRisk, SoldOnline and Visual Editor are each also the name of
    a private repository. `check.ts` resolves that by reading which names the
    deployment has actually *published* and downgrading those hits to `REVIEW`.
    Without the deployment there is no sanction list, so a correct source tree

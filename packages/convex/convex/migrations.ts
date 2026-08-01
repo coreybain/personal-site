@@ -58,6 +58,7 @@
  */
 
 import { v } from 'convex/values';
+import { internal } from './_generated/api';
 import { internalMutation } from './_generated/server';
 import { invalid } from './lib/validate';
 
@@ -399,5 +400,74 @@ export const setNavVisibility = internalMutation({
       nav: { ...settings.nav, [args.key]: args.value },
     });
     return { key: args.key, value: args.value, changed: true };
+  },
+});
+
+/**
+ * Add the Visual Editor case study approved for the public build ledger.
+ *
+ * The everyday content path is the authenticated projects editor. This
+ * idempotent migration exists because the local collector can only attribute a
+ * repository to a slug that already exists in `projects`, while CLI deployment
+ * work has no Clerk identity with which to use that editor. It inserts exactly
+ * one factual, non-featured row and schedules the same knowledge indexing that
+ * the normal publish mutation does. Re-running reports the existing row and
+ * changes nothing.
+ *
+ *     bunx convex run migrations:addVisualEditorProject '{}'
+ */
+export const addVisualEditorProject = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const existing = await ctx.db
+      .query('projects')
+      .withIndex('by_slug', (q) => q.eq('slug', 'visual-editor'))
+      .first();
+
+    if (existing !== null) {
+      return {
+        projectId: existing._id,
+        slug: existing.slug,
+        created: false,
+        published: existing.published,
+      };
+    }
+
+    const last = await ctx.db
+      .query('projects')
+      .withIndex('by_sortOrder')
+      .order('desc')
+      .first();
+
+    const projectId = await ctx.db.insert('projects', {
+      revision: 1,
+      published: true,
+      featured: false,
+      sortOrder: last === null ? 0 : last.sortOrder + 1,
+      slug: 'visual-editor',
+      title: 'Visual Editor',
+      client: 'Corporate Interactive',
+      attribution: 'Built at Corporate Interactive',
+      role: 'Principal Engineer',
+      summary:
+        'A multi-tenant visual site builder and content management platform that powers authenticated editing, project-specific page composition and public rendering from one Next.js application.',
+      stack: ['Next.js', 'React', 'TypeScript', 'tRPC', 'Drizzle', 'MySQL', 'Zustand'],
+      media: [],
+      links: {},
+      accent: 'hsl(252 84% 62%)',
+      accentHue: 252,
+    });
+
+    await ctx.scheduler.runAfter(0, internal.knowledge.indexSource, {
+      sourceType: 'project',
+      sourceSlug: 'visual-editor',
+    });
+
+    return {
+      projectId,
+      slug: 'visual-editor',
+      created: true,
+      published: true,
+    };
   },
 });

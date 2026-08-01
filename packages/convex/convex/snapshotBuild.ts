@@ -31,11 +31,11 @@
  * that admits the Collector has stopped — the site's whole claim is that the
  * numbers are measured.
  *
- * The one thing that is *not* overwritten is hand-written content: a Lab whose
- * repository could not be read keeps its curated `liveStats`, and a project with
- * no agent sessions in the window keeps whatever `aiBuildStats` it had. Those
- * fields have a human author; the folds do not get to delete their work on the
- * strength of an API failure. Each is documented where it happens.
+ * The one thing that is *not* overwritten is hand-written Lab content: a Lab
+ * whose repository could not be read keeps its curated `liveStats`. Project AI
+ * totals are different: they are wholly derived from `aiUsageDays`, so a project
+ * absent from the current fold has its old `aiBuildStats` removed rather than
+ * carrying a seeded or out-of-window number forward.
  *
  * ── Why the validators are re-declared here ────────────────────────────────
  *
@@ -112,6 +112,7 @@ export const gitStatsPayload = v.object({
   privateContributions: v.number(),
   publicCommits: v.number(),
   publicRepoCount: v.number(),
+  totalPublicRepoCount: v.number(),
   currentStreakDays: v.number(),
   calendar: v.array(v.array(contributionDay)),
   languages: v.array(v.object({ name: v.string(), pct: v.number() })),
@@ -697,11 +698,11 @@ export function labStatsMateriallyEqual(
  * from the same `byProject` map over the same window in the same transaction —
  * not because anything checks afterwards.
  *
- * **A project with no sessions in the window keeps whatever it had.** Absence
- * from the fold means the Collector saw nothing for that slug, which is exactly
- * what a case study finished before agents existed looks like — schema.ts calls
- * the field "absent for pre-agent work" — and is indistinguishable from a
- * Collector that has not run. Neither is grounds for deleting a number.
+ * **A project with no sessions in the window has no `aiBuildStats`.** This field
+ * is derived telemetry, not authored content. Preserving an earlier value makes
+ * the work ledger disagree with `snapshot.aiUsage` and allows seeded totals to
+ * survive forever. An empty fold therefore clears the optional field; the
+ * Snapshot's own zero totals already make a stopped Collector visible.
  *
  * `hours` is rounded for the same reason `aiUsage.totalHours` is: it is rendered
  * as a whole number and a stored fraction would only ever be truncated by
@@ -709,34 +710,62 @@ export function labStatsMateriallyEqual(
  *
  * @returns how many projects were written.
  */
+type ProjectAiBuildStatsValue = { sessions: number; hours: number };
+
+/**
+ * Pure reconciliation plan used by the transactional writer below.
+ *
+ * Exported for the regression test: the important case is a project carrying a
+ * previous value while its slug is absent from the current fold. That must
+ * produce an explicit `undefined` patch rather than no update.
+ */
+export function projectAiStatsUpdates<
+  T extends { slug: string; aiBuildStats?: ProjectAiBuildStatsValue },
+>(
+  projects: readonly T[],
+  byProject: ReadonlyMap<string, ProjectAiBuildStatsValue>,
+): Array<{ project: T; next: ProjectAiBuildStatsValue | undefined }> {
+  const updates: Array<{
+    project: T;
+    next: ProjectAiBuildStatsValue | undefined;
+  }> = [];
+
+  for (const project of projects) {
+    const totals = byProject.get(project.slug);
+    const next =
+      totals === undefined || (totals.sessions === 0 && totals.hours === 0)
+        ? undefined
+        : { sessions: totals.sessions, hours: Math.round(totals.hours) };
+
+    const current = project.aiBuildStats;
+    const unchanged =
+      current === undefined
+        ? next === undefined
+        : next !== undefined &&
+          current.sessions === next.sessions &&
+          current.hours === next.hours;
+
+    if (!unchanged) updates.push({ project, next });
+  }
+
+  return updates;
+}
+
 async function applyProjectAiStats(
   ctx: MutationCtx,
   byProject: Map<string, { sessions: number; hours: number }>,
 ): Promise<number> {
-  let written = 0;
+  // Scan every project, not only the slugs present in the fold. Absence is the
+  // live result for pre-agent or out-of-window work and must remove any stored
+  // seed/previous-window value.
+  const projects = await ctx.db.query('projects').collect();
+  const updates = projectAiStatsUpdates(projects, byProject);
 
-  for (const [slug, totals] of byProject) {
-    const project = await ctx.db
-      .query('projects')
-      .withIndex('by_slug', (q) => q.eq('slug', slug))
-      .first();
-    if (project === null) continue;
-
-    const next = { sessions: totals.sessions, hours: Math.round(totals.hours) };
-    const current = project.aiBuildStats;
-    if (
-      current !== undefined &&
-      current.sessions === next.sessions &&
-      current.hours === next.hours
-    ) {
-      continue; // No change; do not spend a write on it.
-    }
-
+  for (const { project, next } of updates) {
     await ctx.db.patch(project._id, {
       aiBuildStats: next,
     });
-    written += 1;
   }
 
-  return written;
+  return updates.length;
 }

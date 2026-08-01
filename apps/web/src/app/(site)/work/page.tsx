@@ -59,9 +59,8 @@ export async function generateMetadata(): Promise<Metadata> {
  * shell (ThemeScope, nav pill, footer) comes from the `(site)` layout; what
  * lives here is only this page's own zones.
  *
- * Every figure on the page is read from Convex by `@/lib/data` — with the mock
- * as a per-domain fallback — and derived by `deriveWork()`. Nothing is typed in
- * by hand, and nothing is fetched below this function: the snapshot is read
+ * Every figure on the page is read from Convex by `@/lib/data` and derived by
+ * `deriveWork()`. Nothing is typed in by hand, and nothing is fetched below this function: the snapshot is read
  * **once** here and passed down as props, which is what keeps a three-component
  * page at one round of queries.
  */

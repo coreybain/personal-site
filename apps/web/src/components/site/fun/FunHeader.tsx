@@ -55,16 +55,27 @@ export function FunHeader({
       </div>
 
       <h1 className="fun-display hor-rise mt-6 max-w-[16ch] text-balance" style={delay(100)}>
-        Coffee, beer, and a lot of walking.
+        {tally.entries > 0
+          ? "Coffee, beer, and a lot of walking."
+          : "Nothing logged off the clock yet."}
       </h1>
 
       <p className="hor-lede hor-rise mt-7 max-w-[54ch] text-pretty" style={delay(170)}>
-        The rest of this site is instrumented to two decimal places. This part is
-        not. It is {tally.entries} small entries from the last {tally.spanDays}{" "}
-        days in {identity.location} — {tally.counts.coffee} coffees,{" "}
-        {tally.counts.beer} beers, {tally.counts.pub} nights at the pub and{" "}
-        {tally.counts.walk} walks that came to {tally.km.toFixed(1)} km. The
-        walks are the only thing here anyone bothered to count.
+        {tally.entries > 0 ? (
+          <>
+            The rest of this site is instrumented to two decimal places. This part is
+            not. It is {tally.entries} small entries from the last {tally.spanDays}{" "}
+            days in {identity.location} — {tally.counts.coffee} coffees,{" "}
+            {tally.counts.beer} beers, {tally.counts.pub} nights at the pub and{" "}
+            {tally.counts.walk} walks that came to {tally.km.toFixed(1)} km. The
+            walks are the only thing here anyone bothered to count.
+          </>
+        ) : (
+          <>
+            The live off-the-clock feed is empty. New moments will appear here
+            automatically when they are published from {identity.location}.
+          </>
+        )}
       </p>
 
       <div className="hor-rise mt-8 flex flex-wrap items-center gap-x-3 gap-y-3" style={delay(230)}>

@@ -1,5 +1,5 @@
 /**
- * snapshot.ts — the `Snapshot` contract, plus the fallback data that satisfies it.
+ * snapshot.ts — the `Snapshot` contract, plus fixed design-study fixture data.
  *
  * Two jobs, and it is worth being precise about which is which:
  *
@@ -8,17 +8,14 @@
  *      widen it, narrow it, or replace it — the read layer maps rows *into* this
  *      shape. Change the contract here and both sources have to follow.
  *
- *   2. **The `snapshot` object is the fallback.** `@/lib/data` assembles a `Snapshot`
- *      from Convex and falls back to this object **per domain** — an empty table, a
- *      null singleton or a failed query substitutes the mock for that domain only, so
- *      seeded case studies render against mock telemetry rather than nothing. With no
- *      `NEXT_PUBLIC_CONVEX_URL` at all, nothing is queried and this object is returned
- *      verbatim: zero-env renders exactly what the site rendered before Convex.
+ *   2. **The `snapshot` object is a fixture.** The archived `/v/*` explorations and
+ *      `/variants` index are deliberately pinned to deterministic content so they
+ *      remain a stable design record. Public `(site)` routes never read this value;
+ *      `@/lib/data` maps live Convex rows into the contract and rejects missing data.
  *
- * Consumers do not import this module for data — they take a `Snapshot` from
- * `@/lib/data`, which is the only thing that knows which source it came from. The
- * exceptions are the `/v/*` exploration routes and `/variants`, which read this
- * object directly on purpose: they are design studies pinned to fixed data.
+ * Production consumers import only the types and take a live `Snapshot` from
+ * `@/lib/data`. The `/v/*` exploration routes and `/variants` are the explicit
+ * fixture consumers.
  *
  * Everything is deterministic. The contribution calendar is generated at module load
  * from a seeded PRNG (never Math.random), so every import — server render, client
@@ -229,7 +226,7 @@ export type PostCover = {
  * ── Why this type is here and the data is not ──────────────────────────────
  *
  * The rule at the top of this file is "the types are the contract, the
- * `snapshot` object is the fallback". `Post` takes the first half and
+ * `snapshot` object is the design fixture". `Post` takes the first half and
  * deliberately refuses the second: there is **no `posts` key on the `snapshot`
  * object**, and `Snapshot` therefore has no `posts` field.
  *
@@ -748,6 +745,7 @@ export const snapshot = {
     privateContributions: 5792,
     publicCommits: 573,
     publicRepoCount: 14,
+    totalPublicRepoCount: 47,
     currentStreakDays: CURRENT_STREAK_DAYS,
     /** 52 columns × 7 rows, Sunday-first. Feed straight into the heatmap. */
     calendar,
@@ -869,6 +867,25 @@ export const snapshot = {
         'Disputed sales from stale prices eliminated',
       ],
       aiBuildStats: { sessions: 164, hours: 108 },
+    },
+    {
+      slug: 'visual-editor',
+      title: 'Visual Editor',
+      client: 'Corporate Interactive',
+      role: 'Principal Engineer',
+      summary:
+        'A multi-tenant visual site builder and content management platform that powers authenticated editing, project-specific page composition and public rendering from one Next.js application.',
+      stack: [
+        'Next.js',
+        'React',
+        'TypeScript',
+        'tRPC',
+        'Drizzle',
+        'MySQL',
+        'Zustand',
+      ],
+      accent: 'hsl(252 84% 62%)',
+      accentHue: 252,
     },
   ] as Project[],
 

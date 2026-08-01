@@ -1121,13 +1121,10 @@ export const recordAiUsage = internalMutation({
           // optional and means "no agent usage recorded", which is what the case
           // study should now say instead of "0 sessions".
           //
-          // `applyProjectAiStats` deliberately does NOT clear on absence, and
-          // that is not a disagreement with this branch: it iterates the fold,
-          // so "absent" there means "the Collector said nothing about this slug
-          // at all", which is indistinguishable from a Collector that has not
-          // run. Here the slug is in `touched` — this push just mentioned it, or
-          // just stopped mentioning it — so absence is a positive statement, and
-          // clearing is the honest response to it.
+          // `snapshotBuild.applyProjectAiStats` also clears absent projects when
+          // the full hourly fold runs. Here the slug is in `touched`, so the same
+          // correction is applied immediately after a push rather than waiting
+          // for that rebuild.
           if (project.aiBuildStats !== undefined) {
             await ctx.db.patch(project._id, { aiBuildStats: undefined });
             projectsCleared += 1;
