@@ -1,21 +1,17 @@
-# Theme scope — the round 2 contract
+# Theme scope
 
-Shared, variant-agnostic light/dark plumbing for the round 2 homepage
-explorations (`/v/nocturne`, `/v/console`, `/v/horizon`, `/v/prism`).
-
-Round 1 variants (`editorial`, `terminal`, `swiss`, `aurora`) do **not** use
-this and must not be touched.
+Shared light/dark plumbing for the public Horizon design system.
 
 ---
 
 ## The contract in one paragraph
 
 `<ThemeScope>` renders a `<div>` that carries `data-theme="light" | "dark"` and
-`data-theme-preference="system" | "light" | "dark"`. Your variant passes its
-own root class to that div and declares **every** colour as a custom property
-under `.your-variant[data-theme="…"]`. Nothing below the scope reads
+`data-theme-preference="system" | "light" | "dark"`. The site passes its root
+class to that div and declares **every** colour as a custom property under
+`.hor[data-theme="…"]`. Nothing below the scope reads
 `prefers-color-scheme` directly, and nothing below the scope hard-codes a
-colour. Flip the attribute, the whole variant re-skins.
+colour. Flip the attribute, the whole site re-skins.
 
 ---
 
@@ -25,19 +21,13 @@ The page stays a **server component**. Only the scope and the toggle are client
 components, and they are tiny.
 
 ```tsx
-// src/app/v/nocturne/page.tsx  (server component)
+// src/app/(site)/layout.tsx  (server component)
 import { ThemeScope } from "@/components/theme/ThemeScope";
-import { ThemeToggle } from "@/components/theme/ThemeToggle";
-import { snapshot } from "@/lib/snapshot";
 
-export default function NocturnePage() {
+export default function SiteLayout({ children }) {
   return (
-    <ThemeScope className="nocturne">
-      <header>
-        <h1>{snapshot.identity.name}</h1>
-        <ThemeToggle className="nocturne-toggle" />
-      </header>
-      {/* …all other sections stay server components… */}
+    <ThemeScope className="hor" defaultTheme="dark">
+      {children}
     </ThemeScope>
   );
 }
@@ -48,45 +38,44 @@ export default function NocturnePage() {
 ## Styling: custom properties, scoped to your wrapper
 
 ```css
-/* src/app/v/nocturne/nocturne.css — imported by the route layout */
+/* src/app/(site)/horizon.css — imported by the route layout */
 
-.nocturne {
+.hor {
   /* Structural tokens that don't change with the theme live here. */
-  --noc-measure: 68ch;
-  --noc-radius: 14px;
+  --hor-measure: 68ch;
+  --hor-radius: 14px;
 
-  background: var(--noc-bg);
-  color: var(--noc-ink);
+  background: var(--hor-bg);
+  color: var(--hor-ink);
   transition: background-color 220ms ease, color 220ms ease;
 }
 
-.nocturne[data-theme="light"] {
-  --noc-bg: #f7f7fb;
-  --noc-ink: #14141c;
-  --noc-accent: #4b46d8;
+.hor[data-theme="light"] {
+  --hor-bg: #f7f7fb;
+  --hor-ink: #14141c;
+  --hor-accent: #4b46d8;
 }
 
-.nocturne[data-theme="dark"] {
-  --noc-bg: #08080d;
-  --noc-ink: #e9e9f2;
-  --noc-accent: #9d99ff;
+.hor[data-theme="dark"] {
+  --hor-bg: #08080d;
+  --hor-ink: #e9e9f2;
+  --hor-accent: #9d99ff;
 }
 
 /* Everything else only ever references the vars. */
-.nocturne .card {
-  background: var(--noc-surface);
-  border: 1px solid var(--noc-line);
+.hor .card {
+  background: var(--hor-surface);
+  border: 1px solid var(--hor-line);
 }
 ```
 
 Rules:
 
-1. **Namespace your custom properties** (`--noc-*`, `--con-*`, `--hor-*`,
-   `--pri-*`). CSS Modules hash class names but never custom property names, so
-   an unprefixed `--bg` from one variant can leak into another.
-2. **Every selector nests under your root class.** Same rule round 1 followed.
+1. **Namespace custom properties** under `--hor-*`. CSS Modules hash class names
+   but never custom property names, so an unprefixed `--bg` can leak.
+2. **Every selector nests under the root class.**
 3. **Only the root class declares the light/dark pairs.** Deeper components read
-   vars; they never branch on `data-theme` themselves. That keeps a variant to
+   vars; they never branch on `data-theme` themselves. That keeps the theme to
    exactly two places to look when a colour is wrong.
 4. **Never use `@media (prefers-color-scheme: …)` below the scope.** The scope
    already resolved it, and the user may have overridden it.

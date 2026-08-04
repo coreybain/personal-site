@@ -770,9 +770,8 @@ export const getSiteData = cache(async (): Promise<Snapshot> => {
   /* ---- fun -------------------------------------------------------- *
    * One table, two views. `funEntries.list` returns all four kinds
    * newest-first off `by_occurredAt`; `funLog` is that list, and
-   * `funEntries` is the same list with pubs removed — the narrower split is
-   * kept because eight archived variants build an exhaustive
-   * `Record<FunEntry['type'], …>` and widening that union breaks them.
+   * `funEntries` is the same list with pubs removed for the homepage LifeStrip;
+   * `/fun` reads the complete `funLog`.
    *
    * Re-sorted by `daysAgo` rather than trusted: the index orders by
    * instant, the page groups by calendar day, and two entries on the same
@@ -829,7 +828,7 @@ export async function getIdentity(): Promise<Identity> {
  * So this reads the one document that actually holds the answer. On a `(site)`
  * route it is **zero** extra queries — `readSettings()` is `cache()`d and the
  * assembler has already started it in the same request, so both awaits resolve
- * the same promise. On `/admin` and `/v/*` it is one.
+ * the same promise. On `/admin` it is one.
  *
  * ── Required source-of-truth row ───────────────────────────────────────────
  *
@@ -880,7 +879,7 @@ export async function getFunLog(): Promise<FunLogEntry[]> {
 
 /**
  * The feed without pub visits, newest first — the narrower union the homepage's
- * LifeStrip and every archived variant read. See `PubEntry` in snapshot.ts.
+ * LifeStrip reads. See `PubEntry` in snapshot.ts.
  */
 export async function getFunEntries(): Promise<FunEntry[]> {
   return (await getSiteData()).funEntries;

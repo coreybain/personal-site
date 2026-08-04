@@ -151,8 +151,7 @@ function starterQuestions(
  *
  * `title.template` applies to every **descendant** segment, and the root
  * layout's descendants are not only this group: `/admin` sets
- * "Admin — coreybaines.com" and each of the seven `/v/*` explorations sets a
- * complete title of its own. A template at the root would render those as
+ * "Admin — coreybaines.com". A template at the root would render that as
  * "Admin — coreybaines.com — Corey Baines". Declared here it is scoped to the
  * public site, which is the thing the suffix is actually a statement about.
  *
@@ -235,8 +234,7 @@ export async function generateMetadata(): Promise<Metadata> {
  * `/ask` is gone. The feature is a launcher fixed to the bottom-right of every
  * page in this group, which is why it is mounted here — the same reasoning that
  * puts the pill and the footer here, and the reason it does **not** appear on
- * `/admin`, `/variants` or the seven `/v/*` explorations: those render under
- * the root layout, not this one.
+ * `/admin`: that route renders under the root layout, not this one.
  *
  * The two props it takes are server-derived and cost nothing extra: the
  * starters come from `projects`, which this layout already has, and

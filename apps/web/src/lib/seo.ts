@@ -83,23 +83,12 @@ export const IS_INDEXABLE = process.env.NEXT_PUBLIC_SITE_INDEXABLE === "true";
  *   /admin     Clerk-gated CRUD. Already `noindex` in its own layout metadata;
  *              this is the second lock, on the door rather than the room.
  *   /api       Route handlers — uploadthing today, more later. Never a page.
- *   /v/        The seven archived homepage explorations. They are kept as a
- *              design record (they are what the current homepage was chosen
- *              *against*) and they render the mock, so every one of them is a
- *              near-duplicate of the homepage with invented numbers. Indexing
- *              them would split the site's authority across eight pages and put
- *              fabricated telemetry in front of a hiring manager.
- *   /variants  The index that links to them.
  *
- * `/v/` keeps its trailing slash so the rule cannot be read as matching a route
- * named `/very-…`; the Robots Exclusion Standard matches on prefix.
- *
- * These are the same four prefixes `sitemap.ts` refuses to emit and the same
- * four that carry route-level `robots: { index: false }`. Three independent
- * mechanisms, deliberately — robots.txt is a request, a `<meta>` is an
+ * These are the same two prefixes `sitemap.ts` refuses to emit. Independent
+ * mechanisms are deliberate — robots.txt is a request, a `<meta>` is an
  * instruction, and an absent sitemap entry is silence.
  */
-export const CRAWLER_DISALLOW = ["/admin", "/api", "/v/", "/variants"] as const;
+export const CRAWLER_DISALLOW = ["/admin", "/api"] as const;
 
 /**
  * An absolute URL on the production origin.

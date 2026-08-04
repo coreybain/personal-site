@@ -1,5 +1,5 @@
 /**
- * snapshot.ts — the `Snapshot` contract, plus fixed design-study fixture data.
+ * snapshot.ts — the `Snapshot` contract, plus deterministic seed fixture data.
  *
  * Two jobs, and it is worth being precise about which is which:
  *
@@ -8,14 +8,12 @@
  *      widen it, narrow it, or replace it — the read layer maps rows *into* this
  *      shape. Change the contract here and both sources have to follow.
  *
- *   2. **The `snapshot` object is a fixture.** The archived `/v/*` explorations and
- *      `/variants` index are deliberately pinned to deterministic content so they
- *      remain a stable design record. Public `(site)` routes never read this value;
+ *   2. **The `snapshot` object is a fixture.** Seed tooling and focused tests use
+ *      its deterministic content. Public `(site)` routes never read this value;
  *      `@/lib/data` maps live Convex rows into the contract and rejects missing data.
  *
  * Production consumers import only the types and take a live `Snapshot` from
- * `@/lib/data`. The `/v/*` exploration routes and `/variants` are the explicit
- * fixture consumers.
+ * `@/lib/data`. The seed tooling is the explicit fixture consumer.
  *
  * Everything is deterministic. The contribution calendar is generated at module load
  * from a seeded PRNG (never Math.random), so every import — server render, client
@@ -55,10 +53,9 @@ export type ContributionProject = {
  * understate the day; naming them would break ADR 008.
  *
  * `OTHER_WORK_LABEL` in `@home/types` is the canonical declaration. It is copied
- * here rather than imported because this module is import-free by doctrine — it
- * is the zero-dependency fallback the `/v/*` studies render from, and it stays
- * that way. Same string, three files (here, `@home/types`, the Convex cron), one
- * owner.
+ * here rather than imported because this module is import-free by doctrine —
+ * seed tooling can load it without pulling the web runtime graph. Same string,
+ * three files (here, `@home/types`, the Convex cron), one owner.
  */
 export const OTHER_WORK = 'Other work';
 
@@ -72,9 +69,8 @@ export type ContributionDay = {
    *
    * A summary of `byProject`, not an independent fact: it is
    * `byProject[0].name`, or `null`. It survives alongside the breakdown because
-   * it predates it and because consumers that will never grow a popup read it —
-   * the eight archived studies under `app/v/*`, which are pinned to this file
-   * and must not be touched. A producer may be stricter and leave it `null`
+   * it predates it and because the public heatmap uses it as the collapsed
+   * one-line label. A producer may be stricter and leave it `null`
    * while `byProject` is populated (the live cron refuses to label a day whose
    * leader holds only a minority of it), but it may never name something that
    * is absent from `byProject`.
@@ -151,7 +147,7 @@ export type Project = {
   summary: string;
   stack: string[];
   /**
-   * A CSS color for the project. Variants render placeholder art procedurally —
+   * A CSS color for the project. The site renders placeholder art procedurally —
    * there are no image assets yet — so this is the seed for gradients, rules and
    * blocks. Pair with `accentHue` when you need to derive a whole ramp:
    * `hsl(${p.accentHue} 90% 60%)`, `hsl(${p.accentHue + 40} 80% 40%)`, etc.
@@ -161,9 +157,8 @@ export type Project = {
   accentHue: number;
 
   /* ---- case-study detail. ALL OPTIONAL. -------------------------------- *
-   * Added for the /work pages. Every field below is optional on purpose:
-   * eight archived variants under /v/* read `projects` and none of them know
-   * these exist. Never promote one of these to required. */
+   * Persisted project rows may predate any one of these fields, so public
+   * rendering handles each independently. */
 
   /** What was broken before. 2–3 sentences. */
   problem?: string;
@@ -351,11 +346,9 @@ export type FunEntry =
 /**
  * A pub visit — the fourth kind of fun, added for the /fun page.
  *
- * It is deliberately NOT a member of `FunEntry`. Every archived variant builds
- * an exhaustive `Record<FunEntry['type'], …>` lookup table, so widening that
- * union would fail the typecheck in eight files under /v/* that must not be
- * touched. New kinds go in `funLog` instead; `funEntries` keeps its original
- * three-way shape forever.
+ * It is deliberately NOT a member of `FunEntry`: the homepage LifeStrip is a
+ * compact beer/coffee/walk signal, while `/fun` renders the full `funLog` with
+ * pub visits included.
  */
 export type PubEntry = {
   id: string;
@@ -446,8 +439,7 @@ function buildCalendar(): ContributionWeek[] {
    * `byProject` was added to a file whose contract is byte-identical output
    * forever. Drawing the split from `rand` or `projectRand` would have shifted
    * every subsequent draw and silently rewritten twelve months of counts and
-   * labels — every `/v/*` study, every screenshot, every number anyone has ever
-   * quoted off this mock. A separate generator leaves both existing streams
+   * labels in seed and test fixtures. A separate generator leaves both streams
    * consuming exactly what they consumed before, so `date`, `count`, `level` and
    * `project` are unchanged to the byte and `byProject` is pure addition.
    */
@@ -624,9 +616,8 @@ const calendar: ContributionWeek[] = buildCalendar();
  * DRAFT COPY — placeholder entries. Replace with the real log once the
  * collector is wired to whatever ends up recording these.
  *
- * The first three objects are the originals and must stay first and unchanged:
- * every archived variant renders `funEntries` into a three-across grid and was
- * composed against exactly these.
+ * The original entries stay deterministic so seed and test output remains
+ * byte-identical across machines.
  *
  * `id` is a literal, numbered per kind in the order the entries appear below —
  * `mock-beer-1`, `mock-coffee-1`, … — rather than derived from the content or
@@ -1075,7 +1066,7 @@ Visual Editor taught me to see a page builder as a constraint and serialisation 
       slug: 'home',
       title: 'coreybaines.com',
       summary:
-        'This site. Eight full-fidelity design explorations, one shared snapshot, and a build log kept in the open — including the parts that did not work.',
+        'This site: a live, typed portfolio that turns Git activity, agent usage, project case studies and personal publishing into one measured view of the work.',
       repoFullName: 'coreybain/personal-site',
       language: 'TypeScript',
       liveStats: { stars: 3, forks: 1, commitsYear: 186, lastPushDaysAgo: 0 },

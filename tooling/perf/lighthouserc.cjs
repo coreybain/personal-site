@@ -77,8 +77,7 @@ const PORT = process.env.LHCI_PORT ?? '3111';
  *
  * `/blog/[slug]` is absent because ADR 018 permits launching with no posts and
  * the zero-env build therefore prerenders none. `/admin/*` is absent because it
- * is Clerk-gated and would redirect. `/v/*` is absent because the seven design
- * explorations are `noindex` and not part of the site's promise.
+ * is Clerk-gated and would redirect.
  */
 const ROUTES = [
   '/',

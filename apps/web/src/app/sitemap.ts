@@ -8,11 +8,6 @@ import { absoluteUrl } from "@/lib/seo";
  *
  * ── What is deliberately absent ────────────────────────────────────────────
  *
- *   /v/*, /variants   The seven archived homepage explorations and their index.
- *                     They are a kept design record, they render the mock, and
- *                     each is a near-duplicate of the homepage with invented
- *                     numbers. They also carry route-level `noindex`; the
- *                     absence here is the quiet half of the same decision.
  *   /admin, /api      Gated, and not pages.
  *   /blog             Only while it has nothing in it — see below.
  *   /ask              Not absent — **gone**. Ask Corey is a launcher in the

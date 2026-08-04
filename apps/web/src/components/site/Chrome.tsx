@@ -1,5 +1,4 @@
 import { Suspense, type CSSProperties, type ReactNode } from "react";
-import Link from "next/link";
 
 import type { Identity } from "@/lib/snapshot";
 
@@ -148,7 +147,7 @@ const RESUME_NAV_ITEM = {
  * types it, links to it, or finds it in a search result.
  *
  * `showBlog` defaults to `false` so that a caller who has not been updated —
- * an archived variant, a future layout — fails closed rather than advertising a
+ * a future layout or a standalone route — fails closed rather than advertising a
  * section that may not have anything in it.
  */
 export function NavPill({ showBlog = false }: { showBlog?: boolean }) {
@@ -230,9 +229,6 @@ export function Footer({
             >
               github.com/{identity.github}
             </a>
-            <Link href="/variants" className="hor-link text-[13px]">
-              Design explorations
-            </Link>
             <span className="hor-label mt-1.5">
               Snapshot {stampTime(computedAt)}
             </span>

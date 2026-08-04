@@ -876,8 +876,7 @@ function record(
  * want: the contract states the sort as a total order and separately promises
  * `project ∈ { byProject[0].name, null }`, so pinning the bucket last would
  * either break the stated sort or make `project` name something that is not
- * `byProject[0]`. Both are observable to the archived variants under
- * `apps/web/src/app/v/*`, which read `project` and will never grow a popup.
+ * `byProject[0]`. Both are observable in the public heatmap's collapsed label.
  *
  * The thing that was actually wanted — "the neutral bucket must never be the
  * word the tooltip leads with" — is delivered by `pickProject` instead, which

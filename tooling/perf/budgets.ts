@@ -193,11 +193,9 @@ export const BUDGETS: Budget[] = [
    *   /resume         167.2    168.9    +1.7
    *   /contact        174.3    175.9    +1.6
    *   /_not-found     144.9    144.9     0.0   ← control
-   *   /variants       148.3    148.3     0.0   ← control
-   *   /v/[variant]    149.8    149.8     0.0   ← control
    *
    * **+1.7 KB gzipped**, everywhere it applies, for a chat on every page. The
-   * three controls render under the root layout rather than `(site)` and did
+   * the control renders under the root layout rather than `(site)` and did
    * not move by a single byte, which is the check that the number above is the
    * launcher and not build noise.
    *
@@ -213,22 +211,6 @@ export const BUDGETS: Budget[] = [
    * that wants to live in the shared shell has materially less room to do it in
    * than this one did, and should expect to be asked why it is not lazy too.
    */
-  {
-    route: '/variants',
-    budget: 154,
-    plan: null,
-    note: 'exploration index — noindex, kept deliberately',
-  },
-  {
-    route: '/v/[variant]',
-    budget: 154,
-    plan: null,
-    // The seven design explorations are mock-fed and noindex. They still get a
-    // ceiling: they share the root layout, so a regression there shows up here
-    // first, and "it is only the variants" is how a shared-layout regression
-    // gets waved through.
-    note: 'design explorations — noindex, mock-fed, worst of seven',
-  },
 ];
 
 /**

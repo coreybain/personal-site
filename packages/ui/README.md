@@ -18,7 +18,7 @@ The single place a colour, radius, shadow, ramp stop or easing curve is
 
 | Section     | Selector                             | What it is                                                                 |
 | ----------- | ------------------------------------ | -------------------------------------------------------------------------- |
-| **Base**    | `:root` + `prefers-color-scheme`     | Neutral page surface — `--background`, `--foreground`. Used by `/variants`. |
+| **Base**    | `:root` + `prefers-color-scheme`     | Neutral page surface — `--background`, `--foreground`. Used by root and administrative surfaces. |
 | **Horizon** | `.hor`, `.hor[data-theme="light\|dark"]` | The design system the real site runs on.                                |
 
 Both moved verbatim out of `apps/web` (`src/app/globals.css` and

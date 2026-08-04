@@ -4,10 +4,9 @@
 /*
  * Deliberately minimal and neutral.
  *
- * Each homepage variant under /v/* brings its own type, color and motion,
- * scoped to its own route. Nothing opinionated belongs here — this file only
- * sets up Tailwind, a sane base font, and light/dark surface colors so the
- * switchboard at / has something to stand on.
+ * The public site owns its scoped type, colour and motion in `(site)`. This file
+ * only sets up Tailwind, a sane base font, and the neutral root surface used by
+ * routes outside that scope.
  *
  * The tokens themselves are no longer declared here: every design token in the
  * monorepo lives in @home/ui/tokens.css, imported above. That import is also

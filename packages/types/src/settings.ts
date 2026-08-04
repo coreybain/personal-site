@@ -48,8 +48,8 @@ export type Socials = z.infer<typeof SocialsSchema>;
  * ------------------------------------------------------------------ */
 
 /**
- * Who the site is about. Flat rather than nested, matching the shape every
- * archived variant under apps/web/src/app/v/* already reads.
+ * Who the site is about. Flat rather than nested, matching the public snapshot
+ * and native contract.
  */
 export const IdentitySchema = z.object({
   name: NonEmptyStringSchema,
@@ -134,7 +134,7 @@ export const SiteSettingsSchema = z.object({
   availabilityVisible: z.boolean().default(true),
   /**
    * Carries the plan's `socials` — `IdentitySchema` spreads `SocialsSchema` flat
-   * rather than nesting it, matching what the archived variants already read.
+   * rather than nesting it, matching the public snapshot contract.
    */
   identity: IdentitySchema,
   featured: FeaturedSelectionsSchema,

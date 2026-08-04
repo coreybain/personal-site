@@ -59,12 +59,11 @@ export type ProjectLinks = z.infer<typeof ProjectLinksSchema>;
  *    Both are modelled: the trio is the primary narrative, `body` is optional
  *    overflow for anything that does not fit those three headings.
  *  - `accent` / `accentHue` exist only in the implemented shape. They are design
- *    tokens, not content: variants derive gradients and rules from them, and the
- *    procedural placeholder art depends on them while ADR 009 sign-off is
- *    outstanding. Kept required.
- *  - Everything in the case-study trio is optional. Eight archived variants
- *    under apps/web/src/app/v/* read `projects` and know nothing about these
- *    fields; none of them may ever be promoted to required.
+ *    tokens, not content: public case-study art derives its gradients and rules
+ *    from them. Kept required.
+ *  - Everything in the case-study trio is optional because persisted records
+ *    may predate any one of those fields and the renderer handles them
+ *    independently.
  */
 export const ProjectSchema = z.object({
   /** Optimistic-concurrency token on persisted admin documents. */
@@ -305,11 +304,9 @@ export const WalkEntrySchema = z.object({
  * One dated life item. Discriminated on `type` so a `switch` over the four kinds
  * is exhaustive at the type level.
  *
- * DIVERGENCE — apps/web/src/lib/snapshot.ts splits this in two: `FunEntry`
- * (beer | coffee | walk) and a separate `PubEntry`, because eight archived
- * variants build an exhaustive `Record<FunEntry['type'], …>` and widening that
- * union would break their typecheck. That split is a constraint of the archived
- * pages, not of the data: Convex stores one table with all four kinds, which is
+ * DIVERGENCE — apps/web/src/lib/snapshot.ts splits this in two: the homepage's
+ * compact `FunEntry` signal (beer | coffee | walk) and a separate `PubEntry` for
+ * the complete `/fun` log. Convex stores one table with all four kinds, which is
  * what this schema describes. The web layer narrows on read.
  */
 export const FunEntrySchema = z.discriminatedUnion('type', [

@@ -68,7 +68,7 @@ const FEATURED_SPECS: FeaturedSpec[] = [
     liveLabel: "coreybaines.com",
     eyebrow: "Solo build · telemetry + publishing",
     writeup:
-      "A personal site built from one typed snapshot and a collection of full-fidelity visual systems. The production route turns Git activity, agent usage and side-project data into a measured portfolio, while every archived exploration keeps the same content contract.",
+      "A personal site built from one typed live-data contract. It turns Git activity, agent usage, project case studies, side-project data and publishing into a measured portfolio with browser and native administration behind it.",
     stack: ["Next.js", "TypeScript", "Bun", "Turborepo"],
   },
 ];

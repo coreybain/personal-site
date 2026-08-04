@@ -14,7 +14,7 @@
  * Two sections, and the split is the important part:
  *
  *   BASE     `:root`, follows `prefers-color-scheme`. The neutral surface the
- *            switchboard at /variants and the round-1 explorations stand on.
+ *            root and administrative surfaces stand on.
  *            Opinionated only about "page background" and "text colour".
  *
  *   HORIZON  the `.hor` token layer — the design system the real site runs on.

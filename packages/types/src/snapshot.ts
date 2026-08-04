@@ -16,9 +16,7 @@
  *
  *   SnapshotViewSchema  The *kind* of object apps/web/src/lib/snapshot.ts
  *                       exports: the row plus the content collections the
- *                       dashboard needs, resolved in the same load, which is
- *                       what the eight archived variants under
- *                       apps/web/src/app/v/* are compiled against.
+ *                       public site needs, resolved in the same load.
  *
  * ⚠️ `SnapshotViewSchema.parse(snapshot)` on the current mock FAILS, and is
  * meant to. The view matches the mock's shape category — same keys, same
@@ -94,20 +92,16 @@ export type Snapshot = z.infer<typeof SnapshotSchema>;
  * ------------------------------------------------------------------ */
 
 /**
- * The three Fun Entry kinds the archived variants know about.
- *
- * apps/web/src/lib/snapshot.ts builds exhaustive `Record<FunEntry['type'], …>`
- * lookup tables in eight files that must not be touched, so `funEntries` keeps
- * its original three-way shape forever and new kinds go in `funLog`. That is a
- * constraint of those pages, not of the data — Convex stores one four-kind table
- * (`FunEntrySchema`) and this narrowing exists only at the view boundary.
+ * The three Fun Entry kinds used by the homepage's compact LifeStrip. Convex
+ * stores one four-kind table (`FunEntrySchema`); the complete `/fun` page reads
+ * `funLog`, while this narrowing exists only at the view boundary.
  */
-export const ArchivedFunEntrySchema = z.discriminatedUnion('type', [
+export const SnapshotFunEntrySchema = z.discriminatedUnion('type', [
   BeerEntrySchema,
   CoffeeEntrySchema,
   WalkEntrySchema,
 ]);
-export type ArchivedFunEntry = z.infer<typeof ArchivedFunEntrySchema>;
+export type SnapshotFunEntry = z.infer<typeof SnapshotFunEntrySchema>;
 
 export const SnapshotViewSchema = SnapshotSchema.extend({
   /** Published case studies, in `sortOrder`. */
@@ -115,8 +109,8 @@ export const SnapshotViewSchema = SnapshotSchema.extend({
   /** Published Labs, in `sortOrder`. */
   labs: z.array(LabSchema),
   resumeDocument: ResumeDocumentSchema,
-  /** Legacy three-kind feed. See `ArchivedFunEntrySchema`. */
-  funEntries: z.array(ArchivedFunEntrySchema),
+  /** Compact homepage feed. See `SnapshotFunEntrySchema`. */
+  funEntries: z.array(SnapshotFunEntrySchema),
   /** The whole off-the-clock feed, newest first. Superset of `funEntries`. */
   funLog: z.array(FunEntrySchema),
 });

@@ -16,8 +16,8 @@ import { absoluteUrl, CRAWLER_DISALLOW, IS_INDEXABLE } from "@/lib/seo";
  * has just been told not to fetch is a mixed signal that some crawlers resolve
  * in favour of the sitemap.
  *
- * After cutover it opens up, minus the four prefixes in `CRAWLER_DISALLOW` —
- * `/admin`, `/api`, `/v/` and `/variants` — which stay closed permanently. See
+ * After cutover it opens up, minus the two prefixes in `CRAWLER_DISALLOW` —
+ * `/admin` and `/api` — which stay closed permanently. See
  * that constant for why each one is on the list.
  *
  * ── This is not the only lock ──────────────────────────────────────────────

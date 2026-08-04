@@ -108,10 +108,9 @@ export const ContributionDaySchema = z.object({
   /**
    * The day's **top** project by commit count, or `null`.
    *
-   * Kept — and kept first-class — because it predates `byProject` and is read
-   * by consumers that will never grow a popup: the eight archived variants
-   * under `apps/web/src/app/v/*`, and anything else that wants one word rather
-   * than a breakdown. It is a *summary of* `byProject`, not an independent
+   * Kept — and kept first-class — because it predates `byProject` and the public
+   * heatmap uses it for its collapsed one-line label. It is a *summary of*
+   * `byProject`, not an independent
    * fact, and the rule tying the two together is exact:
    *
    *     project ∈ { byProject[0].name, null }

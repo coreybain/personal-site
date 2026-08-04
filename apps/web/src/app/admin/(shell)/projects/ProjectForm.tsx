@@ -156,8 +156,8 @@ export type ProjectDraft = {
  * A blank case study.
  *
  * The accent defaults to a real colour rather than to `""`, because `accent` and
- * `accentHue` are required design tokens (the variants derive gradients from
- * them and the procedural placeholder art depends on them), and a form that
+ * `accentHue` are required design tokens (public case-study art derives its
+ * gradients from them), and a form that
  * opens with an invalid required field teaches you to ignore the error state.
  * The two agree: hue 212 is the blue below.
  */
@@ -723,8 +723,8 @@ export function ProjectForm({
         info={
           <>
             <strong>Accent</strong> and <strong>accent hue</strong> are required
-            design tokens: the variants derive gradients from the colour and the
-            procedural placeholder art derives its ramp from the bare hue, so the
+            design tokens: public case-study art derives gradients from the colour
+            and its ramp from the bare hue, so the
             two have to describe the same colour. <strong>Live</strong> is the
             public product, where the client is happy to be named;{" "}
             <strong>press</strong> is a writeup or award page hosted elsewhere.

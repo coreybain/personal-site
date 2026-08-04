@@ -1,4 +1,4 @@
-/** Deterministic formatting helpers for the Horizon variant. */
+/** Deterministic formatting helpers for the Horizon design system. */
 
 const GROUPED = new Intl.NumberFormat("en-US");
 

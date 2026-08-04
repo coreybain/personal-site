@@ -15,7 +15,7 @@ home/
 │   └── ios/            # SwiftUI companion app.            (to come)
 ├── packages/
 │   ├── convex/         # Convex backend: schema, queries, snapshot row.  (to come)
-│   ├── ui/             # Shared React primitives across variants.        (to come)
+│   ├── ui/             # Shared React primitives and design tokens.
 │   ├── types/          # Shared TS types (snapshot contract, etc.).      (to come)
 │   └── pdf/            # PDF/resume generation.                          (to come)
 └── tooling/
@@ -46,16 +46,3 @@ bun run dev            # http://localhost:3000
 | `bun run build`      | Production builds                             |
 | `bun run lint`       | ESLint across workspaces                      |
 | `bun run typecheck`  | `tsc --noEmit` across workspaces               |
-
-## Homepage style explorations
-
-The site's visual direction is being explored as four full-fidelity variants, each
-routed under `/v/*` and sharing one data source (`apps/web/src/lib/snapshot.ts`,
-currently mock data standing in for the future Convex snapshot row):
-
-- `/v/editorial` — **Editorial Ink**
-- `/v/terminal` — **Observatory**
-- `/v/swiss` — **Swiss Poster**
-- `/v/aurora` — **Soft Depth**
-
-`/` is a neutral switchboard linking to all four.

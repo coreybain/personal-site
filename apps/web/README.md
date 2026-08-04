@@ -15,27 +15,19 @@ bun run lint
 ```
 src/
 ├── app/
-│   ├── page.tsx          # switchboard linking to the four variants
-│   ├── globals.css       # minimal + neutral; variants bring their own styling
-│   └── v/<slug>/page.tsx # editorial | terminal | swiss | aurora
-├── components/v/<slug>/  # per-variant components, no cross-variant imports
-└── lib/snapshot.ts       # the shared data contract (mock; Convex later)
+│   ├── (site)/          # public pages and the Horizon design system
+│   ├── admin/           # authenticated content administration
+│   └── globals.css      # Tailwind and the neutral root surface
+├── components/site/     # public-site components
+└── lib/                 # live data projection, derivations and utilities
 ```
 
-## snapshot.ts
+## Data
 
-Every variant reads from `src/lib/snapshot.ts` and nothing else. It is mock data
-shaped exactly like the Convex `snapshot` row that will replace it, and it is fully
-deterministic — the contribution calendar comes from a seeded PRNG, never
-`Math.random`, so server render and client hydration always agree.
-
-Changing the snapshot's *shape* is a change to the contract. Changing its values is
-free.
-
-## Variants
-
-Each `/v/*` route owns its own type, color and motion. Keep variant styling scoped to
-the route — `globals.css` stays neutral so the four can be compared fairly.
+Public content is read from Convex and projected through `src/lib/data.ts` into
+the stable site contract in `src/lib/snapshot.ts`. The deterministic snapshot is
+kept as seed and test fixture data; public routes do not silently substitute it
+when live configuration is missing.
 
 ## /admin
 

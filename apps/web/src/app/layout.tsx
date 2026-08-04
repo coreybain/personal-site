@@ -46,9 +46,9 @@ const geistMono = Geist_Mono({
  *
  * What it deliberately does **not** own is the title *template*. That lives in
  * `(site)/layout.tsx`, because a template applies to every descendant segment
- * and this layout's descendants include `/admin` ("Admin — coreybaines.com")
- * and the seven `/v/*` explorations, all of which already set complete titles of
- * their own. A `%s — Corey Baines` template here would render them as
+ * and this layout's descendants include `/admin` ("Admin — coreybaines.com"),
+ * which already sets a complete title of its own. A `%s — Corey Baines`
+ * template here would render it as
  * "Admin — coreybaines.com — Corey Baines". Scoping the template to the `(site)`
  * group is what makes it a rule about the public site rather than a rule about
  * the repository.
@@ -107,8 +107,7 @@ export async function generateMetadata(): Promise<Metadata> {
      * snippet — the site is image-led and the descriptions quote live figures,
      * so a 160-character truncation is throwing away the argument.
      *
-     * `/admin`, `/api`, `/v/*` and `/variants` are excluded from indexing by
-     * their own route-level metadata and never inherit this. See `@/lib/seo`.
+     * `/admin` and `/api` remain excluded from crawling. See `@/lib/seo`.
      */
     robots: IS_INDEXABLE
       ? {

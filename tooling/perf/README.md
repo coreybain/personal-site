@@ -192,8 +192,6 @@ route             gzip     brotli    budget    plan   status
 /fun            167.2 KB  145.3 KB   172 KB       —   pass
 /resume         167.2 KB  145.3 KB   172 KB       —   pass
 /contact        174.3 KB  151.5 KB   180 KB       —   pass
-/variants       148.3 KB  128.3 KB   154 KB       —   pass
-/v/[variant]    149.8 KB  129.6 KB   154 KB       —   pass
 ```
 
 ### Lighthouse — desktop preset, median of 3

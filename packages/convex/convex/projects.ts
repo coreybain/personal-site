@@ -279,7 +279,7 @@ function assertProjectFields(fields: Partial<ProjectFields>): void {
   }
 
   // Design tokens, and required (see `ProjectSchema`'s DIVERGENCE note): the
-  // variants derive gradients from them and the procedural placeholder art
+  // public case-study art derives gradients from them and the procedural art
   // depends on them, so a blank accent is a broken card, not a plain one.
   if (fields.accent !== undefined) assertText(fields.accent, 'accent', MAX_ACCENT);
   if (fields.accentHue !== undefined) {

@@ -287,10 +287,9 @@ const contributionDay = v.object({
    * rule is `project ∈ { byProject[0].name, null }`: the leader's name, or
    * nothing, never a name absent from the breakdown.
    *
-   * Kept alongside `byProject` because it predates it and is read by consumers
-   * that will never grow a popup (the archived variants under
-   * `apps/web/src/app/v/*`). ADR 008: only named, attributed projects ever
-   * appear here — this string is rendered in a public tooltip.
+   * Kept alongside `byProject` because it predates it and the public heatmap
+   * reads it as its collapsed label. ADR 008: only named, attributed projects
+   * ever appear here — this string is rendered in a public tooltip.
    */
   project: v.union(v.string(), v.null()),
   /**
@@ -412,8 +411,7 @@ const healthStats = v.object({
 
 /**
  * Who the site is about. Mirrors `IdentitySchema`, which spreads `SocialsSchema`
- * flat rather than nesting it — the shape every archived variant under
- * `apps/web/src/app/v/*` already reads.
+ * flat rather than nesting it — the public snapshot and native contract shape.
  *
  * Note the deliberate asymmetry in the socials: `github` is a bare username
  * because it is also an API key (the git cron and every repo URL are built from
@@ -631,9 +629,8 @@ export default defineSchema({
     /**
      * `problem` / `approach` / `outcomes` are the structured trio
      * `/work/[slug]` actually renders, and the primary narrative in
-     * `ProjectSchema`. All three are optional: eight archived variants under
-     * `apps/web/src/app/v/*` read `projects` and know nothing about these
-     * fields, so none of them may ever become required.
+     * `ProjectSchema`. All three remain optional for persisted rows that predate
+     * one or more narrative fields.
      */
     /** What was broken before. 2–3 sentences. */
     problem: v.optional(v.string()),
@@ -656,9 +653,8 @@ export default defineSchema({
       press: v.optional(v.string()),
     }),
     /**
-     * Design tokens, not content, and required: variants derive gradients and
-     * rules from them, and the procedural placeholder art depends on them for as
-     * long as ADR 009 sign-off is outstanding.
+     * Design tokens, not content, and required: public case-study art derives
+     * its gradients and rules from them.
      */
     accent: v.string(),
     /** The same accent as a bare HSL hue angle, so a full ramp can be derived. */
