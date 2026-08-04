@@ -3,12 +3,14 @@ import { notFound } from "next/navigation";
 
 import { Boundary } from "@/components/site/Boundary";
 import { stampTime } from "@/components/site/format";
+import { CaseBody } from "@/components/site/work/CaseBody";
 import { CaseDeck } from "@/components/site/work/CaseDeck";
 import { CaseHero } from "@/components/site/work/CaseHero";
 import { CaseNarrative } from "@/components/site/work/CaseNarrative";
 import { CaseNav } from "@/components/site/work/CaseNav";
 import { getProjects, getSiteData } from "@/lib/data";
 import { deriveWork, pad2 } from "@/lib/derive";
+import { renderMarkdown } from "@/lib/markdown";
 
 import "../work.css";
 
@@ -98,9 +100,9 @@ export async function generateMetadata({
  * grammar as the homepage, because a case study is the same site making a more
  * specific claim.
  *
- * Prose (`problem`, `approach`, `outcomes`) is draft copy carried on the
- * snapshot; every figure is measured data from the same document. Both are
- * optional on the type, so each block renders only when its field exists.
+ * The structured overview (`problem`, `approach`, `outcomes`) and optional
+ * Markdown body come from the same project row. Every field is optional on the
+ * public type, so each block renders only when its source content exists.
  *
  * One read for the whole page: the project, its index, its neighbours and the
  * cross-platform build figures all come out of a single `getSiteData()`, so the
@@ -122,6 +124,7 @@ export default async function CaseStudyPage({
 
   const project = projects[index];
   const { prev, next } = work.neighbours(index);
+  const bodyHtml = project.body ? await renderMarkdown(project.body) : "";
 
   return (
     <main>
@@ -136,6 +139,7 @@ export default async function CaseStudyPage({
             identity={identity}
           />
           <CaseNarrative project={project} />
+          <CaseBody html={bodyHtml} />
         </div>
       </section>
 

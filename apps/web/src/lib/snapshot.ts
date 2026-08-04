@@ -171,6 +171,14 @@ export type Project = {
   approach?: string;
   /** Short, measurable result lines. Render as a list, not a paragraph. */
   outcomes?: string[];
+  /** Long-form Markdown for the fuller case-study narrative. */
+  body?: string;
+  /** Agreed ownership credit for employer or client work. */
+  attribution?: string;
+  /** Free-form engagement period, where the source record provides one. */
+  period?: string;
+  /** Public product and press links. Private repositories are never exposed. */
+  links?: { live?: string; press?: string };
   /**
    * Agent effort spent on this project. Where the title also appears in
    * `aiUsage.topProjects`, `sessions` matches that number exactly.
@@ -810,11 +818,9 @@ export const snapshot = {
   healthStats: null as HealthStats | null,
 
   /*
-   * ⚠️ DRAFT COPY — every `problem` / `approach` / `outcomes` string below is
-   * placeholder prose written to exercise the layout, not a claim of record.
-   * Corey: rewrite these in your own words (and check the numbers) before this
-   * goes public. `slug`, `title`, `client`, `role`, `summary`, `stack`,
-   * `accent` and `accentHue` are the original fields — leave them alone.
+   * Employer work, written from the public product sites and the implementation
+   * history in Corporate Interactive's private repositories. The copy separates
+   * product facts from Corey's contribution and never implies sole ownership.
    */
   projects: [
     {
@@ -823,20 +829,42 @@ export const snapshot = {
       client: 'Corporate Interactive',
       role: 'Principal Engineer',
       summary:
-        'A document automation platform that turns hours of copy-pasting into a signed proposal in minutes, generating pixel-accurate PDFs from a live block editor at enterprise scale.',
-      stack: ['TypeScript', 'React', 'Node.js', '.NET', 'SQL Server', 'Azure'],
+        'A multi-tenant sales-document platform for creating, approving, sending and e-signing interactive quotes, proposals and contracts, with structured content, pricing and integrations across web and native apps.',
+      stack: ['TypeScript', 'Next.js', 'React', 'Convex', 'Drizzle', 'Ably'],
       accent: 'hsl(212 88% 58%)',
       accentHue: 212,
       problem:
-        'Sales teams were assembling proposals by hand in Word, pasting pricing out of spreadsheets and emailing PDFs that were stale before they landed. A single quote took hours and no two looked alike. Nobody could tell which version a client had actually signed.',
+        'A sales document is more than formatted text: content, pricing, data, approvals, delivery, signing and integrations all have to agree. As the product grew, the hard problem was keeping that shared document model reliable across the editor, customer-facing viewer, PDF output and connected systems without breaking documents customers had already created.',
       approach:
-        'Rebuilt the quote as structured data rather than a document: a block-based editor writing to a versioned schema, with rendering split into a deterministic layout engine that emits pixel-accurate PDFs. Pricing, templates and approvals became first-class objects instead of copy-paste conventions, and every render is reproducible from its version row.',
+        'As Principal Engineer within the Corporate Interactive team, I worked across the platform rather than owning one isolated screen. My contribution centred on the document and editor architecture, shared rendering behaviour, pricing and spreadsheet capabilities, integrations, platform migrations and the reliability work needed to evolve a long-lived product safely.',
       outcomes: [
-        'Quote assembly cut from hours to minutes',
-        'One rendering path for web, PDF and print',
-        'Every signed document traceable to its version',
-        'Template changes ship without a release',
+        'A structured editor for proposals, quotes, contracts and other sales documents',
+        'Interactive pricing, reusable templates, approvals and e-signing in one workflow',
+        'Consistent document behaviour across editing, viewing, PDF and print surfaces',
+        'Integration paths for CRM, automation and other business systems',
       ],
+      body: `## What the product is
+
+QuoteCloud is Corporate Interactive's sales-document platform. It gives teams a structured way to create proposals, quotes, contracts, reports and other customer-facing documents rather than treating each one as a collection of disconnected files. The public product includes interactive pricing, reusable content and templates, approval and e-signing workflows, delivery tracking, automation and integrations. Its editor supports richer material than ordinary text—including tables and spreadsheets, forms, diagrams, timelines, media and embedded documents—so the same document can carry the commercial detail and the presentation around it.
+
+Behind that experience is a multi-application system. Authors work in a browser-based editor, recipients use an interactive viewer, documents can be rendered for PDF and print, and adjacent services support email, native apps and external integrations. That breadth is why the central engineering challenge is consistency: the same document has to mean the same thing everywhere it appears.
+
+## Working as part of the team
+
+I built QuoteCloud as part of the Corporate Interactive product team, not as a solo project. The repository history reflects a long-running product with contributions from multiple engineers and a steady flow of product, customer and support feedback. Work moved through pull requests and shared packages, with changes often crossing the editor, renderer, data model and integration surfaces at once.
+
+My responsibility at Principal Engineer level was to help the team make those cross-cutting changes without turning every feature into a one-off. That meant establishing clearer contracts between packages, reviewing and integrating other engineers' work, planning migrations, debugging production behaviour and balancing new capability against compatibility with documents already in use.
+
+## My role and contribution
+
+My work has covered the block editor and its selection, drag-and-drop and toolbar behaviour; pricing, fees and spreadsheet functionality; headers, footers and document layout; embedded PDF handling; session recovery; and the shared paths that keep interactive and generated output aligned. I have also worked on platform evolution—including the Next.js application, real-time collaboration and data layers—and on connected products such as Zapier and Salesforce integrations.
+
+The role is deliberately broad. Sometimes the highest-value contribution is an architectural change or migration; sometimes it is tracking a subtle editor interaction through several layers; and sometimes it is making an existing workflow recover cleanly when a session, network request or third-party system fails.
+
+## What I learned
+
+QuoteCloud taught me that a serious editor is an ecosystem, not a text box. A small interaction change can affect selection state, persistence, collaboration, rendering and export, so the durable solution usually lives in the model and contracts rather than in a local UI patch. It also reinforced that technical leadership on a mature product is largely about creating safe paths for change: making boundaries understandable, reviewing carefully, sequencing migrations and leaving the system easier for the next engineer to extend.`,
+      links: { live: 'https://www.quote.cloud/' },
       aiBuildStats: { sessions: 412, hours: 271 },
     },
     {
@@ -845,20 +873,42 @@ export const snapshot = {
       client: 'Corporate Interactive',
       role: 'Principal Engineer',
       summary:
-        'A travel document workflow that collapses visas, itineraries and approvals into one auditable pipeline, so operations teams stop chasing paperwork across six inboxes.',
-      stack: ['TypeScript', 'Next.js', 'PostgreSQL', 'Temporal', 'Stripe'],
+        'A branded travel companion that brings agency itineraries, trip documents, updates and traveller communication into native iOS and Android apps with offline access.',
+      stack: ['Swift', 'Kotlin', 'JavaScript', 'Node.js', 'MongoDB', 'Sabre'],
       accent: 'hsl(28 92% 56%)',
       accentHue: 28,
       problem:
-        'Visas, itineraries and approvals lived across six inboxes and a shared drive. Operations staff spent their days chasing status by hand, and a missed document meant a traveller stuck at a border. There was no single answer to "where is this file up to".',
+        'Travel information originates in several systems and continues to change after a booking is made. Travellers need flights, hotels, transfers, documents and agency messages to remain understandable and available on a phone—even when source data is irregular, a trip is updated or connectivity disappears.',
       approach:
-        'Modelled every document as a durable workflow rather than a row with a status column, so a stalled step retries itself and every transition is recorded. Built one operations console over the top with the queue, the audit trail and the payment state in a single view.',
+        'Within the Corporate Interactive team, I worked across the itinerary service and both native platforms, connecting Sabre and QuoteCloud data to traveller-facing experiences. My role combined maintaining the established delivery pipeline with modernising the iOS and Android clients, especially around persistence, synchronisation, background behaviour and native platform features.',
       outcomes: [
-        'Six inboxes collapsed into one queue',
-        'Full audit trail on every document',
-        'Stalled steps retry without human chasing',
-        'Status answerable in one screen, not a phone call',
+        'Flights, accommodation, transfers and other trip segments organised in one itinerary',
+        'Agency documents and traveller uploads available alongside each trip',
+        'Offline access with explicit handling for updates and removed itineraries',
+        'Native notifications, messaging, widgets, Live Activities and watch experiences',
       ],
+      body: `## What the product is
+
+TravelDocs is a mobile travel companion delivered by Corporate Interactive for travel agencies and their customers. It takes itinerary data and documents supplied through QuoteCloud and connected travel systems such as Sabre, then presents them as a trip the traveller can actually use. Flights, accommodation, transfers and other segments sit alongside tickets and supporting documents, agency messages, weather, trip costs, check-in links and real-time notifications. Agencies can provide a branded experience while travellers keep important information available offline.
+
+The product spans more than a mobile interface. A server-side itinerary pipeline receives and interprets travel data, generates or attaches documents and publishes changes to the native applications. The iOS and Android clients then have to preserve a useful local view of that trip through background updates, intermittent networks, time-zone changes and the normal lifecycle constraints of a phone.
+
+## Working as part of the team
+
+I worked on TravelDocs as part of the Corporate Interactive engineering team across several generations of the product. The work involved coordinating changes between the itinerary service, shared product expectations and two native clients rather than optimising one repository in isolation. Existing travel-agency workflows had to keep operating while the apps became more capable, so delivery depended on small compatible steps, careful review and feedback from the people supporting real travellers.
+
+As Principal Engineer, I helped trace issues across those boundaries and turn them into changes the team could maintain. That included reading imperfect source data, agreeing how a state should be represented on each client, and making sure a change that looked correct online still behaved sensibly after an app restart or without a connection.
+
+## My role and contribution
+
+On the service side, my work included Sabre queue and agency configuration, itinerary parsing, flight and hotel segments, document generation, account and session flows, travel-safety information and operational monitoring. On the native side, I have worked deeply in the Swift application and contributed to Android, with recent iOS work covering persistence and synchronisation, document grouping, time-zone tools, deep links, app locking, attachments, weather fallbacks and handling trips that have been removed on the server.
+
+I also developed native extensions that put timely travel information where it is most useful: widgets, Live Activities and Apple Watch experiences. Those features were not separate demos; they had to read the same trip state and degrade safely when the app or network could not refresh it.
+
+## What I learned
+
+TravelDocs made offline-first behaviour concrete for me. Caching a successful response is the easy part; the real work is reconciliation—knowing what changed, what was deleted, which copy is authoritative and what the traveller should see while that answer is unavailable. It also taught me to treat inconsistent dates, segments and identifiers as normal integration conditions rather than exceptional data. In travel software, time zones, background execution, notifications and deep links are core domain concerns, and reliable teams design them into the workflow from the beginning.`,
+      links: { live: 'https://www.quote.cloud/traveldocs-mobile-app' },
       aiBuildStats: { sessions: 308, hours: 202 },
     },
     {
@@ -867,20 +917,42 @@ export const snapshot = {
       client: 'Corporate Interactive',
       role: 'Principal Engineer',
       summary:
-        'A compliance and risk platform that models controls, evidence and exposure as one graph, giving boards a defensible answer instead of a spreadsheet.',
-      stack: ['TypeScript', 'React', 'C#', '.NET', 'SQL Server', 'Power BI'],
+        'A travel-safety platform that combines location-aware security and health alerts, SOS and check-in flows, traveller communication and an operator map across mobile and web.',
+      stack: ['Next.js', 'Expo', 'Convex', 'PostgreSQL', 'PostGIS', 'AWS'],
       accent: 'hsl(158 72% 44%)',
       accentHue: 158,
       problem:
-        'Risk reporting ran on spreadsheets that were rebuilt by hand each quarter. Controls, the evidence backing them and the exposure they mitigated lived in three unrelated places, so a board question took a week of reconciliation to answer defensibly.',
+        'Travel-safety software has to coordinate people, locations, alerts and incidents while permissions, connectivity and device capabilities vary. A failure path is part of the safety experience: travellers need a calm way to ask for help, while operators need current, role-appropriate context without exposing another organisation\'s data.',
       approach:
-        'Modelled controls, evidence and exposure as one connected graph with a single scoring path, so a change in evidence propagates straight through to reported exposure. Reporting reads the same model the operators work in — there is no separate quarter-end pipeline to reconcile.',
+        'I worked with the Corporate Interactive team across the long-running native applications and the newer shared platform. As Principal Engineer, I focused on modernising lifecycle, location, notification and security behaviour while shaping a multi-tenant web and Expo architecture with explicit authorisation, map scope and durable geospatial storage boundaries.',
       outcomes: [
-        'Quarter-end reconciliation removed entirely',
-        'One scoring path from evidence to board report',
-        'Every score traceable to its source evidence',
-        'Reports regenerate on demand, not on a cycle',
+        'Location-aware security and health alerts delivered to travellers',
+        'SOS, check-in and emergency-information flows across native mobile apps',
+        'Role-scoped operator maps for alerts, incidents, messages and device health',
+        'A modern shared platform designed around tenant and spatial data boundaries',
       ],
+      body: `## What the product is
+
+ZeroRisk is a travel-security platform built by Corporate Interactive for ZeroRisk International. The public SecApp experience provides location-relevant security and health alerts, emergency assistance, check-ins, traveller tracking, learning material and current security information. Behind the traveller experience, operators need to understand where people may be affected, communicate with them and coordinate an incident without mixing data between customer organisations.
+
+The product has a long native history and is now also represented by a modern map-first platform. The current architecture brings together a Next.js operations dashboard, a role-aware Expo application, real-time Convex workflows and durable AWS data services including PostgreSQL/PostGIS and object storage. That combination supports immediate interaction while keeping location and operational records behind explicit ownership boundaries.
+
+## Working as part of the team
+
+This work has been a team effort across Corporate Interactive, the customer domain and multiple application generations. I have collaborated with other engineers while responding to operational requirements that do not fit neatly into a single screen: what a traveller sees after denying location access, how an operator's scope is calculated, what happens when a push token changes, and how an emergency flow behaves when the network is poor.
+
+My role has included helping the team modernise incrementally. The established iOS and Android products still represent real user behaviour, so the newer platform cannot be designed as if history does not exist. We have used those existing workflows to define parity, document architecture decisions and sequence the transition without losing the safety behaviours people rely on.
+
+## My role and contribution
+
+In the native applications, my work has included location and notification lifecycle fixes, SOS and “I'm okay” flows, emergency and embassy information, typed application state, service decomposition, push-token handling, security hardening and more recent iOS platform work such as StoreKit 2 and scene lifecycle updates. These changes often concentrated on the paths around the happy path: permission changes, background transitions, stale credentials and unavailable services.
+
+On the current platform, I have worked across authentication and two-factor flows, tenant-aware permissions, alert authoring, map layers and scope, mobile layouts, SOS handling and real-time data hydration. I have also helped define the architectural boundaries between real-time application state and durable geospatial storage so that speed does not weaken ownership or auditability.
+
+## What I learned
+
+ZeroRisk taught me that reliability in safety software is a product quality, not a backend metric. The interface has to remain direct and reassuring under stress, and permissions or network failures need explicit user states rather than silent degradation. It also reinforced that multi-tenancy and map scope belong in the data model: filtering after a broad query is not an adequate security boundary. Finally, modernisation works best when the team treats the old product as evidence—preserving proven behaviour while being willing to replace the structures that made it hard to reason about.`,
+      links: { live: 'https://zeroriskinternational.com/' },
       aiBuildStats: { sessions: 221, hours: 145 },
     },
     {
@@ -889,20 +961,42 @@ export const snapshot = {
       client: 'Corporate Interactive',
       role: 'Principal Engineer',
       summary:
-        'A real-time auction platform where thousands of bidders converge on the final ten seconds and every single one of them sees the same number.',
-      stack: ['TypeScript', 'Next.js', 'WebSockets', 'Redis', 'PostgreSQL', 'AWS'],
+        'An Australian online property-sales platform where agents, vendors and qualified buyers collaborate through live auctions, private treaty offers, documents and communication.',
+      stack: ['React', 'Java', 'Spring', 'WebSockets', 'AWS', 'Stripe'],
       accent: 'hsl(288 70% 60%)',
       accentHue: 288,
       problem:
-        'Auction traffic is not steady — it is flat for an hour and then every bidder in the country arrives in the last ten seconds. The old polling-based system disagreed with itself under that load, and a bidder seeing a stale price is a disputed sale.',
+        'Moving a property sale online means translating more than the auction-room countdown. Buyer qualification, state-specific registration, property documents, role-based visibility, offers and counteroffers, payments, notifications and the closing state all need to stay coherent for agents, vendors and buyers.',
       approach:
-        'Made the bid ledger the single ordering authority and pushed state to clients over websockets from an in-memory fan-out, so every connected bidder observes the same sequence. Load-shed and reconnect behaviour were designed for the closing burst first, then the quiet hour.',
+        'As part of the Corporate Interactive delivery team, I worked across the React front end and established Java/Spring platform. My contribution covered the live auction experience and websocket lifecycle as well as the less visible operational workflows—property setup, team administration, permissions, offers, notifications, payments and AWS delivery—that make the public transaction possible.',
       outcomes: [
-        'Same closing price on every screen, every time',
-        'Closing-burst load handled without polling',
-        'Reconnects resume mid-auction with no gap',
-        'Disputed sales from stale prices eliminated',
+        'Online auction, private treaty and timed private treaty sale paths',
+        'Live auction-room updates, bidder communication and reconnect handling',
+        'Central property information, documents, registrations and notifications',
+        'Role-aware workflows for agents, vendors, buyers and platform administrators',
       ],
+      body: `## What the product is
+
+SoldOnline brings the property auction room and private-treaty process into one online platform. Agents can prepare and manage a property sale, vendors can follow its progress, and qualified buyers can register, review the available information and participate from wherever they are. The product supports live auctions as well as private and timed-private-treaty offers, with property documents, communication, offers and counteroffers collected around the same transaction.
+
+That public experience sits on top of a wider operational system. A property has agencies and team members, contacts and vendors, registration requirements, visibility rules, sale settings, notifications, payment decisions and administrative support. Live bidding is the most visible moment, but its integrity depends on all of those states being correct before the auction starts.
+
+## Working as part of the team
+
+I developed SoldOnline within the Corporate Interactive team alongside other engineers working in the same established platform. The repository shows a collaborative delivery model with feature branches, pull requests and frequent integration across the React application, Java services and AWS deployment work. We had to evolve existing workflows without treating the older server or the operational knowledge embedded in it as disposable.
+
+As Principal Engineer, I worked between product behaviour and implementation detail. That meant helping the team turn real-estate rules into explicit interface states, tracing bugs across front end and server behaviour, reviewing changes, and making sure improvements to the bidder experience did not leave agents or support staff without the controls they needed.
+
+## My role and contribution
+
+My contribution included the auction-room interface, alerts and bidder history; shared websocket connections and dispatch behaviour; buyer registration and terms; offer and auto-bid presentation; vendor and agent visibility; mobile adjustments; property upload and configuration; team-member and administration tools; billing and payment flows; and AWS release integration. Much of that work was about making roles and transitions visible—who can see a contact, whether an auction is pending, suspended or complete, and which action is valid next.
+
+I also spent time on the small operational details that determine whether a platform is usable in practice: clearer support paths, resilient property imagery, useful alerts, correct time handling and responsive controls during a live event.
+
+## What I learned
+
+SoldOnline taught me that “real time” is primarily a correctness problem. Websockets can deliver an update quickly, but the product still needs ordering, reconnection behaviour, permission checks and unambiguous state transitions. It also reinforced the importance of building the operational side with the same care as the headline experience. An elegant auction screen is not enough if an agent cannot configure the sale, a buyer cannot complete registration or support cannot understand what happened. Mature delivery means designing that whole chain with the team, not optimising the most visible screen in isolation.`,
+      links: { live: 'https://soldonline.com.au/' },
       aiBuildStats: { sessions: 164, hours: 108 },
     },
     {
@@ -911,7 +1005,7 @@ export const snapshot = {
       client: 'Corporate Interactive',
       role: 'Principal Engineer',
       summary:
-        'A multi-tenant visual site builder and content management platform that powers authenticated editing, project-specific page composition and public rendering from one Next.js application.',
+        'Corporate Interactive\'s multi-tenant visual CMS and website builder, combining structured page composition, content and asset management, publishing, forms, commerce and public rendering.',
       stack: [
         'Next.js',
         'React',
@@ -923,6 +1017,38 @@ export const snapshot = {
       ],
       accent: 'hsl(252 84% 62%)',
       accentHue: 252,
+      problem:
+        'A visual CMS has to give editors freedom without allowing the saved page to become inconsistent or unsafe. Responsive layout, reusable content, custom HTML, assets, navigation, publishing, SEO and public performance all meet in the same system, often across many customer sites and years of stored content.',
+      approach:
+        'Within the Corporate Interactive team, I have helped modernise the established WebDirector platform while continuing to ship editor improvements. My Principal Engineer role spans the responsive layout model, editor state and interaction, content and file tooling, caching, security and the Next.js/tRPC/Drizzle architecture that connects authenticated editing to public delivery.',
+      outcomes: [
+        'Structured visual page building with responsive layout controls and preview',
+        'Shared content, assets, navigation, blogs, forms and commerce in one CMS',
+        'Safer custom-code handling and role-aware authenticated editing',
+        'Modern cacheable public rendering backed by a typed application stack',
+      ],
+      body: `## What the product is
+
+Visual Editor is the editing experience within Corporate Interactive's WebDirector platform: a multi-tenant content management system and website builder for businesses that need more than a collection of static pages. Editors compose pages visually from structured rows, columns and content blocks, manage shared content and files, preview responsive layouts and publish into the same system that serves the public site. The wider product includes navigation, blogs, calendars, forms and data capture, ecommerce, SEO controls and reusable modules.
+
+The platform has evolved over many years and currently combines a modern Next.js and React application with typed APIs, a Drizzle/MySQL data layer, AWS-backed assets and a large set of project-specific modules. That history is valuable—real sites and workflows already exist—but it also makes compatibility, performance and clear boundaries essential.
+
+## Working as part of the team
+
+I work on Visual Editor as part of the Corporate Interactive engineering team. Multiple engineers contribute to the editor and the surrounding CMS, so significant changes need a shared model and migration path rather than assumptions held by one person. We collaborate through reviews and integration work, and we use feedback from live customer sites to distinguish a local interaction problem from a deeper issue in layout, persistence or public rendering.
+
+As Principal Engineer, I help connect those layers. I have been responsible for architectural direction and difficult cross-cutting work, but also for making that direction usable by the rest of the team: documenting constraints, extracting reusable behaviour, reviewing implementation choices and improving the system in increments that existing sites can absorb.
+
+## My role and contribution
+
+My editor work includes responsive preview and breakpoint behaviour, row sizing and full-width layouts, contextual controls, drag-and-drop state, rich-text tooling and reusable widgets. Around the editor, I have worked on file-management performance and image compression, public-shell caching, authentication and two-factor flows, route and content caching, and safer sandboxing for customer-supplied HTML.
+
+I have also contributed to the platform's modern application structure using Next.js, tRPC, Drizzle and shared TypeScript contracts. The goal has not been a cosmetic rewrite; it has been to make authenticated editing, persistence and public rendering easier to reason about while continuing to serve the capabilities already used across customer projects.
+
+## What I learned
+
+Visual Editor taught me to see a page builder as a constraint and serialisation system. The visible canvas is only one projection of a structured model, and responsive preview, persistence and public output must all interpret that model consistently. It also reinforced that extensibility needs boundaries: custom content and project modules are valuable, but they need security isolation, predictable APIs and performance budgets. Most importantly, I learned that modernising a mature platform is a team discipline—progress comes from creating reliable seams where old and new code can coexist, then moving those seams deliberately.`,
+      links: { live: 'https://www.webdirector.net/' },
     },
   ] as Project[],
 

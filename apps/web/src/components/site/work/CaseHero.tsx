@@ -78,6 +78,19 @@ export function CaseHero({
         {project.summary}
       </p>
 
+      {project.links?.live ? (
+        <a
+          className="work-product-link hor-rise mt-5"
+          href={project.links.live}
+          rel="noreferrer"
+          target="_blank"
+          style={delay(260)}
+        >
+          Visit the product website
+          <span aria-hidden="true">↗</span>
+        </a>
+      ) : null}
+
       <div className="hor-rise mt-11 sm:mt-12" style={delay(290)}>
         <WorkArt project={project} index={index} size="wide" />
       </div>

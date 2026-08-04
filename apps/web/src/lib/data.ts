@@ -479,12 +479,12 @@ function mapHealthStats(source: SnapshotRow["healthStats"]): HealthStats | null 
 /**
  * `projects[n]` — the case-study fields the site renders.
  *
- * Dropped, because `Project` has no field for them: `attribution`, `period`,
- * `body`, `media`, `links`, and the three publish-control fields (`published`,
- * `featured`, `sortOrder` — the last of which is already expressed as the array
- * order). `media` is the significant one: ADR 009 sanitised screenshots exist on
- * the row and `/work/[slug]` still draws procedural art, which stays true until
- * the contract grows an image field.
+ * Dropped because the public `Project` has no field for them: `media` and the
+ * three publish-control fields (`published`, `featured`, `sortOrder` — the last
+ * of which is already expressed as the array order). `media` is the significant
+ * one: ADR 009 sanitised screenshots exist on the row and `/work/[slug]` still
+ * draws procedural art, which stays true until the contract grows an image
+ * field.
  *
  * The optional trio is assigned rather than spread so an absent Convex field
  * stays an absent key — a renderer testing `project.problem` and one testing
@@ -506,6 +506,12 @@ function mapProject(row: ProjectRow): Project {
   if (row.problem !== undefined) project.problem = row.problem;
   if (row.approach !== undefined) project.approach = row.approach;
   if (row.outcomes !== undefined) project.outcomes = [...row.outcomes];
+  if (row.body !== undefined) project.body = row.body;
+  project.attribution = row.attribution;
+  if (row.period !== undefined) project.period = row.period;
+  if (row.links.live !== undefined || row.links.press !== undefined) {
+    project.links = { ...row.links };
+  }
   if (row.aiBuildStats !== undefined) {
     project.aiBuildStats = {
       sessions: row.aiBuildStats.sessions,

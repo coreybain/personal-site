@@ -138,7 +138,7 @@ const siteSettings = {
     /**
      * SYNTHESISED, from behaviour rather than from a field. The mock's projects
      * carry no `featured` flag, and `components/site/FeaturedWork.tsx` renders
-     * `snapshot.projects` in full — so on the site as it stands today, all four
+     * `snapshot.projects` in full — so on the site as it stands today, all five
      * are featured, in mock array order. That is what is recorded here, and it
      * is the selection an editor is most likely to trim rather than rebuild.
      */
@@ -215,7 +215,7 @@ const snapshotRow = {
 const projects = mock.projects.map((project, index) => ({
   /**
    * `published: true`. The mock has no publish flag because everything in it is
-   * live by construction — all four render on `/work` and on the dashboard
+   * live by construction — all five render on `/work` and on the dashboard
    * today. Seeding them as drafts would make wiring the site to Convex look like
    * a regression.
    *
@@ -225,7 +225,7 @@ const projects = mock.projects.map((project, index) => ({
    * no imagery at all.
    */
   published: true,
-  /** See `siteSettings.featured.projectSlugs` — the site features all four. */
+  /** See `siteSettings.featured.projectSlugs` — the site features all five. */
   featured: true,
   /** Mock array order, densely from 0 — the convention `projects.create` uses. */
   sortOrder: index,
@@ -253,13 +253,14 @@ const projects = mock.projects.map((project, index) => ({
   problem: project.problem,
   approach: project.approach,
   outcomes: project.outcomes,
+  body: project.body,
 
   stack: project.stack,
   /**
    * SKIPPED — deliberately empty, and this is the ADR 009 call.
    *
    * ADR 009 says imagery is real screenshots, sanitised, and its 2026-07-30
-   * amendment records that Corporate Interactive have signed off on all four
+   * amendment records that Corporate Interactive have signed off on all five
    * projects. But sign-off is permission to do the work, not the work: the
    * sanitisation pass is manual, belongs to build phase 8, and has not happened.
    * There are no screenshots in this repo to seed — `FeaturedWork.tsx` states it
@@ -272,11 +273,8 @@ const projects = mock.projects.map((project, index) => ({
    * placeholder would put a lie in the exact field the publish gate reads.
    */
   media: [],
-  /**
-   * Empty. ADR 008 is why there is no `repo` key to fill in at all, and the mock
-   * carries no live or press URLs.
-   */
-  links: {},
+  /** Public product links only. ADR 008 is why there is no `repo` key. */
+  links: project.links ?? {},
   accent: project.accent,
   accentHue: project.accentHue,
 
@@ -408,7 +406,7 @@ const experienceEntries = mock.resumeDocument.experience.map((role, index) => ({
   /**
    * SYNTHESISED, and only for the current role. Every project in the mock has
    * `role: 'Principal Engineer'` and `client: 'Corporate Interactive'`, which is
-   * this entry and no other, so pointing it at all four case studies restates
+   * this entry and no other, so pointing it at all five case studies restates
    * what the mock already says rather than guessing. Omitted entirely on the
    * other two entries: an absent key means "never asked", which is true.
    */

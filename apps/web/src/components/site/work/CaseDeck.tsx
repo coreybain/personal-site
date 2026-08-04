@@ -31,7 +31,7 @@ function Outcomes({ outcomes }: { outcomes: string[] }) {
   return (
     <Panel
       label="What changed"
-      meta={`${pad2(outcomes.length)} measured`}
+      meta={`${pad2(outcomes.length)} delivered`}
       padded={false}
       delay={40}
     >
