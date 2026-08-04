@@ -1,10 +1,9 @@
 import type { CSSProperties } from "react";
-import Link from "next/link";
 
 import { num } from "@/components/site/format";
 import type { FunTally } from "@/lib/derive";
 import { KIND_LABEL, KIND_ORDER } from "@/lib/derive";
-import type { Identity, Lab } from "@/lib/snapshot";
+import type { Identity } from "@/lib/snapshot";
 
 const MANUAL_KIND_ORDER = KIND_ORDER.filter((kind) => kind !== "walk");
 
@@ -17,21 +16,16 @@ function delay(ms: number): CSSProperties {
  *
  * ── Props, not module state ────────────────────────────────────────────────
  *
- * `identity`, `tally` and the Pintlog cross-link were read here off the mock at
- * module load. They arrive as props now, from the page's one `getSiteData()` /
- * `deriveFun()` pair. `pintlog` is passed already-found rather than as the whole
- * lab list: the page owns the lookup, so this component cannot quietly become a
- * second reader of the snapshot.
+ * `identity` and `tally` were read here off the mock at module load. They arrive
+ * as props now, from the page's one `getSiteData()` / `deriveFun()` pair, so this
+ * component cannot quietly become a second reader of the snapshot.
  */
 export function FunHeader({
   identity,
   tally,
-  pintlog,
 }: {
   identity: Identity;
   tally: FunTally;
-  /** The weekend Swift app the beer entries come from — cross-linked, not quoted. */
-  pintlog: Lab | undefined;
 }) {
   /**
    * The four numbers that actually mean something here, in the *sans* face —
@@ -140,17 +134,6 @@ export function FunHeader({
             <span className="fun-key-n">×{tally.activityCounts.gym}</span>
           </span>
         </div>
-
-        {pintlog ? (
-          <Link href="/labs" className="hor-pill">
-            <span
-              className="block h-[7px] w-[7px] rounded-full"
-              style={{ background: "var(--hor-accent)" }}
-              aria-hidden="true"
-            />
-            Logged in {pintlog.title}
-          </Link>
-        ) : null}
       </div>
 
       <div className="hor-rise mt-12 sm:mt-14" style={delay(300)}>

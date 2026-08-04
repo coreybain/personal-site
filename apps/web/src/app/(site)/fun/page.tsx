@@ -67,16 +67,12 @@ export async function generateMetadata(): Promise<Metadata> {
  * committed design-study entries.
  */
 export default async function FunPage() {
-  const { identity, labs, funLog, computedAt, healthStats } = await getSiteData();
+  const { identity, funLog, computedAt, healthStats } = await getSiteData();
   const { bands, healthActivities, hueFor, isoDaysAgo, logRange, tally } = deriveFun(
     funLog,
     computedAt,
     healthStats,
   );
-
-  /* The header's cross-link. Looked up here rather than in the header so this
-     page stays the only thing that knows what the whole snapshot looks like. */
-  const pintlog = labs.find((lab) => lab.slug === "pintlog");
 
   return (
     <main>
@@ -84,7 +80,7 @@ export default async function FunPage() {
       <section className="hor-sky">
         <div className="hor-wash" aria-hidden="true" />
         <div className="hor-shell">
-          <FunHeader identity={identity} tally={tally} pintlog={pintlog} />
+          <FunHeader identity={identity} tally={tally} />
         </div>
       </section>
 
