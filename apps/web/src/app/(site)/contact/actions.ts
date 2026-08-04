@@ -72,6 +72,7 @@
 
 import { randomBytes } from "node:crypto";
 
+import { checkBotId } from "botid/server";
 import { fetchMutation } from "convex/nextjs";
 import { ConvexError } from "convex/values";
 import { UTApi } from "uploadthing/server";
@@ -212,6 +213,25 @@ export async function submitContactMessage(
   _previous: ContactState,
   form: FormData,
 ): Promise<ContactState> {
+  try {
+    const verification = await checkBotId();
+    if (verification.isBot) {
+      return refuse(
+        null,
+        "We could not verify this submission. Reload the page and try again, or use the email address above.",
+      );
+    }
+  } catch (error) {
+    console.error(
+      "[contact] BotID verification failed.",
+      error instanceof Error ? error.message : "Unknown error",
+    );
+    return refuse(
+      null,
+      "We could not verify this submission. Reload the page and try again, or use the email address above.",
+    );
+  }
+
   const name = field(form, "name");
   const email = field(form, "email");
   const message = field(form, "message");

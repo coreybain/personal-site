@@ -1,6 +1,7 @@
-import { SignIn } from "@clerk/nextjs";
 import type { Metadata } from "next";
 import Link from "next/link";
+
+import { BotProtectedSignIn } from "./BotProtectedSignIn";
 
 /**
  * `/admin/sign-in` — the only page under `/admin` a signed-out visitor may see.
@@ -59,20 +60,7 @@ export default function AdminSignInPage() {
   return (
     <main className="adm-signin">
       {clerkConfigured ? (
-        <SignIn
-          path="/admin/sign-in"
-          /*
-           * Where to land after signing in, when nothing else has an opinion.
-           * `fallbackRedirectUrl` rather than `forceRedirectUrl`: a `redirect_url`
-           * search param — which Clerk adds when it is the one doing the
-           * redirecting — should still win, so a deep link into the admin survives
-           * the sign-in it triggered.
-           */
-          fallbackRedirectUrl="/admin"
-          /* No sign-up route exists (see the docblock). Pointing this at the
-             sign-in path stops Clerk rendering a "Sign up" link to a 404. */
-          signUpUrl="/admin/sign-in"
-        />
+        <BotProtectedSignIn />
       ) : (
         <div className="adm-panel adm-signin-panel">
           <div className="adm-panel-body">
