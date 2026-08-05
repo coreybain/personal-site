@@ -9,6 +9,12 @@ import {
 } from "@/lib/derive";
 import type { HealthStats, Lab } from "@/lib/snapshot";
 
+const movementDate = new Intl.DateTimeFormat("en-AU", {
+  day: "numeric",
+  month: "short",
+  timeZone: "UTC",
+});
+
 function ArrowRight() {
   return (
     <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true">
@@ -139,25 +145,65 @@ function MovementCard({ movement, index }: { movement: OffClockMovementCard; ind
       <div className="offclock-chart" aria-label="Steps over the last seven Sydney days">
         {movement.days.map((day) => {
           const state = day.steps === null ? "missing" : day.steps === 0 ? "zero" : "measured";
+          const dateLabel = movementDate.format(new Date(`${day.date}T00:00:00Z`));
+          const distanceLabel =
+            day.distanceKm === null ? "no distance sample" : `${day.distanceKm.toFixed(1)} kilometres`;
+          const workoutLabel =
+            day.workouts === null
+              ? "no workout count"
+              : `${day.workouts} ${day.workouts === 1 ? "workout" : "workouts"}`;
           const label =
             day.steps === null
-              ? `${day.label}: no HealthKit sync`
-              : `${day.label}: ${num(day.steps)} steps${day.isToday ? ", today so far" : ""}`;
+              ? `${day.label}, ${dateLabel}: no HealthKit sync`
+              : `${day.label}, ${dateLabel}: ${num(day.steps)} steps, ${distanceLabel}, ${workoutLabel}${day.isToday ? ", today so far" : ""}`;
+          const context = day.isPeak ? "Week peak" : day.isToday ? "Today" : null;
 
           return (
-            <div className="offclock-day" key={day.date}>
+            <div
+              className="offclock-day"
+              key={day.date}
+              tabIndex={0}
+              role="img"
+              aria-label={label}
+            >
               <div className="offclock-bar-track">
                 <span
                   className="offclock-bar"
                   data-state={state}
                   data-peak={day.isPeak ? "true" : "false"}
                   style={{ "--offclock-share": day.share } as CSSProperties}
-                  role="img"
-                  aria-label={label}
+                  aria-hidden="true"
                 />
               </div>
               <span className="offclock-day-label" data-today={day.isToday ? "true" : "false"}>
                 {day.label.slice(0, 1)}
+              </span>
+
+              <span className="offclock-day-tip" aria-hidden="true">
+                <span className="offclock-day-tip-head">
+                  <span>{dateLabel}</span>
+                  {context ? <em>{context}</em> : null}
+                </span>
+                {day.steps === null ? (
+                  <span className="offclock-day-tip-empty">No HealthKit sample</span>
+                ) : (
+                  <>
+                    <strong>
+                      {num(day.steps)} <small>steps</small>
+                    </strong>
+                    <span className="offclock-day-tip-detail">
+                      {day.distanceKm === null ? "No distance" : `${day.distanceKm.toFixed(1)} km`}
+                      {day.workouts === null
+                        ? ""
+                        : ` · ${day.workouts} ${day.workouts === 1 ? "workout" : "workouts"}`}
+                    </span>
+                    {!day.isPeak ? (
+                      <span className="offclock-day-tip-share">
+                        {Math.round(day.share * 100)}% of the week&apos;s peak
+                      </span>
+                    ) : null}
+                  </>
+                )}
               </span>
             </div>
           );

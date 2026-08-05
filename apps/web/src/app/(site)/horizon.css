@@ -2046,10 +2046,22 @@
 }
 
 .hor .offclock-day {
+  position: relative;
   display: grid;
   grid-template-rows: minmax(8.2rem, 1fr) 1.25rem;
   gap: 0.45rem;
   min-width: 0;
+  cursor: crosshair;
+}
+
+.hor .offclock-day:focus {
+  outline: none;
+}
+
+.hor .offclock-day:focus-visible .offclock-bar-track {
+  outline: 2px solid var(--hor-focus);
+  outline-offset: 3px;
+  border-radius: 6px 6px 2px 2px;
 }
 
 .hor .offclock-bar-track {
@@ -2066,6 +2078,8 @@
   border-radius: 6px 6px 2px 2px;
   background: var(--hor-l2);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--hor-ink) 8%, transparent);
+  transform-origin: bottom;
+  transition: transform 180ms var(--hor-ease);
 }
 
 .hor .offclock-bar[data-peak="true"] {
@@ -2102,6 +2116,124 @@
 
 .hor .offclock-day-label[data-today="true"] {
   color: var(--hor-accent);
+}
+
+.hor .offclock-day-tip {
+  position: absolute;
+  top: 0.55rem;
+  left: 50%;
+  z-index: 8;
+  display: grid;
+  width: max-content;
+  min-width: 8.75rem;
+  max-width: 10rem;
+  gap: 0.38rem;
+  padding: 0.65rem 0.7rem 0.7rem;
+  border: 1px solid var(--hor-line-strong);
+  border-radius: 10px;
+  background: var(--hor-panel);
+  box-shadow: var(--hor-inset-top), var(--hor-shadow-panel);
+  color: var(--hor-ink);
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, 6px);
+  transition:
+    opacity 160ms var(--hor-ease),
+    transform 220ms var(--hor-ease);
+}
+
+.hor .offclock-day:first-child .offclock-day-tip {
+  left: -0.2rem;
+  transform: translate(0, 6px);
+}
+
+.hor .offclock-day:last-child .offclock-day-tip {
+  right: -0.2rem;
+  left: auto;
+  transform: translate(0, 6px);
+}
+
+.hor .offclock-day-tip-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  color: var(--hor-ink-3);
+  font-family: var(--font-hor-mono), ui-monospace, monospace;
+  font-size: 0.5rem;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.hor .offclock-day-tip-head em {
+  color: var(--hor-accent);
+  font-style: normal;
+}
+
+.hor .offclock-day-tip strong {
+  font-family: var(--font-hor-mono), ui-monospace, monospace;
+  font-size: 1rem;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.hor .offclock-day-tip strong small {
+  color: var(--hor-ink-3);
+  font-size: 0.5rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.hor .offclock-day-tip-detail,
+.hor .offclock-day-tip-share,
+.hor .offclock-day-tip-empty {
+  color: var(--hor-ink-2);
+  font-size: 0.625rem;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+
+.hor .offclock-day-tip-share {
+  padding-top: 0.35rem;
+  border-top: 1px solid var(--hor-line);
+  color: var(--hor-ink-4);
+  font-family: var(--font-hor-mono), ui-monospace, monospace;
+  font-size: 0.46875rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.hor .offclock-day:focus .offclock-day-tip {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.hor .offclock-day:first-child:focus .offclock-day-tip,
+.hor .offclock-day:last-child:focus .offclock-day-tip {
+  transform: translate(0, 0);
+}
+
+.hor .offclock-day:focus .offclock-bar {
+  transform: scaleX(1.06);
+}
+
+@media (hover: hover) {
+  .hor .offclock-day:hover .offclock-day-tip {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+
+  .hor .offclock-day:first-child:hover .offclock-day-tip,
+  .hor .offclock-day:last-child:hover .offclock-day-tip {
+    transform: translate(0, 0);
+  }
+
+  .hor .offclock-day:hover .offclock-bar {
+    transform: scaleX(1.06);
+  }
 }
 
 .hor .offclock-movement-stats {
@@ -2218,7 +2350,9 @@
   .hor .hor-command-copy,
   .hor .hor-command-option,
   .hor .hor-nav-back svg,
-  .hor .hor-id-chip {
+  .hor .hor-id-chip,
+  .hor .offclock-bar,
+  .hor .offclock-day-tip {
     transition: none !important;
   }
 
