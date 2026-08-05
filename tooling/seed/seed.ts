@@ -287,9 +287,9 @@ const projects = mock.projects.map((project, index) => ({
  * ------------------------------------------------------------------ */
 
 const labs = mock.labs.map((lab, index) => ({
-  /** Curated in by hand (ADR 014) and all four render on `/labs` today. */
+  /** Curated in by hand (ADR 014) and all five render on `/labs` today. */
   published: true,
-  /** Read from the mock, which does carry this flag. Three of four. */
+  /** Read from the mock, which does carry this flag. Four of five. */
   featured: lab.featured,
   sortOrder: index,
 
@@ -336,6 +336,7 @@ const labs = mock.labs.map((lab, index) => ({
      * so this is a spelling of a fact the mock already holds, not a new one.
      */
     repo: `https://github.com/${lab.repoFullName}`,
+    ...(lab.links?.live === undefined ? {} : { live: lab.links.live }),
   },
 
   liveStats: {

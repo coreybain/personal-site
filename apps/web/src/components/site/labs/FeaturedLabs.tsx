@@ -7,7 +7,7 @@ import { activePhrase, band, cadence, repoUrl } from "@/lib/derive";
 import type { Lab } from "@/lib/snapshot";
 
 /**
- * Featured builds — the two labs that have a real product capture behind them.
+ * Featured builds — the three labs that have a real product capture behind them.
  *
  * ── Why this is a hand-written spec keyed by slug ──────────────────────────
  *
@@ -45,6 +45,19 @@ type FeaturedSpec = {
 type FeaturedBuild = FeaturedSpec & { lab: Lab };
 
 const FEATURED_SPECS: FeaturedSpec[] = [
+  {
+    slug: "partybooth",
+    image: "/images/labs/partybooth-sign-in.svg",
+    imageAlt:
+      "PartyBooth host sign-in screen with email code authentication and a link for guests joining an event.",
+    capture: "Production web app / host sign in · 1280 × 720",
+    liveUrl: "https://www.partybooth.dev/",
+    liveLabel: "partybooth.dev",
+    eyebrow: "Private beta · web + native capture",
+    writeup:
+      "An end-to-end private party media loop: guests join by QR code, capture from web or the native app, hosts moderate submissions, and approved photos and clips flow into a live slideshow. I built the product across its organiser surface, mobile capture client, real-time backend and private upload pipeline.",
+    stack: ["Next.js", "Expo", "Convex", "Better Auth"],
+  },
   {
     slug: "boca",
     image: "/images/labs/boca-home.png",
@@ -132,7 +145,7 @@ function FeaturedBuildPlate({
         </figure>
 
         <div className="labs-feature-copy">
-          <div>
+          <div className="labs-feature-summary">
             <span className="hor-label">{build.eyebrow}</span>
             <h3 id={titleId} className="hor-h2 mt-3">
               {lab.title}

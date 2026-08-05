@@ -378,6 +378,10 @@
     padding: 1.75rem;
   }
 
+  .hor .labs-feature-summary {
+    padding-bottom: 1.5rem;
+  }
+
   .hor .labs-feature[data-reverse="true"] .labs-feature-capture {
     grid-column: 2;
     border-right: 0;

@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" role="img" aria-labelledby="title desc">
+  <title id="title">PartyBooth host sign-in</title>
+  <desc id="desc">The PartyBooth production sign-in surface on a dark background, with email code authentication and a guest join link.</desc>
+
+  <rect width="1280" height="720" fill="#0a0a0f" />
+  <g opacity="0.42" stroke="#201d2b" stroke-width="1">
+    <path d="M0 80h1280M0 160h1280M0 240h1280M0 320h1280M0 400h1280M0 480h1280M0 560h1280M0 640h1280" />
+    <path d="M80 0v720M160 0v720M240 0v720M320 0v720M400 0v720M480 0v720M560 0v720M640 0v720M720 0v720M800 0v720M880 0v720M960 0v720M1040 0v720M1120 0v720M1200 0v720" />
+  </g>
+
+  <g transform="translate(454 52)">
+    <g transform="translate(89 0)">
+      <circle cx="18" cy="20" r="11.5" fill="none" stroke="#ff4d8d" stroke-width="2.4" />
+      <circle cx="18" cy="20" r="4.5" fill="#ff4d8d" />
+      <g stroke="#ff4d8d" stroke-width="2.4" stroke-linecap="round">
+        <path d="M18 5.5V1.5" />
+        <path d="m28.5 9 2.8-2.8" />
+        <path d="m7.5 9-2.8-2.8" />
+      </g>
+      <text x="43" y="27" fill="#f5f3f8" font-family="ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="24" font-weight="650" letter-spacing="-0.5">PartyBooth</text>
+    </g>
+
+    <rect x="0.75" y="70.75" width="370.5" height="414.5" rx="23.25" fill="#14141d" stroke="#2b2b3c" stroke-width="1.5" />
+
+    <text x="25" y="116" fill="#f5f3f8" font-family="ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="22" font-weight="650" letter-spacing="-0.35">Sign in</text>
+    <text x="25" y="144" fill="#a5a1b6" font-family="ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="14.5">Host an event, moderate submissions and run</text>
+    <text x="25" y="165" fill="#a5a1b6" font-family="ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="14.5">the slideshow.</text>
+
+    <text x="25" y="211" fill="#a5a1b6" font-family="ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="14" font-weight="600">Email address</text>
+    <rect x="25" y="225" width="322" height="51" rx="12" fill="#14141d" stroke="#2b2b3c" stroke-width="1.5" />
+    <text x="40" y="257" fill="#6e6a82" font-family="ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="16">you@example.com</text>
+    <text x="25" y="300" fill="#6e6a82" font-family="ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="13.5">We'll email you a 6-digit code.</text>
+
+    <rect x="25" y="327" width="322" height="50" rx="12" fill="#3a2230" />
+    <text x="186" y="358" fill="#9a6278" text-anchor="middle" font-family="ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="15" font-weight="650">Email me a code</text>
+
+    <path d="M25 407h322" stroke="#2b2b3c" />
+    <text x="186" y="438" fill="#a5a1b6" text-anchor="middle" font-family="ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="13.5">Been sent a QR code or a six-digit code?</text>
+    <text x="186" y="463" fill="#ff4d8d" text-anchor="middle" font-family="ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="14" font-weight="650">Join an event</text>
+
+    <text x="186" y="527" fill="#6e6a82" text-anchor="middle" font-family="ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="12.5">Private beta · 18+ · Privacy · Admin</text>
+  </g>
+
+  <g transform="translate(56 640)">
+    <rect width="238" height="36" rx="18" fill="#14141d" stroke="#2b2b3c" />
+    <circle cx="20" cy="18" r="4" fill="#ff4d8d" />
+    <text x="34" y="23" fill="#a5a1b6" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12" letter-spacing="0.5">PRODUCTION · HOST ACCESS</text>
+  </g>
+</svg>

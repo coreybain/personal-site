@@ -196,6 +196,8 @@ export type Lab = {
   repoFullName: string;
   /** GitHub's primary-language label for the repo. */
   language: string;
+  /** Public product URL where the Lab has a live surface. */
+  links?: { live?: string };
   liveStats: {
     stars: number;
     forks: number;
@@ -1047,11 +1049,22 @@ Visual Editor taught me to see a page builder as a constraint and serialisation 
    * Repos built for their own sake. Personal-repo scale on purpose — these are
    * side projects, not frameworks.
    *
-   * ⚠️ DRAFT COPY — titles, summaries and every number in `liveStats` are
-   * placeholders. `liveStats` is the slice the collector will overwrite from
-   * the GitHub API; the summaries are yours to rewrite.
+   * ⚠️ LEGACY DRAFT COPY — the older entries below still contain placeholder
+   * summaries and seed numbers. The collector overwrites `liveStats` from the
+   * GitHub API after these rows are seeded.
    */
   labs: [
+    {
+      slug: 'partybooth',
+      title: 'PartyBooth',
+      summary:
+        'Private party photo and video sharing: guests scan a QR code, capture on their phone, and approved moments appear live on the event slideshow.',
+      repoFullName: 'coreybain/party-booth',
+      language: 'TypeScript',
+      links: { live: 'https://www.partybooth.dev/' },
+      liveStats: { stars: 0, forks: 0, commitsYear: 68, lastPushDaysAgo: 0 },
+      featured: true,
+    },
     {
       slug: 'boca',
       title: 'Boca',

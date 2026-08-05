@@ -103,14 +103,28 @@ export function LabCard({
             {num(stars)} star{stars === 1 ? "" : "s"} · {num(forks)} fork
             {forks === 1 ? "" : "s"}
           </span>
-          <a
-            className="hor-link labs-repo"
-            href={repoUrl(lab)}
-            rel="noreferrer noopener"
-          >
-            github.com/{lab.repoFullName}
-            <ArrowOut />
-          </a>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            {lab.links?.live ? (
+              <a
+                className="hor-link labs-repo"
+                href={lab.links.live}
+                target="_blank"
+                rel="noreferrer noopener"
+              >
+                Live site
+                <ArrowOut />
+                <span className="sr-only"> (opens in a new tab)</span>
+              </a>
+            ) : null}
+            <a
+              className="hor-link labs-repo"
+              href={repoUrl(lab)}
+              rel="noreferrer noopener"
+            >
+              github.com/{lab.repoFullName}
+              <ArrowOut />
+            </a>
+          </div>
         </div>
       </div>
     </Panel>

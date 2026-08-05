@@ -527,7 +527,9 @@ function mapProject(row: ProjectRow): Project {
  *
  * Dropped: `coverImage` (required on the Convex row and on `LabSchema`, absent
  * from the mock's `Lab` — `/labs` renders its own capture assets from
- * `FeaturedLabs.tsx` today), `links`, and the publish-control fields.
+ * `FeaturedLabs.tsx` today), `links.docs`, and the publish-control fields. The
+ * repository URL is derived from `repoFullName`; a public `links.live` value is
+ * retained so a product Lab can link to the thing itself as well as its code.
  *
  * **`lastPushDaysAgo` is recomputed, not copied.** `@home/types` flags this as a
  * DIVERGENCE and says which side is the fact: "`lastPushedAt` is the fact,
@@ -543,7 +545,7 @@ function mapLab(row: LabRow, computedAt: string): Lab {
     `labs.${row.slug}.liveStats.lastPushedAt`,
   );
 
-  return {
+  const lab: Lab = {
     slug: row.slug,
     title: row.title,
     summary: row.summary,
@@ -557,6 +559,12 @@ function mapLab(row: LabRow, computedAt: string): Lab {
     },
     featured: row.featured,
   };
+
+  if (row.links.live !== undefined) {
+    lab.links = { live: row.links.live };
+  }
+
+  return lab;
 }
 
 /**
