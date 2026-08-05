@@ -71,7 +71,7 @@ export function DeckHead({
   );
 }
 
-/** Sky section head: eyebrow, display line, optional lede and aside. */
+/** Sky section head: eyebrow, optional display line, lede and aside. */
 export function SkyHead({
   index,
   eyebrow,
@@ -81,7 +81,7 @@ export function SkyHead({
 }: {
   index: string;
   eyebrow: string;
-  title: ReactNode;
+  title?: ReactNode;
   lede?: ReactNode;
   aside?: ReactNode;
 }) {
@@ -93,7 +93,11 @@ export function SkyHead({
           <span className="hor-tick" aria-hidden="true" />
           {eyebrow}
         </span>
-        <h2 className="hor-h2 mt-3.5 text-balance">{title}</h2>
+        {title ? (
+          <h2 className="hor-h2 mt-3.5 text-balance">{title}</h2>
+        ) : (
+          <h2 className="sr-only">{eyebrow}</h2>
+        )}
         {lede ? <p className="hor-body mt-3 max-w-[44ch] text-pretty">{lede}</p> : null}
       </div>
       {aside ? <div className="shrink-0">{aside}</div> : null}

@@ -218,7 +218,6 @@ export function LifeStrip({
       <SkyHead
         index="04"
         eyebrow="Off the clock"
-        title="Side projects, long walks, no timesheets."
         lede="One favourite, one live pulse from the side-project pile, and seven days of movement straight from the phone."
         aside={<span className="hor-micro">{location} · live</span>}
       />

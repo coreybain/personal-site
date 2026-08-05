@@ -1833,6 +1833,12 @@
   text-decoration: none;
 }
 
+/* On a single-column phone layout this card can fit its content instead of
+   inheriting the project cards' artwork-driven minimum height. */
+.hor .offclock-movement {
+  min-height: 0;
+}
+
 .hor .offclock-cover {
   position: relative;
   overflow: hidden;
@@ -2029,8 +2035,9 @@
 
 .hor .offclock-chart {
   display: grid;
+  flex: 1;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  align-items: end;
+  align-items: stretch;
   gap: clamp(0.35rem, 1.4vw, 0.65rem);
   min-height: 11.5rem;
   margin: 0.25rem 1.25rem 1rem;
@@ -2040,7 +2047,7 @@
 
 .hor .offclock-day {
   display: grid;
-  grid-template-rows: 8.2rem 1.25rem;
+  grid-template-rows: minmax(8.2rem, 1fr) 1.25rem;
   gap: 0.45rem;
   min-width: 0;
 }
@@ -2098,12 +2105,17 @@
 }
 
 .hor .offclock-movement-stats {
+  margin-top: 0;
   margin-bottom: 1.3rem;
 }
 
 @media (max-width: 390px) {
   .hor .offclock-card {
     min-height: 29rem;
+  }
+
+  .hor .offclock-movement {
+    min-height: 0;
   }
 
   .hor .offclock-project-stats > div + div,
