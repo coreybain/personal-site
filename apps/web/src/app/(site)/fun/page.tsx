@@ -122,19 +122,20 @@ export default async function FunPage() {
           </div>
         ) : null}
 
-        <div className="mt-14 sm:mt-16">
-          <div className="hor-rule" />
-          <div className="fun-signoff">
-            <p className="hor-body max-w-[46ch] text-pretty">
-              {funLog.length > 0
-                ? "None of this ships, none of it is instrumented, and the walks are the only part with a number attached. That is rather the point of it."
-                : "Nothing has been backfilled to make this page look busy. Empty is the honest state."}
-            </p>
-            <Link href="/" className="hor-link text-[13px] font-medium">
-              Back to the telemetry
-            </Link>
+        {funLog.length > 0 ? (
+          <div className="mt-14 sm:mt-16">
+            <div className="hor-rule" />
+            <div className="fun-signoff">
+              <p className="hor-body max-w-[46ch] text-pretty">
+                None of this ships, none of it is instrumented, and the walks are the only part
+                with a number attached. That is rather the point of it.
+              </p>
+              <Link href="/" className="hor-link text-[13px] font-medium">
+                Back to the telemetry
+              </Link>
+            </div>
           </div>
-        </div>
+        ) : null}
       </section>
     </main>
   );
