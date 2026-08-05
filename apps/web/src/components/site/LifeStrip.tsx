@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 
+import { LabArtwork as RemoteLabArtwork } from "@/components/site/LabArtwork";
 import { SkyHead } from "@/components/site/Panel";
 import { num, relativeDays } from "@/components/site/format";
 import {
@@ -37,10 +38,7 @@ function LabArtwork({ lab }: { lab: Lab }) {
   if (lab.coverImage) {
     return (
       <div className="offclock-cover">
-        {/* The Lab CMS accepts arbitrary image hosts. Keeping this as a native,
-            lazy image avoids a brittle allow-list and adds no client runtime. */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={lab.coverImage.url} alt={lab.coverImage.alt} loading="lazy" />
+        <RemoteLabArtwork lab={lab} />
       </div>
     );
   }
