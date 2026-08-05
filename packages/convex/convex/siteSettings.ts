@@ -99,6 +99,21 @@ export const get = query({
   },
 });
 
+/**
+ * Reconcile the favorite-Lab argument with the currently stored selection.
+ *
+ * The mutation argument is deliberately optional *and* nullable. Omitted means
+ * "this older whole-record writer does not know about the field; preserve it",
+ * while `null` is the explicit clear operation used by current editors.
+ */
+export function resolveFavoriteLabSlug(
+  existing: string | undefined,
+  requested: string | null | undefined,
+): string | undefined {
+  if (requested === undefined) return existing;
+  return requested === null ? undefined : requested;
+}
+
 /* ------------------------------------------------------------------ *
  * Write
  * ------------------------------------------------------------------ */
@@ -113,14 +128,19 @@ export const get = query({
  * `setAvailability` below exists for the one field that genuinely needs editing
  * on its own.
  *
+ * `favoriteLabSlug` is the rollout-safe exception: older web/native builds omit
+ * it and must preserve a newer selection, while current editors send `null` to
+ * clear it explicitly. The helper below keeps those states distinct.
+ *
  * Note the absent `availability` argument. It is derived from
  * `identity.availability` and written to both places — see the file header.
  *
- * Slugs in `featured` are format-checked but NOT existence-checked. That is
- * deliberate: the dashboard is curated ahead of the content (a slug can be
- * pencilled in before the case study is written), and the readers already treat a
- * slug that resolves to nothing as "not featured yet". An existence check here
- * would make the settings form fail on a perfectly reasonable intermediate state.
+ * Slugs in `favoriteLabSlug` and `featured` are format-checked but NOT
+ * existence-checked. That is deliberate: the dashboard can be curated ahead of
+ * the content (a slug can be pencilled in before the Lab or case study is
+ * published), and the readers already treat a slug that resolves to nothing as
+ * unavailable. An existence check here would make the settings form fail on a
+ * perfectly reasonable intermediate state.
  *
  * @returns `{ settingsId, updatedAt, created, changed, revision }`
  */
@@ -130,6 +150,7 @@ export const upsert = mutation({
     headline: v.string(),
     availabilityVisible: v.boolean(),
     identity,
+    favoriteLabSlug: v.optional(v.union(v.string(), v.null())),
     featured: featuredSelections,
     nav: navVisibility,
   },
@@ -162,6 +183,10 @@ export const upsert = mutation({
     }
     assertEmail(args.identity.email, 'identity.email');
 
+    if (args.favoriteLabSlug !== undefined && args.favoriteLabSlug !== null) {
+      assertSlug(args.favoriteLabSlug, 'favoriteLabSlug');
+    }
+
     for (const [field, slugs] of [
       ['featured.projectSlugs', args.featured.projectSlugs],
       ['featured.labSlugs', args.featured.labSlugs],
@@ -191,12 +216,17 @@ export const upsert = mutation({
       };
     };
 
+    const favoriteLabSlug = resolveFavoriteLabSlug(
+      existing?.favoriteLabSlug,
+      args.favoriteLabSlug,
+    );
     const content = {
       headline: args.headline.trim(),
       // Both copies, from one input. See the file header.
       availability: args.identity.availability.trim(),
       availabilityVisible: args.availabilityVisible,
       identity: trim(args.identity),
+      favoriteLabSlug,
       featured: args.featured,
       nav: args.nav,
     };
@@ -206,6 +236,7 @@ export const upsert = mutation({
       existing.availability !== content.availability ||
       (existing.availabilityVisible ?? true) !== content.availabilityVisible ||
       JSON.stringify(existing.identity) !== JSON.stringify(content.identity) ||
+      existing.favoriteLabSlug !== content.favoriteLabSlug ||
       JSON.stringify(existing.featured) !== JSON.stringify(content.featured) ||
       JSON.stringify(existing.nav) !== JSON.stringify(content.nav);
     const revision =

@@ -318,8 +318,8 @@ export type AiUsageDay = z.infer<typeof AiUsageDaySchema>;
  *
  * The phone is a phase 7 deliverable and the route lands in phase 4, so this
  * table will sit empty for a while. That is deliberate: `snapshot.healthStats` is
- * nullable precisely so the life signal strip degrades to the Fun Entry alone
- * rather than rendering zeroes, and an empty table exercises that path.
+ * nullable precisely so Off the Clock omits its movement card rather than
+ * rendering zeroes, and an empty table exercises that path.
  * ------------------------------------------------------------------ */
 
 /**

@@ -757,13 +757,15 @@ nonisolated struct SiteSettingsRecord: Codable, Hashable, Identifiable, Sendable
     var availabilityVisible: Bool?
     var identity: SiteIdentity
     var featured: FeaturedSelections
+    var favoriteLabSlug: String?
     var nav: NavVisibility
     var updatedAt: String
 
     private enum CodingKeys: String, CodingKey {
         case id = "_id"
         case creationTime = "_creationTime"
-        case revision, headline, availability, availabilityVisible, identity, featured, nav, updatedAt
+        case revision, headline, availability, availabilityVisible, identity, featured
+        case favoriteLabSlug, nav, updatedAt
     }
 }
 
@@ -773,6 +775,7 @@ nonisolated struct SiteSettingsDraft: Hashable, Sendable {
     var availabilityVisible = true
     var identity = SiteIdentity()
     var featured = FeaturedSelections()
+    var favoriteLabSlug: String?
     var nav = NavVisibility()
 
     init() {}
@@ -783,6 +786,7 @@ nonisolated struct SiteSettingsDraft: Hashable, Sendable {
         availabilityVisible = record.availabilityVisible ?? true
         identity = record.identity
         featured = record.featured
+        favoriteLabSlug = record.favoriteLabSlug
         nav = record.nav
     }
 }

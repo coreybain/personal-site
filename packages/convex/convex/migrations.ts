@@ -60,7 +60,8 @@
 import { v } from 'convex/values';
 import { internal } from './_generated/api';
 import { internalMutation } from './_generated/server';
-import { invalid } from './lib/validate';
+import { nextRevision } from './lib/revision';
+import { invalid, nowIso } from './lib/validate';
 
 /* ------------------------------------------------------------------ *
  * aiUsageDays.machine — multi-machine ingest
@@ -347,6 +348,92 @@ export const deleteMachineRows = internalMutation({
       deleted: doomed.length,
       remainingRows: after.length,
       machines: [...new Set(after.map((row) => row.machine ?? '(unlabelled)'))].sort(),
+    };
+  },
+});
+
+/* ------------------------------------------------------------------ *
+ * siteSettings.favoriteLabSlug — Off the Clock lead project
+ * ------------------------------------------------------------------ */
+
+const INITIAL_FAVORITE_LAB_SLUG = 'partybooth';
+
+/**
+ * Select PartyBooth for Off the Clock on deployments with legacy settings.
+ *
+ * This is intentionally narrower than a general settings editor: it writes only
+ * when the singleton has no selection and the target Lab already exists as a
+ * published row. A deliberate current or future selection is never overwritten,
+ * and a missing/draft Lab is reported rather than creating a dangling reference.
+ * The revision and edit timestamp move together, matching authenticated settings
+ * writes so an already-open editor receives an ordinary optimistic-concurrency
+ * conflict instead of silently replacing the migration.
+ *
+ * Idempotent: after the first successful run, every later run reports
+ * `already-set` and writes nothing.
+ *
+ * ```sh
+ * bunx convex run migrations:backfillFavoriteLab '{}'
+ * ```
+ */
+export const backfillFavoriteLab = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const settings = await ctx.db.query('siteSettings').order('desc').first();
+    if (settings === null) {
+      return {
+        changed: false,
+        reason: 'settings-missing' as const,
+        favoriteLabSlug: null,
+        revision: null,
+      };
+    }
+
+    if (settings.favoriteLabSlug !== undefined) {
+      return {
+        changed: false,
+        reason: 'already-set' as const,
+        favoriteLabSlug: settings.favoriteLabSlug,
+        revision: settings.revision ?? 0,
+      };
+    }
+
+    const lab = await ctx.db
+      .query('labs')
+      .withIndex('by_slug', (q) => q.eq('slug', INITIAL_FAVORITE_LAB_SLUG))
+      .first();
+
+    if (lab === null) {
+      return {
+        changed: false,
+        reason: 'lab-missing' as const,
+        favoriteLabSlug: null,
+        revision: settings.revision ?? 0,
+      };
+    }
+
+    if (!lab.published) {
+      return {
+        changed: false,
+        reason: 'lab-unpublished' as const,
+        favoriteLabSlug: null,
+        revision: settings.revision ?? 0,
+      };
+    }
+
+    const revision = nextRevision(settings.revision);
+    const updatedAt = nowIso();
+    await ctx.db.patch(settings._id, {
+      favoriteLabSlug: INITIAL_FAVORITE_LAB_SLUG,
+      revision,
+      updatedAt,
+    });
+
+    return {
+      changed: true,
+      reason: 'backfilled' as const,
+      favoriteLabSlug: INITIAL_FAVORITE_LAB_SLUG,
+      revision,
     };
   },
 });

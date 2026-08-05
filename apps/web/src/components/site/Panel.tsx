@@ -9,6 +9,8 @@ import type { CSSProperties, ReactNode } from "react";
  */
 
 type PanelProps = {
+  /** Optional fragment target for deep links into a panel. */
+  id?: string;
   /** Small mono instrument label in the panel chrome. */
   label?: string;
   /** Right-aligned readout in the panel chrome. */
@@ -23,6 +25,7 @@ type PanelProps = {
 };
 
 export function Panel({
+  id,
   label,
   meta,
   children,
@@ -33,6 +36,7 @@ export function Panel({
 }: PanelProps) {
   return (
     <section
+      id={id}
       className={`hor-panel hor-rise ${className}`}
       style={{ ...style, "--hor-delay": `${delay}ms` } as CSSProperties}
     >

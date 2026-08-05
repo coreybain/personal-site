@@ -137,6 +137,14 @@ export const SiteSettingsSchema = z.object({
    * rather than nesting it, matching the public snapshot contract.
    */
   identity: IdentitySchema,
+  /**
+   * The Lab deliberately chosen for the homepage's Off the Clock dashboard.
+   * Separate from `featured.labSlugs`: featured controls the Labs collection,
+   * while this is the one personal project Corey wants to lead with.
+   *
+   * Optional for legacy rows and to support an intentionally empty selection.
+   */
+  favoriteLabSlug: SlugSchema.optional(),
   featured: FeaturedSelectionsSchema,
   nav: NavVisibilitySchema,
   /**

@@ -86,7 +86,7 @@ const MAX_LIMIT = 300;
  *
  * A Fun Entry records something that happened. A future timestamp would sort to
  * the top of `by_occurredAt` and become the Snapshot's `latestFunEntry` — i.e.
- * the dashboard's life signal would advertise a beer nobody has had yet. The
+ * the compatibility Snapshot signal would advertise a beer nobody has had yet. The
  * window is a day rather than zero because the phone's clock and its timezone
  * handling are both outside this backend's control, and rejecting a genuine
  * same-evening capture over a few hours of skew would be worse than allowing it.
@@ -123,7 +123,7 @@ type FunLocation = Infer<typeof funLocation>;
 /** A whole entry as the table stores it, minus `_id` / `_creationTime`. */
 type StoredFunEntry = WithoutSystemFields<Doc<'funEntries'>>;
 
-/** Keep the homepage's denormalised life signal in the same transaction. */
+/** Keep the compatibility Snapshot projection in the same transaction. */
 async function refreshLatestFunEntry(ctx: MutationCtx): Promise<void> {
   const latest = await ctx.db
     .query('funEntries')

@@ -937,6 +937,7 @@ final class HomeAppModel {
                 "availabilityVisible": draft.availabilityVisible,
                 "identity": ConvexJSON(draft.identity),
                 "featured": ConvexJSON(draft.featured),
+                "favoriteLabSlug": draft.favoriteLabSlug,
                 "nav": ConvexJSON(draft.nav),
             ])
         }
@@ -1168,6 +1169,7 @@ final class HomeAppModel {
                 availability: "Open to product-minded engineering leadership roles"
             ),
             featured: FeaturedSelections(),
+            favoriteLabSlug: "partybooth",
             nav: NavVisibility(),
             updatedAt: "2026-07-31T00:00:00Z"
         )

@@ -2,7 +2,7 @@
 
 `adr/` holds the architecture decision records for this build — one dated file per settled
 decision, numbered in the order the decisions were made, from `0001-fresh-repo.md` through
-`0018-full-build-before-launch.md` (with `0006a` splitting machine-token auth out from human
+`0019-off-clock-personal-dashboard.md` (with `0006a` splitting machine-token auth out from human
 auth). Each record follows the same four-part shape: the pressure that forced a choice
 (**Context**), the choice itself (**Decision**), and what accepting it costs or enables
 (**Consequences**), under a **Status** line. They exist so that a decision's *reasoning* survives

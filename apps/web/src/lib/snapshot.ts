@@ -198,6 +198,8 @@ export type Lab = {
   language: string;
   /** Public product URL where the Lab has a live surface. */
   links?: { live?: string };
+  /** Real project artwork when the content row carries an image asset. */
+  coverImage?: { url: string; alt: string };
   liveStats: {
     stars: number;
     forks: number;
@@ -205,6 +207,9 @@ export type Lab = {
     commitsYear: number;
     /** Days since the last push, relative to `computedAt`. */
     lastPushDaysAgo: number;
+    /** Durable timestamps used to judge whether the public figures are fresh. */
+    lastPushedAt?: string;
+    syncedAt?: string;
   };
   featured: boolean;
 };
@@ -348,9 +353,9 @@ export type FunEntry =
 /**
  * A pub visit — the fourth kind of fun, added for the /fun page.
  *
- * It is deliberately NOT a member of `FunEntry`: the homepage LifeStrip is a
- * compact beer/coffee/walk signal, while `/fun` renders the full `funLog` with
- * pub visits included.
+ * It is deliberately NOT a member of `FunEntry` for compatibility with the
+ * older compact feed contract. `/fun` renders the full `funLog`, including pub
+ * visits; the homepage now derives Off the Clock from Labs and HealthKit.
  */
 export type PubEntry = {
   id: string;
@@ -760,6 +765,9 @@ const funLog: FunLogEntry[] = [...funEntries, ...pubEntries].sort(
  * ------------------------------------------------------------------ */
 
 export const snapshot = {
+  /** Explicit editorial choice for the homepage Off the Clock dashboard. */
+  favoriteLabSlug: 'partybooth' as string | null,
+
   identity: {
     name: 'Corey Baines',
     role: 'Principal Engineer',

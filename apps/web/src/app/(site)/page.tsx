@@ -82,7 +82,8 @@ export default async function HomePage() {
     aiUsage,
     healthStats,
     projects,
-    funEntries,
+    labs,
+    favoriteLabSlug,
     computedAt,
   } = await getSiteData();
 
@@ -132,7 +133,8 @@ export default async function HomePage() {
         <div className="hor-shell">
           <FeaturedWork projects={projects} />
           <LifeStrip
-            entries={funEntries}
+            labs={labs}
+            favoriteLabSlug={favoriteLabSlug}
             healthStats={healthStats}
             computedAt={computedAt}
             location={identity.location}

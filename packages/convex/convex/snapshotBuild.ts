@@ -393,9 +393,9 @@ type HealthFold = Doc<'snapshot'>['healthStats'];
  *
  * `null` is the expected state for the whole of phases 4–6: the table lands with
  * the ingest route and the phone that fills it is phase 7. `snapshot.healthStats`
- * is nullable precisely so the life signal strip degrades to the Fun Entry alone
- * rather than rendering a day of zero steps, so this returning `null` is the
- * pipeline working.
+ * is nullable precisely so Off the Clock omits its movement card rather than
+ * rendering a day of zero steps, so this returning `null` is the pipeline
+ * working.
  *
  * `syncedAt` is the newest `ingestedAt` in the table — "the last time the phone
  * *spoke*" — and is deliberately not the newest day's timestamp: a phone that

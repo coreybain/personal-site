@@ -392,7 +392,7 @@ const healthDay = v.object({
 });
 
 /**
- * Movement aggregates for the dashboard's life signal. `HealthStatsSchema`.
+ * Movement aggregates for Off the Clock. `HealthStatsSchema`.
  *
  * The least-committal shape that renders: the latest day, a rolling average for
  * context, and the sync time so the UI can admit when the phone has been
@@ -565,15 +565,15 @@ export default defineSchema({
      *
      * `null` until the iOS app has posted at least once — the health pipeline
      * depends on a phone that does not exist until phase 7. Nullable rather than
-     * optional so the cron writes the key either way: the life signal strip must
-     * degrade to the Fun Entry alone rather than render zeroes, and "absent"
-     * would be indistinguishable from "the cron forgot".
+     * optional so the cron writes the key either way: Off the Clock must omit
+     * the movement card rather than render invented zeroes, and "absent" would
+     * be indistinguishable from "the cron forgot".
      */
     healthStats: v.union(healthStats, v.null()),
 
     /**
-     * The newest Fun Entry of any kind, copied in whole, for the life signal
-     * strip. `null` before the first entry exists.
+     * The newest Fun Entry of any kind, copied in whole for compatibility with
+     * the original life strip. `null` before the first entry exists.
      *
      * No id back to `funEntries`: the tile links to `/fun`, which needs no id,
      * and a `v.id()` here could not be expressed in `@home/types` (see the file
@@ -1041,8 +1041,8 @@ export default defineSchema({
    *
    * The table lands in phase 4 with the ingest route; the phone that fills it is
    * phase 7. It will sit empty in between, which is fine and is exercised on
-   * purpose — `snapshot.healthStats` is nullable precisely so the life signal
-   * strip degrades to the Fun Entry alone rather than rendering zeroes.
+   * purpose — `snapshot.healthStats` is nullable precisely so Off the Clock
+   * omits its movement card rather than rendering zeroes.
    *
    * Workout summaries contain only category, time, duration and optional
    * distance. Routes, heart rate, energy and raw samples cannot be stored here.
@@ -1369,6 +1369,12 @@ export default defineSchema({
     availabilityVisible: v.optional(v.boolean()),
     /** Carries the plan's `socials`, spread flat — see `identity` above. */
     identity,
+    /**
+     * The Lab explicitly selected for the homepage's Off the Clock dashboard.
+     * Optional for legacy rows and for an intentionally empty selection; this
+     * is distinct from `featured.labSlugs`, which curates the Labs collection.
+     */
+    favoriteLabSlug: v.optional(slug),
     /**
      * Hand-picked slugs for the dashboard, in render order. Duplicates the
      * per-row `featured` boolean on purpose: the boolean says "eligible", this

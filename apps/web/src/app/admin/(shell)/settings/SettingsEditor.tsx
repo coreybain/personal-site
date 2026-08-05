@@ -12,6 +12,7 @@ import {
   AdminPanel,
   FieldRow,
   SaveButton,
+  SelectField,
   TextAreaField,
   TextField,
   ToggleField,
@@ -64,18 +65,22 @@ import { linesToList, listToLines } from "@/components/admin/profile/lines";
 /**
  * The form's state.
  *
- * Two shape differences from the stored document, both because a text input holds
- * a string and nothing else:
+ * Three shape differences from the stored document, all because form controls
+ * hold strings and nothing else:
  *
  *   • `identity.x` is `""` for absent. The stored field is `v.optional()`, so the
  *     key is omitted rather than written empty on save — an empty string would be
  *     a link to nowhere on the public site, and `assertUrl` would refuse it.
+ *   • `favoriteLabSlug` is also `""` for absent, matching the native select's
+ *     placeholder value. It is sent as `null` on save to explicitly clear the
+ *     optional stored field; omission is reserved for older writers preserving it.
  *   • the three `featured.*Slugs` are newline-delimited text, converted by
  *     `linesToList` on save.
  */
 type Draft = {
   headline: string;
   availabilityVisible: boolean;
+  favoriteLabSlug: string;
   identity: {
     name: string;
     role: string;
@@ -111,6 +116,7 @@ type Draft = {
 const EMPTY_DRAFT: Draft = {
   headline: "",
   availabilityVisible: true,
+  favoriteLabSlug: "",
   identity: {
     name: "",
     role: "",
@@ -142,6 +148,7 @@ function draftFrom(stored: Doc<"siteSettings"> | null): Draft {
   return {
     headline: stored.headline,
     availabilityVisible: stored.availabilityVisible ?? true,
+    favoriteLabSlug: stored.favoriteLabSlug ?? "",
     identity: {
       name: stored.identity.name,
       role: stored.identity.role,
@@ -206,8 +213,9 @@ const NAV_ITEMS = [
 
 export function SettingsEditor() {
   const settings = useQuery(api.siteSettings.get, {});
+  const labs = useQuery(api.labs.list, { limit: 500 });
 
-  if (settings === undefined) {
+  if (settings === undefined || labs === undefined) {
     return (
       <p className="adm-micro" role="status">
         Loading settings…
@@ -227,10 +235,16 @@ export function SettingsEditor() {
    * arrived. Not following the document is the intended behaviour; see the file
    * header.
    */
-  return <SettingsForm initial={settings} />;
+  return <SettingsForm initial={settings} labs={labs} />;
 }
 
-function SettingsForm({ initial }: { initial: Doc<"siteSettings"> | null }) {
+function SettingsForm({
+  initial,
+  labs,
+}: {
+  initial: Doc<"siteSettings"> | null;
+  labs: readonly Doc<"labs">[];
+}) {
   const upsert = useMutation(api.siteSettings.upsert);
   const write = usePendingAction();
 
@@ -280,6 +294,7 @@ function SettingsForm({ initial }: { initial: Doc<"siteSettings"> | null }) {
       expectedRevision,
       headline: draft.headline,
       availabilityVisible: draft.availabilityVisible,
+      favoriteLabSlug: draft.favoriteLabSlug || null,
       identity: {
         ...identity,
         ...(x.trim().length > 0 ? { x: x.trim() } : {}),
@@ -472,6 +487,45 @@ function SettingsForm({ initial }: { initial: Doc<"siteSettings"> | null }) {
               hint="Blank means the field is omitted and no link is rendered."
             />
           </FieldRow>
+        </AdminForm>
+      </AdminPanel>
+
+      <AdminPanel
+        title="Off the Clock"
+        info={
+          <>
+            The favourite Lab gets a dedicated project card in the homepage
+            personal dashboard. This is separate from the featured Labs list:
+            featured controls general curation, while this selects one personal
+            favourite.
+          </>
+        }
+        infoLabel="About the Off the Clock favourite"
+      >
+        <AdminForm>
+          <SelectField
+            label="Favourite Lab"
+            value={draft.favoriteLabSlug}
+            onValueChange={(favoriteLabSlug) =>
+              setDraft({ ...draft, favoriteLabSlug })
+            }
+            options={[
+              ...(draft.favoriteLabSlug !== "" &&
+              !labs.some((lab) => lab.slug === draft.favoriteLabSlug)
+                ? [
+                    {
+                      value: draft.favoriteLabSlug,
+                      label: `${draft.favoriteLabSlug} (unavailable)`,
+                      disabled: true,
+                    },
+                  ]
+                : []),
+              ...labs.map((lab) => ({ value: lab.slug, label: lab.title })),
+            ]}
+            placeholder="No favourite selected"
+            optional
+            hint="Only published Labs are available. Clear the selection to show no favourite project card."
+          />
         </AdminForm>
       </AdminPanel>
 

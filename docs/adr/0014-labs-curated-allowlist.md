@@ -33,3 +33,12 @@ auto-populated.
   from the iOS app.
 - Per-repo stats for allowlisted repos are a defined output of the git snapshot pipeline, which
   keeps `/labs` on the same one-read-from-Snapshot discipline as the homepage.
+
+## Amendment (2026-08-05)
+
+[ADR 0019](0019-off-clock-personal-dashboard.md) adds **Favorite Lab** as an optional Site Settings
+choice for the homepage. Favorite and `featured` are deliberately separate concepts: `featured`
+is a per-Lab editorial flag used to curate Labs surfaces, while Favorite is one explicit owner
+selection for the Off-clock Dashboard. Choosing a Favorite neither changes the Lab's `featured`
+value nor guarantees it the activity-ranked card; the ranked role applies its own public-repository
+and 48-hour freshness rules and is always distinct from the Favorite.

@@ -359,6 +359,27 @@ struct ModelContractTests {
         #expect(experienceDrafts.0 == experienceDrafts.1)
     }
 
+    @Test func legacySiteSettingsDecodeWithoutFavoriteLab() throws {
+        let record = try decode(
+            SiteSettingsRecord.self,
+            Self.siteSettingsJSON()
+        )
+
+        #expect(record.favoriteLabSlug == nil)
+        #expect(SiteSettingsDraft(record: record).favoriteLabSlug == nil)
+    }
+
+    @Test func siteSettingsFavoriteLabRoundTripsIntoDraft() throws {
+        let record = try decode(
+            SiteSettingsRecord.self,
+            Self.siteSettingsJSON(favoriteLabSlug: "partybooth")
+        )
+        let draft = SiteSettingsDraft(record: record)
+
+        #expect(record.favoriteLabSlug == "partybooth")
+        #expect(draft.favoriteLabSlug == "partybooth")
+    }
+
     @Test func lineEditorReconciliationPreservesStableRowIdentity() {
         let first = EditableLine(text: "First")
         let second = EditableLine(text: "Second")
@@ -490,6 +511,13 @@ struct ModelContractTests {
 
     private func decode<Value: Decodable>(_ type: Value.Type, _ json: String) throws -> Value {
         try JSONDecoder().decode(Value.self, from: Data(json.utf8))
+    }
+
+    private static func siteSettingsJSON(favoriteLabSlug: String? = nil) -> String {
+        let favorite = favoriteLabSlug.map { ",\"favoriteLabSlug\":\"\($0)\"" } ?? ""
+        return #"{"_id":"settings_1","_creationTime":1,"revision":2,"headline":"Build useful things.","availability":"Open to roles","availabilityVisible":true,"identity":{"name":"Corey Baines","role":"Principal Engineer","company":"Corporate Interactive","location":"Sydney, Australia","availability":"Open to roles","github":"coreybain","linkedin":"https://www.linkedin.com/in/coreybaines/","email":"corey@spiritdevs.com"},"featured":{"projectSlugs":[],"labSlugs":[],"postSlugs":[]}"#
+            + favorite
+            + #", "nav":{"work":true,"labs":true,"blog":false,"fun":true,"resume":true,"ask":true,"contact":true},"updatedAt":"2026-08-05T00:00:00.000Z"}"#
     }
 
     private static func echo<Value: Sendable>(_ value: Value, yields: Int) async -> Value {

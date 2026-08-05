@@ -37,7 +37,7 @@
  */
 
 import * as z from 'zod';
-import { IsoDateTimeSchema } from './primitives';
+import { IsoDateTimeSchema, SlugSchema } from './primitives';
 import { AiUsageSchema, GitStatsSchema, HealthStatsSchema } from './stats';
 import {
   BeerEntrySchema,
@@ -66,14 +66,15 @@ export const SnapshotSchema = z.object({
 
   /**
    * `null` until the iOS app has posted at least once — the health pipeline
-   * depends on a phone that may not have shipped yet (phase 7). The life signal
-   * strip must degrade to the Fun Entry alone rather than render zeroes.
+   * depends on a phone that may not have shipped yet (phase 7). Off the Clock
+   * omits its movement card rather than rendering invented zeroes.
    */
   healthStats: HealthStatsSchema.nullable(),
 
   /**
-   * The newest Fun Entry of any kind, for the dashboard's life signal strip.
-   * `null` before the first entry exists.
+   * The newest Fun Entry of any kind. Retained in the stored snapshot for
+   * compatibility even though the homepage now derives Off the Clock from Labs
+   * and HealthKit. `null` before the first entry exists.
    */
   latestFunEntry: FunEntrySchema.nullable(),
 
@@ -92,9 +93,9 @@ export type Snapshot = z.infer<typeof SnapshotSchema>;
  * ------------------------------------------------------------------ */
 
 /**
- * The three Fun Entry kinds used by the homepage's compact LifeStrip. Convex
- * stores one four-kind table (`FunEntrySchema`); the complete `/fun` page reads
- * `funLog`, while this narrowing exists only at the view boundary.
+ * The legacy three-kind Fun Entry projection. Convex stores one four-kind table
+ * (`FunEntrySchema`); the complete `/fun` page reads `funLog`, while this
+ * narrowing remains at the view boundary for compatibility.
  */
 export const SnapshotFunEntrySchema = z.discriminatedUnion('type', [
   BeerEntrySchema,
@@ -104,6 +105,8 @@ export const SnapshotFunEntrySchema = z.discriminatedUnion('type', [
 export type SnapshotFunEntry = z.infer<typeof SnapshotFunEntrySchema>;
 
 export const SnapshotViewSchema = SnapshotSchema.extend({
+  /** The explicitly selected Lab for the Off the Clock dashboard, if any. */
+  favoriteLabSlug: SlugSchema.nullable(),
   /** Published case studies, in `sortOrder`. */
   projects: z.array(ProjectSchema),
   /** Published Labs, in `sortOrder`. */

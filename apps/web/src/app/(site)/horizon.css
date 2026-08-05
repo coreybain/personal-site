@@ -1789,45 +1789,327 @@
 }
 
 /* ------------------------------------------------------------------ *
- * Life strip art
+ * Off the clock — two Labs and one seven-day movement view
  * ------------------------------------------------------------------ */
 
-.hor .hor-life-art {
-  position: relative;
-  overflow: hidden;
-  border-radius: 11px;
-  aspect-ratio: 1 / 1;
-  box-shadow: inset 0 0 0 1px var(--hor-art-line-2);
+.hor .offclock-section {
+  padding-block: clamp(4rem, 8vw, 6.5rem);
 }
 
-.hor .hor-life-art::after {
+.hor .offclock-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem;
+  align-items: stretch;
+}
+
+@media (min-width: 680px) {
+  .hor .offclock-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .hor .offclock-grid:not([data-count="1"]):not([data-count="2"]) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.hor .offclock-grid[data-count="1"] {
+  max-width: 31rem;
+}
+
+.hor .offclock-card {
+  display: flex;
+  min-width: 0;
+  height: 100%;
+  min-height: 31rem;
+  overflow: hidden;
+  flex-direction: column;
+  color: inherit;
+}
+
+.hor .offclock-project {
+  text-decoration: none;
+}
+
+.hor .offclock-cover {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 16 / 9;
+  flex: none;
+  border-bottom: 1px solid var(--hor-sky-card-edge);
+  background: var(--hor-panel);
+}
+
+.hor .offclock-cover::after {
   content: "";
   position: absolute;
   inset: 0;
-  background: var(--hor-art-veil);
-}
-
-.hor .hor-life-beer {
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.5) 0 20%, transparent 32%),
-    linear-gradient(180deg, hsl(42 92% 62%) 0%, hsl(34 88% 50%) 62%, hsl(28 82% 42%) 100%);
+    linear-gradient(180deg, transparent 52%, color-mix(in srgb, var(--hor-bg) 38%, transparent)),
+    var(--hor-art-veil);
+  pointer-events: none;
 }
 
-.hor .hor-life-coffee {
+.hor .offclock-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 500ms var(--hor-ease);
+}
+
+.hor .offclock-cover-fallback {
+  display: grid;
+  place-items: center;
   background:
-    radial-gradient(36% 36% at 50% 46%, hsl(28 40% 62%) 0 44%, transparent 46%),
-    radial-gradient(50% 50% at 50% 46%, hsl(22 44% 26%) 0 64%, transparent 66%),
-    linear-gradient(160deg, hsl(30 22% 88%), hsl(28 16% 74%));
+    radial-gradient(circle at 72% 25%, oklch(86% 0.08 var(--offclock-hue)), transparent 27%),
+    repeating-linear-gradient(
+      112deg,
+      transparent 0 18px,
+      color-mix(in srgb, var(--hor-bg) 16%, transparent) 18px 19px
+    ),
+    linear-gradient(
+      145deg,
+      oklch(72% 0.13 var(--offclock-hue)),
+      oklch(46% 0.11 calc(var(--offclock-hue) + 45))
+    );
 }
 
-.hor .hor-life-walk {
-  background: linear-gradient(
-    180deg,
-    hsl(256 60% 66%) 0 42%,
-    hsl(300 52% 60%) 42% 55%,
-    hsl(38 80% 58%) 55% 62%,
-    hsl(210 32% 32%) 62% 100%
+.hor .offclock-cover-fallback span {
+  color: color-mix(in srgb, white 88%, transparent);
+  font-family: var(--font-hor-mono), ui-monospace, monospace;
+  font-size: clamp(2.5rem, 7vw, 4rem);
+  font-weight: 500;
+  letter-spacing: -0.08em;
+  text-transform: uppercase;
+}
+
+.hor .offclock-card-body {
+  padding: 1.25rem 1.25rem 1rem;
+}
+
+.hor .offclock-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.5rem;
+  padding-inline: 0.55rem;
+  border: 1px solid color-mix(in srgb, var(--hor-accent) 25%, var(--hor-line));
+  border-radius: 999px;
+  background: var(--hor-accent-wash);
+  color: var(--hor-accent);
+  font-family: var(--font-hor-mono), ui-monospace, monospace;
+  font-size: 0.5625rem;
+  letter-spacing: 0.12em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.hor .offclock-title {
+  margin-top: 1rem;
+  color: var(--hor-ink);
+  font-size: clamp(1.35rem, 2.4vw, 1.7rem);
+  font-weight: 500;
+  letter-spacing: -0.035em;
+  line-height: 1.08;
+}
+
+.hor .offclock-summary {
+  display: -webkit-box;
+  min-height: 2.55rem;
+  margin-top: 0.75rem;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.hor .offclock-project-stats,
+.hor .offclock-movement-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: auto 1.25rem 0;
+  border-block: 1px solid var(--hor-line);
+}
+
+.hor .offclock-project-stats > div,
+.hor .offclock-movement-stats > div {
+  min-width: 0;
+  padding-block: 0.9rem;
+}
+
+.hor .offclock-project-stats > div + div,
+.hor .offclock-movement-stats > div + div {
+  padding-left: 0.75rem;
+  border-left: 1px solid var(--hor-line);
+}
+
+.hor .offclock-project-stats dt,
+.hor .offclock-movement-stats dt {
+  overflow: hidden;
+  color: var(--hor-ink-3);
+  font-family: var(--font-hor-mono), ui-monospace, monospace;
+  font-size: 0.5rem;
+  letter-spacing: 0.11em;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.hor .offclock-project-stats dd,
+.hor .offclock-movement-stats dd {
+  margin-top: 0.4rem;
+  overflow: hidden;
+  color: var(--hor-ink);
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hor .offclock-stale {
+  margin: auto 1.25rem 0;
+  padding-block: 0.9rem;
+  border-block: 1px solid var(--hor-line);
+}
+
+.hor .offclock-stale p {
+  margin-top: 0.35rem;
+  color: var(--hor-ink-2);
+  font-size: 0.6875rem;
+  line-height: 1.45;
+}
+
+.hor .offclock-link {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 0.45rem;
+  min-height: 2.75rem;
+  margin: 0.25rem 1.25rem 0.65rem;
+  color: var(--hor-ink-2);
+  font-size: 0.75rem;
+  font-weight: 500;
+  transition: color 180ms var(--hor-ease);
+}
+
+.hor .offclock-link svg {
+  transition: transform 220ms var(--hor-spring);
+}
+
+@media (hover: hover) {
+  .hor .offclock-project:hover {
+    transform: translateY(-4px);
+    border-color: var(--hor-line-strong);
+    background: var(--hor-sky-card-hover);
+    box-shadow: var(--hor-inset-top), var(--hor-shadow-sky-lift);
+  }
+
+  .hor .offclock-project:hover .offclock-cover img {
+    transform: scale(1.035);
+  }
+
+  .hor .offclock-project:hover .offclock-link {
+    color: var(--hor-accent);
+  }
+
+  .hor .offclock-project:hover .offclock-link svg {
+    transform: translateX(3px);
+  }
+}
+
+.hor .offclock-project:active {
+  transform: translateY(-1px);
+}
+
+.hor .offclock-project:focus-visible {
+  border-radius: var(--hor-radius-sky);
+}
+
+.hor .offclock-chart {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  align-items: end;
+  gap: clamp(0.35rem, 1.4vw, 0.65rem);
+  min-height: 11.5rem;
+  margin: 0.25rem 1.25rem 1rem;
+  padding: 1rem 0.25rem 0;
+  border-top: 1px solid var(--hor-line);
+}
+
+.hor .offclock-day {
+  display: grid;
+  grid-template-rows: 8.2rem 1.25rem;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.hor .offclock-bar-track {
+  display: flex;
+  align-items: flex-end;
+  min-height: 0;
+  border-bottom: 1px solid var(--hor-line-strong);
+}
+
+.hor .offclock-bar {
+  display: block;
+  width: 100%;
+  height: max(4px, calc(var(--offclock-share) * 100%));
+  border-radius: 6px 6px 2px 2px;
+  background: var(--hor-l2);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--hor-ink) 8%, transparent);
+}
+
+.hor .offclock-bar[data-peak="true"] {
+  background: var(--hor-l4);
+}
+
+.hor .offclock-bar[data-state="zero"] {
+  height: 3px;
+  border-radius: 2px;
+  background: var(--hor-line-strong);
+  box-shadow: none;
+}
+
+.hor .offclock-bar[data-state="missing"] {
+  height: 100%;
+  border: 1px dashed var(--hor-line-strong);
+  background: repeating-linear-gradient(
+    -45deg,
+    transparent 0 7px,
+    color-mix(in srgb, var(--hor-line-strong) 40%, transparent) 7px 8px
   );
+  box-shadow: none;
+  opacity: 0.55;
+}
+
+.hor .offclock-day-label {
+  justify-self: center;
+  color: var(--hor-ink-3);
+  font-family: var(--font-hor-mono), ui-monospace, monospace;
+  font-size: 0.5625rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.hor .offclock-day-label[data-today="true"] {
+  color: var(--hor-accent);
+}
+
+.hor .offclock-movement-stats {
+  margin-bottom: 1.3rem;
+}
+
+@media (max-width: 390px) {
+  .hor .offclock-card {
+    min-height: 29rem;
+  }
+
+  .hor .offclock-project-stats > div + div,
+  .hor .offclock-movement-stats > div + div {
+    padding-left: 0.45rem;
+  }
 }
 
 /* ------------------------------------------------------------------ *

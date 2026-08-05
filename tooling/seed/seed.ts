@@ -134,6 +134,8 @@ const siteSettings = {
   availability: mock.identity.availability,
   availabilityVisible: true,
   identity: { ...mock.identity },
+  /** Explicit Off the Clock lead project; independent of featured Labs. */
+  favoriteLabSlug: 'partybooth',
   featured: {
     /**
      * SYNTHESISED, from behaviour rather than from a field. The mock's projects

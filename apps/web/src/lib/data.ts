@@ -69,7 +69,8 @@
  * calling `gitStats.rebuild` → `snapshotBuild.apply`) and the singleton it
  * writes already embeds `identity` and `latestFunEntry` — so the *precondition*
  * for collapsing these reads is met, and the remaining work is on this side:
- * the homepage still reaches for `projects`, `labs`, `funEntries` and `resume`
+ * the homepage still reaches for `projects` and `labs`, while other routes read
+ * `funEntries` and `resume`
  * separately because the Snapshot does not carry them. Whoever closes that gap
  * changes the schema and this file together; nothing about the pages changes.
  *
@@ -523,13 +524,14 @@ function mapProject(row: ProjectRow): Project {
 }
 
 /**
- * `labs[n]` — the four `liveStats` figures the recency wall is drawn from.
+ * `labs[n]` — the project copy, imagery and fresh telemetry used by the Labs
+ * wall and the homepage Off the Clock dashboard.
  *
- * Dropped: `coverImage` (required on the Convex row and on `LabSchema`, absent
- * from the mock's `Lab` — `/labs` renders its own capture assets from
- * `FeaturedLabs.tsx` today), `links.docs`, and the publish-control fields. The
- * repository URL is derived from `repoFullName`; a public `links.live` value is
- * retained so a product Lab can link to the thing itself as well as its code.
+ * Dropped: `links.docs` and the publish-control fields. Image covers survive
+ * when the asset is an image; a future video cover remains outside this compact
+ * public projection. The repository URL is derived from `repoFullName`; a
+ * public `links.live` value is retained so a product Lab can link to the thing
+ * itself as well as its code.
  *
  * **`lastPushDaysAgo` is recomputed, not copied.** `@home/types` flags this as a
  * DIVERGENCE and says which side is the fact: "`lastPushedAt` is the fact,
@@ -556,12 +558,22 @@ function mapLab(row: LabRow, computedAt: string): Lab {
       forks: row.liveStats.forks,
       commitsYear: row.liveStats.commitsYear,
       lastPushDaysAgo: daysAgo(lastPushedAt, computedAt),
+      lastPushedAt,
+      ...(row.liveStats.syncedAt === undefined
+        ? {}
+        : { syncedAt: row.liveStats.syncedAt }),
     },
     featured: row.featured,
   };
 
   if (row.links.live !== undefined) {
     lab.links = { live: row.links.live };
+  }
+  if (row.coverImage.kind === "image") {
+    lab.coverImage = {
+      url: row.coverImage.url,
+      alt: row.coverImage.alt,
+    };
   }
 
   return lab;
@@ -778,8 +790,9 @@ export const getSiteData = cache(async (): Promise<Snapshot> => {
   /* ---- fun -------------------------------------------------------- *
    * One table, two views. `funEntries.list` returns all four kinds
    * newest-first off `by_occurredAt`; `funLog` is that list, and
-   * `funEntries` is the same list with pubs removed for the homepage LifeStrip;
-   * `/fun` reads the complete `funLog`.
+   * `funEntries` is the same list with pubs removed for legacy consumers;
+   * `/fun` reads the complete `funLog`. The homepage Off the Clock dashboard
+   * now draws from Labs and HealthKit instead of this editorial feed.
    *
    * Re-sorted by `daysAgo` rather than trusted: the index orders by
    * instant, the page groups by calendar day, and two entries on the same
@@ -790,6 +803,7 @@ export const getSiteData = cache(async (): Promise<Snapshot> => {
     .sort((a, b) => a.daysAgo - b.daysAgo);
 
   return {
+    favoriteLabSlug: settingsRow.favoriteLabSlug ?? null,
     identity,
 
     gitStats: mapGitStats(snapshotRow.gitStats),
@@ -886,8 +900,8 @@ export async function getFunLog(): Promise<FunLogEntry[]> {
 }
 
 /**
- * The feed without pub visits, newest first — the narrower union the homepage's
- * LifeStrip reads. See `PubEntry` in snapshot.ts.
+ * The feed without pub visits, newest first. Retained as a compatibility view;
+ * the public `/fun` route reads the complete `funLog` instead.
  */
 export async function getFunEntries(): Promise<FunEntry[]> {
   return (await getSiteData()).funEntries;

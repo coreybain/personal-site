@@ -30,3 +30,13 @@ Every element is real data, not copy.
   as required and why case-study screenshots matter (ADR 0009).
 - The acceptance criterion is behavioural, not aesthetic: the homepage on a phone at 4G
   throttling has to pass the five-second-snapshot test.
+
+## Amendment (2026-08-05)
+
+The living-dashboard decision stands, but the original “latest beer / coffee / walk” life strip
+has evolved into the fixed-role **Off-clock Dashboard** defined by
+[ADR 0019](0019-off-clock-personal-dashboard.md). Its three potential peers are an explicitly
+selected Favorite Lab, a distinct Lab chosen from fresh public activity, and one trailing-seven-day
+movement summary. Fun Entries remain on `/fun` rather than acting as homepage fillers. This keeps
+the original real-data and server-rendering principles while replacing three repetitive daily
+HealthKit cards with a more useful personal snapshot.

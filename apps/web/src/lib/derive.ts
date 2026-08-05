@@ -293,6 +293,224 @@ export function deriveLabs(source: readonly Lab[]): LabsDerived {
 }
 
 /* ================================================================== *
+ * Homepage / Off the clock
+ *
+ * A fixed editorial dashboard: one explicitly selected Lab, one distinct
+ * live Lab signal, and one trailing-seven-day HealthKit summary. The public
+ * component only renders this projection; freshness and ranking stay here so
+ * they can be tested without React or a clock read.
+ * ================================================================== */
+
+const OFF_CLOCK_DAY_MS = 86_400_000;
+const OFF_CLOCK_FRESH_MS = 48 * 60 * 60 * 1_000;
+const SYDNEY_DAY = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Australia/Sydney",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+const SHORT_WEEKDAY = new Intl.DateTimeFormat("en-AU", {
+  timeZone: "UTC",
+  weekday: "short",
+});
+
+export type OffClockLabCard = {
+  role: "favorite" | "ranked";
+  label: "Favourite Lab" | "Most commits" | "Fresh pulse";
+  lab: Lab;
+  statsFresh: boolean;
+};
+
+export type OffClockMovementDay = {
+  date: string;
+  label: string;
+  steps: number | null;
+  distanceKm: number | null;
+  workouts: number | null;
+  share: number;
+  isToday: boolean;
+  isPeak: boolean;
+};
+
+export type OffClockMovementCard = {
+  days: OffClockMovementDay[];
+  peakDay: OffClockMovementDay;
+  totalSteps: number;
+  totalDistanceKm: number;
+  totalWorkouts: number;
+  syncedAt: string;
+};
+
+export type OffClockDashboard = {
+  favorite: OffClockLabCard | null;
+  ranked: OffClockLabCard | null;
+  movement: OffClockMovementCard | null;
+};
+
+function validInstant(value: string | undefined): number | null {
+  if (value === undefined) return null;
+  const instant = Date.parse(value);
+  return Number.isNaN(instant) ? null : instant;
+}
+
+function hasPublicRepoPath(lab: Lab): boolean {
+  return /^[\w.-]+\/[\w.-]+$/.test(lab.repoFullName);
+}
+
+function hasFreshPublicStats(lab: Lab, computedMs: number): boolean {
+  const syncedMs = validInstant(lab.liveStats.syncedAt);
+  const pushedMs = validInstant(lab.liveStats.lastPushedAt);
+  if (syncedMs === null || pushedMs === null || !hasPublicRepoPath(lab)) {
+    return false;
+  }
+
+  // A Lab refresh can land just after the independently rebuilt Snapshot.
+  // Clamp that harmless clock skew to zero while still rejecting old data.
+  return Math.max(0, computedMs - syncedMs) <= OFF_CLOCK_FRESH_MS;
+}
+
+function compareSlug(a: Lab, b: Lab): number {
+  return a.slug < b.slug ? -1 : a.slug > b.slug ? 1 : 0;
+}
+
+function pushedMs(lab: Lab): number {
+  return validInstant(lab.liveStats.lastPushedAt) ?? 0;
+}
+
+function isoDayOffset(day: string, offset: number): string {
+  const midnight = Date.parse(`${day}T00:00:00Z`);
+  return new Date(midnight + offset * OFF_CLOCK_DAY_MS).toISOString().slice(0, 10);
+}
+
+function deriveMovement(
+  healthStats: HealthStats | null,
+  computedAt: string,
+): OffClockMovementCard | null {
+  if (healthStats === null || healthStats.recentDays.length === 0) return null;
+
+  const today = SYDNEY_DAY.format(new Date(computedAt));
+  const windowDates = Array.from({ length: 7 }, (_, index) =>
+    isoDayOffset(today, index - 6),
+  );
+  const inWindow = new Set(windowDates);
+  const sourceByDate = new Map(
+    healthStats.recentDays
+      .filter((day) => inWindow.has(day.date))
+      .map((day) => [day.date, day] as const),
+  );
+
+  if (sourceByDate.size === 0) return null;
+
+  const peakSource = [...sourceByDate.values()].sort(
+    (a, b) => b.steps - a.steps || (a.date < b.date ? 1 : -1),
+  )[0];
+  const peakSteps = peakSource.steps;
+
+  const days: OffClockMovementDay[] = windowDates.map((date) => {
+    const day = sourceByDate.get(date);
+    const steps = day?.steps ?? null;
+
+    return {
+      date,
+      label: SHORT_WEEKDAY.format(new Date(`${date}T00:00:00Z`)),
+      steps,
+      distanceKm: day?.distanceKm ?? null,
+      workouts: day?.activities.length ?? null,
+      share:
+        steps === null || peakSteps === 0
+          ? 0
+          : Math.max(0, Math.min(1, steps / peakSteps)),
+      isToday: date === today,
+      isPeak: date === peakSource.date,
+    };
+  });
+
+  const present = days.filter(
+    (day): day is OffClockMovementDay & {
+      steps: number;
+      distanceKm: number;
+      workouts: number;
+    } => day.steps !== null && day.distanceKm !== null && day.workouts !== null,
+  );
+
+  return {
+    days,
+    peakDay: days.find((day) => day.isPeak)!,
+    totalSteps: present.reduce((sum, day) => sum + day.steps, 0),
+    totalDistanceKm: Number(
+      present.reduce((sum, day) => sum + day.distanceKm, 0).toFixed(1),
+    ),
+    totalWorkouts: present.reduce((sum, day) => sum + day.workouts, 0),
+    syncedAt: healthStats.syncedAt,
+  };
+}
+
+/** Build the homepage's three fixed Off the Clock roles from live inputs. */
+export function deriveOffClockDashboard({
+  labs,
+  favoriteLabSlug,
+  healthStats,
+  computedAt,
+}: {
+  labs: readonly Lab[];
+  favoriteLabSlug: string | null;
+  healthStats: HealthStats | null;
+  computedAt: string;
+}): OffClockDashboard {
+  const computedMs = Date.parse(computedAt);
+  const favoriteLab =
+    favoriteLabSlug === null
+      ? undefined
+      : labs.find((lab) => lab.slug === favoriteLabSlug);
+  const favorite = favoriteLab
+    ? {
+        role: "favorite" as const,
+        label: "Favourite Lab" as const,
+        lab: favoriteLab,
+        statsFresh: hasFreshPublicStats(favoriteLab, computedMs),
+      }
+    : null;
+
+  const eligible = labs.filter((lab) => hasFreshPublicStats(lab, computedMs));
+  const busiest = [...eligible].sort(
+    (a, b) =>
+      b.liveStats.commitsYear - a.liveStats.commitsYear ||
+      pushedMs(b) - pushedMs(a) ||
+      compareSlug(a, b),
+  )[0];
+
+  let rankedLab: Lab | undefined;
+  let rankedLabel: OffClockLabCard["label"] = "Most commits";
+
+  if (busiest?.slug === favoriteLab?.slug) {
+    rankedLab = [...eligible]
+      .filter((lab) => lab.slug !== favoriteLab.slug)
+      .sort(
+        (a, b) =>
+          pushedMs(b) - pushedMs(a) ||
+          b.liveStats.commitsYear - a.liveStats.commitsYear ||
+          compareSlug(a, b),
+      )[0];
+    rankedLabel = "Fresh pulse";
+  } else {
+    rankedLab = busiest;
+  }
+
+  return {
+    favorite,
+    ranked: rankedLab
+      ? {
+          role: "ranked",
+          label: rankedLabel,
+          lab: rankedLab,
+          statsFresh: true,
+        }
+      : null,
+    movement: deriveMovement(healthStats, computedAt),
+  };
+}
+
+/* ================================================================== *
  * /fun
  *
  * Was: components/site/fun/data.ts
@@ -334,9 +552,8 @@ export const KIND_LABEL: Record<FunKind, string> = {
 export const KIND_ORDER: readonly FunKind[] = ["coffee", "beer", "pub", "walk"];
 
 /**
- * Base hue per kind, matching the homepage LifeStrip's palette: amber for
- * beer, roasted brown for coffee, the dusk-violet accent for walks. Pubs are
- * new here and take the sun's warm end.
+ * Base hue per kind for `/fun`: amber for beer, roasted brown for coffee, and
+ * dusk violet for walks. Pubs take the sun's warm end.
  */
 const BASE_HUE: Record<FunKind, number> = {
   beer: 38,

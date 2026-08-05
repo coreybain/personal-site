@@ -163,6 +163,33 @@ struct SiteSettingsEditorScreen: View {
             }
 
             Section {
+                Picker("Favourite lab", selection: $draft.favoriteLabSlug) {
+                    Text("None")
+                        .tag(String?.none)
+
+                    ForEach(publishedLabs) { lab in
+                        Text(lab.title)
+                            .tag(Optional(lab.slug))
+                    }
+
+                    if let unresolvedFavoriteLabSlug {
+                        Text("\(unresolvedFavoriteLabSlug) (unavailable)")
+                            .tag(Optional(unresolvedFavoriteLabSlug))
+                            .disabled(true)
+                    }
+                }
+                .accessibilityHint(
+                    "Selects the personal project shown first in the public Off the Clock section"
+                )
+            } header: {
+                Text("Off the Clock")
+            } footer: {
+                Text(
+                    "The favourite is independent of homepage featuring. Only published labs can be selected."
+                )
+            }
+
+            Section {
                 NavigationVisibilityToggle(
                     title: "Work",
                     route: "/work",
@@ -310,6 +337,24 @@ struct SiteSettingsEditorScreen: View {
 
     private var isDirty: Bool {
         draft != savedDraft
+    }
+
+    private var publishedLabs: [LabRecord] {
+        model.labs
+            .filter(\.published)
+            .sorted {
+                if $0.sortOrder != $1.sortOrder {
+                    return $0.sortOrder < $1.sortOrder
+                }
+                return $0.title.localizedStandardCompare($1.title) == .orderedAscending
+            }
+    }
+
+    private var unresolvedFavoriteLabSlug: String? {
+        guard let favorite = draft.favoriteLabSlug,
+              !publishedLabs.contains(where: { $0.slug == favorite })
+        else { return nil }
+        return favorite
     }
 
     private var validationMessage: String? {

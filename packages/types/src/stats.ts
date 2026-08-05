@@ -441,7 +441,7 @@ export const HealthDaySchema = z.object({
 export type HealthDay = z.infer<typeof HealthDaySchema>;
 
 /**
- * Movement aggregates for the dashboard's life signal.
+ * Movement aggregates for the Off the Clock dashboard.
  *
  * The plan named `healthStats` without listing its fields. This shape is the
  * implemented pipeline 3 contract (`HKObserverQuery` on daily movement and

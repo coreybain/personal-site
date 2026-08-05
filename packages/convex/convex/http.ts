@@ -466,8 +466,9 @@ const aiUsageIngest = httpAction(async (ctx, request) => {
  *
  * No Snapshot refold is requested. `snapshot.healthStats` is folded hourly and
  * "steps as of the top of the hour" is the honest resolution for a figure the
- * dashboard renders as a life signal; scheduling a full rebuild every time a
- * watch syncs would be a rebuild every few minutes all day for no visible gain.
+ * Off the Clock renders as a seven-day summary; scheduling a full rebuild every
+ * time a watch syncs would be a rebuild every few minutes all day for no visible
+ * gain.
  */
 const healthIngest = httpAction(async (ctx, request) => {
   const auth = await authorize(ctx, request, 'health:write');

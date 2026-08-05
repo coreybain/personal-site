@@ -44,6 +44,7 @@ export function LabCard({
 
   return (
     <Panel
+      id={`lab-${lab.slug}`}
       label={lab.language}
       meta={lab.featured ? <span className="hor-accented">Featured</span> : undefined}
       padded={false}
