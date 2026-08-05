@@ -76,8 +76,15 @@ export const metadata: Metadata = {
  * published content remains separate live reads assembled coherently here.
  */
 export default async function HomePage() {
-  const { identity, gitStats, aiUsage, projects, funEntries, computedAt } =
-    await getSiteData();
+  const {
+    identity,
+    gitStats,
+    aiUsage,
+    healthStats,
+    projects,
+    funEntries,
+    computedAt,
+  } = await getSiteData();
 
   return (
     <main>
@@ -124,7 +131,12 @@ export default async function HomePage() {
       <section className="hor-sky">
         <div className="hor-shell">
           <FeaturedWork projects={projects} />
-          <LifeStrip entries={funEntries} location={identity.location} />
+          <LifeStrip
+            entries={funEntries}
+            healthStats={healthStats}
+            computedAt={computedAt}
+            location={identity.location}
+          />
         </div>
       </section>
     </main>
