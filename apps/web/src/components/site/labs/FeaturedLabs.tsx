@@ -31,6 +31,11 @@ import type { Lab } from "@/lib/snapshot";
 /** The editorial half of a plate: everything the `Lab` contract has no field for. */
 type FeaturedSpec = {
   slug: string;
+  /**
+   * Keeps a newly launched editorial plate visible until its Convex row has
+   * reached production. Once the row exists, live telemetry wins.
+   */
+  fallbackLab?: Lab;
   image: string;
   imageAlt: string;
   capture: string;
@@ -47,6 +52,17 @@ type FeaturedBuild = FeaturedSpec & { lab: Lab };
 const FEATURED_SPECS: FeaturedSpec[] = [
   {
     slug: "pathway",
+    fallbackLab: {
+      slug: "pathway",
+      title: "Pathway",
+      summary:
+        "A Business Agentic OS for startups: one operating surface for AI agents, projects, issues, source control, schedules and the plugin-powered tools a growing company needs.",
+      repoFullName: "coreybain/pathway",
+      language: "TypeScript",
+      links: { live: "https://app.spiritdevs.com/" },
+      liveStats: { stars: 0, forks: 0, commitsYear: 2985, lastPushDaysAgo: 0 },
+      featured: true,
+    },
     image: "/images/labs/pathway-scheduled-task.png",
     imageAlt:
       "Pathway desktop app showing the scheduled agent task composer with project, workspace, model and cadence controls.",
@@ -218,7 +234,8 @@ function FeaturedBuildPlate({
 
 export function FeaturedLabs({ labs }: Pick<LabsDerived, "labs">) {
   const builds: FeaturedBuild[] = FEATURED_SPECS.flatMap((spec) => {
-    const lab = labs.find((candidate) => candidate.slug === spec.slug);
+    const lab =
+      labs.find((candidate) => candidate.slug === spec.slug) ?? spec.fallbackLab;
     return lab ? [{ ...spec, lab }] : [];
   });
 
