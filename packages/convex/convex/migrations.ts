@@ -558,3 +558,86 @@ export const addVisualEditorProject = internalMutation({
     };
   },
 });
+
+/**
+ * Add Pathway to the public Labs collection.
+ *
+ * Pathway is editorially led by `FeaturedLabs.tsx`, while this row supplies the
+ * public repository facts and lets the hourly GitHub snapshot keep them fresh.
+ * The authenticated Labs editor remains the everyday content path; this narrow
+ * migration exists so an existing deployment can receive the new curated row
+ * without replacing or re-seeding any of its owner-managed content.
+ *
+ * Idempotent: an existing `pathway` row is returned untouched. The initial
+ * telemetry below was verified against the public repository before this
+ * migration was authored and will be replaced by the normal GitHub cron.
+ *
+ *     bunx convex run migrations:addPathwayLab '{}'
+ */
+export const addPathwayLab = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const existing = await ctx.db
+      .query('labs')
+      .withIndex('by_slug', (q) => q.eq('slug', 'pathway'))
+      .first();
+
+    if (existing !== null) {
+      return {
+        labId: existing._id,
+        slug: existing.slug,
+        created: false,
+        published: existing.published,
+        featured: existing.featured,
+      };
+    }
+
+    const last = await ctx.db
+      .query('labs')
+      .withIndex('by_sortOrder')
+      .order('desc')
+      .first();
+
+    const labId = await ctx.db.insert('labs', {
+      revision: 1,
+      published: true,
+      featured: true,
+      sortOrder: last === null ? 0 : last.sortOrder + 1,
+      slug: 'pathway',
+      title: 'Pathway',
+      summary:
+        'A Business Agentic OS for startups: one operating surface for AI agents, projects, issues, source control, schedules and the plugin-powered tools a growing company needs.',
+      repoFullName: 'coreybain/pathway',
+      language: 'TypeScript',
+      coverImage: {
+        kind: 'image',
+        url: 'https://opengraph.githubassets.com/1/coreybain/pathway',
+        alt: 'GitHub repository card for coreybain/pathway',
+      },
+      links: {
+        repo: 'https://github.com/coreybain/pathway',
+        live: 'https://app.spiritdevs.com/',
+      },
+      liveStats: {
+        stars: 0,
+        forks: 0,
+        commitsYear: 2985,
+        lastPushDaysAgo: 0,
+        lastPushedAt: '2026-08-17T04:58:11.000Z',
+      },
+    });
+
+    await ctx.scheduler.runAfter(0, internal.knowledge.indexSource, {
+      sourceType: 'lab',
+      sourceSlug: 'pathway',
+    });
+
+    return {
+      labId,
+      slug: 'pathway',
+      created: true,
+      published: true,
+      featured: true,
+    };
+  },
+});

@@ -1063,6 +1063,17 @@ Visual Editor taught me to see a page builder as a constraint and serialisation 
    */
   labs: [
     {
+      slug: 'pathway',
+      title: 'Pathway',
+      summary:
+        'A Business Agentic OS for startups: one operating surface for AI agents, projects, issues, source control, schedules and the plugin-powered tools a growing company needs.',
+      repoFullName: 'coreybain/pathway',
+      language: 'TypeScript',
+      links: { live: 'https://app.spiritdevs.com/' },
+      liveStats: { stars: 0, forks: 0, commitsYear: 2985, lastPushDaysAgo: 0 },
+      featured: true,
+    },
+    {
       slug: 'partybooth',
       title: 'PartyBooth',
       summary:

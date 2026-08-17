@@ -46,6 +46,19 @@ type FeaturedBuild = FeaturedSpec & { lab: Lab };
 
 const FEATURED_SPECS: FeaturedSpec[] = [
   {
+    slug: "pathway",
+    image: "/images/labs/pathway-scheduled-task.png",
+    imageAlt:
+      "Pathway desktop app showing the scheduled agent task composer with project, workspace, model and cadence controls.",
+    capture: "Desktop app / scheduled agent · 1401 × 768",
+    liveUrl: "https://app.spiritdevs.com/",
+    liveLabel: "app.spiritdevs.com",
+    eyebrow: "Business Agentic OS · agents + operations",
+    writeup:
+      "A single operating surface for the work startups repeat every day: coordinating AI agents, managing projects and issues, reviewing source control, scheduling recurring work and reaching the rest of the business through an expanding plugin system. I am building Pathway across its local-first server, desktop, web and mobile clients.",
+    stack: ["Electron", "React", "TypeScript", "Convex"],
+  },
+  {
     slug: "partybooth",
     image: "/images/labs/partybooth-sign-in.svg",
     imageAlt:
