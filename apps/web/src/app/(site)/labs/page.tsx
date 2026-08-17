@@ -9,6 +9,7 @@ import { LabsIntro } from "@/components/site/labs/LabsIntro";
 import { RecencyWindow } from "@/components/site/labs/RecencyWindow";
 import { getSiteData } from "@/lib/data";
 import { deriveLabs } from "@/lib/derive";
+import { curateLabs } from "@/lib/labsCatalog";
 
 import "./labs.css";
 
@@ -48,7 +49,8 @@ export const revalidate = 300;
  */
 export async function generateMetadata(): Promise<Metadata> {
   const snapshot = await getSiteData();
-  if (snapshot.labs.length === 0) {
+  const curatedLabs = curateLabs(snapshot.labs);
+  if (curatedLabs.length === 0) {
     return {
       title: "Labs",
       description: `No personal repositories are currently published for ${snapshot.identity.name}.`,
@@ -56,7 +58,7 @@ export async function generateMetadata(): Promise<Metadata> {
     };
   }
 
-  const { labs } = deriveLabs(snapshot.labs);
+  const { labs } = deriveLabs(curatedLabs);
 
   return {
     title: "Labs",
@@ -69,8 +71,9 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function LabsPage() {
   const snapshot = await getSiteData();
+  const curatedLabs = curateLabs(snapshot.labs);
 
-  if (snapshot.labs.length === 0) {
+  if (curatedLabs.length === 0) {
     return (
       <main>
         <section className="hor-sky">
@@ -114,7 +117,7 @@ export default async function LabsPage() {
     );
   }
 
-  const derived = deriveLabs(snapshot.labs);
+  const derived = deriveLabs(curatedLabs);
 
   return (
     <main>

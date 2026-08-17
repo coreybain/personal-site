@@ -4,6 +4,7 @@ import type { CSSProperties } from "react";
 import { DeckHead } from "@/components/site/Panel";
 import type { LabsDerived } from "@/lib/derive";
 import { activePhrase, band, cadence, repoUrl } from "@/lib/derive";
+import { PATHWAY_LAB } from "@/lib/labsCatalog";
 import type { Lab } from "@/lib/snapshot";
 
 /**
@@ -52,17 +53,7 @@ type FeaturedBuild = FeaturedSpec & { lab: Lab };
 const FEATURED_SPECS: FeaturedSpec[] = [
   {
     slug: "pathway",
-    fallbackLab: {
-      slug: "pathway",
-      title: "Pathway",
-      summary:
-        "A Business Agentic OS for startups: one operating surface for AI agents, projects, issues, source control, schedules and the plugin-powered tools a growing company needs.",
-      repoFullName: "coreybain/pathway",
-      language: "TypeScript",
-      links: { live: "https://app.spiritdevs.com/" },
-      liveStats: { stars: 0, forks: 0, commitsYear: 2985, lastPushDaysAgo: 0 },
-      featured: true,
-    },
+    fallbackLab: PATHWAY_LAB,
     image: "/images/labs/pathway-scheduled-task.png",
     imageAlt:
       "Pathway desktop app showing the scheduled agent task composer with project, workspace, model and cadence controls.",
