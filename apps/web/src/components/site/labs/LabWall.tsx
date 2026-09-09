@@ -4,8 +4,8 @@ import type { LabsDerived } from "@/lib/derive";
 import { LabCard } from "./LabCard";
 
 /**
- * The wall — every lab as its own instrument panel, ordered by last push, so
- * the grid itself is a recency ranking. Two columns from `md` up; one column
+ * The wall — every lab as its own instrument panel, in the admin's curated
+ * display order. Two columns from `md` up; one column
  * below that, where a two-up panel would crush the readouts.
  *
  * `maxCommits` is threaded through to every card: each commit track is scaled

@@ -87,10 +87,10 @@ export function Hero({
             className="hor-lede hor-rise mt-7 max-w-[48ch] text-pretty"
             style={delay(240)}
           >
-            I build the platforms teams depend on — document automation,
-            compliance, real-time infrastructure — and I ship them with agents
-            in the loop, every day. Everything below this line is measured, not
-            claimed.
+            I build the platforms teams depend on - document automation,
+            compliance, real-time infrastructure. I ship them with agents
+            in the loop, every day. Everything below this line is measured from
+            tools I created, not claimed.
           </p>
 
           <div

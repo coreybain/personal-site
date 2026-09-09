@@ -8,7 +8,7 @@ import { PATHWAY_LAB } from "@/lib/labsCatalog";
 import type { Lab } from "@/lib/snapshot";
 
 /**
- * Featured builds — the three labs that have a real product capture behind them.
+ * Featured builds with product captures or public repository previews.
  *
  * ── Why this is a hand-written spec keyed by slug ──────────────────────────
  *
@@ -54,16 +54,15 @@ const FEATURED_SPECS: FeaturedSpec[] = [
   {
     slug: "pathway",
     fallbackLab: PATHWAY_LAB,
-    image: "/images/labs/pathway-scheduled-task.png",
-    imageAlt:
-      "Pathway desktop app showing the scheduled agent task composer with project, workspace, model and cadence controls.",
-    capture: "Desktop app / scheduled agent · 1401 × 768",
-    liveUrl: "https://app.spiritdevs.com/",
-    liveLabel: "app.spiritdevs.com",
-    eyebrow: "Business Agentic OS · agents + operations",
+    image: "/images/labs/pathway-repository.png",
+    imageAlt: "GitHub repository preview for SpiritDevs/pathway.",
+    capture: "Public repository / GitHub",
+    liveUrl: "https://github.com/SpiritDevs/pathway",
+    liveLabel: "github.com/SpiritDevs/pathway",
+    eyebrow: "Open source · desktop, web + iOS",
     writeup:
-      "A single operating surface for the work startups repeat every day: coordinating AI agents, managing projects and issues, reviewing source control, scheduling recurring work and reaching the rest of the business through an expanding plugin system. I am building Pathway across its local-first server, desktop, web and mobile clients.",
-    stack: ["Electron", "React", "TypeScript", "Convex"],
+      "An open-source workspace for running coding agents across desktop, web and iOS. Bring your Claude Code, Codex, Cursor, Grok Build or OpenCode subscriptions and manage work on your machine or remotely.",
+    stack: ["TypeScript", "Electron", "SwiftUI"],
   },
   {
     slug: "partybooth",
@@ -237,7 +236,7 @@ export function FeaturedLabs({ labs }: Pick<LabsDerived, "labs">) {
       <DeckHead
         index="02"
         title="Featured builds"
-        meta={`${builds.length} projects · real product captures`}
+        meta={`${builds.length} projects · product and repository captures`}
       />
 
       <div className="labs-feature-list">

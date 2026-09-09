@@ -997,14 +997,17 @@ function assertNoRepoIdentifiers(
   permitted: Set<string>,
   observedRepos: Set<string>,
 ): void {
+  // GitHub repository names are case-insensitive. Keep the exact display-name
+  // allowlist below, but compare repository collisions in the same casing.
+  const permittedLowercase = new Set([...permitted].map((name) => name.toLowerCase()));
   const forbidden = new Set<string>();
   for (const full of observedRepos) {
-    if (!permitted.has(full)) forbidden.add(full.toLowerCase());
+    if (!permittedLowercase.has(full.toLowerCase())) forbidden.add(full.toLowerCase());
     const bare = full.slice(full.indexOf('/') + 1);
     // A bare repo name is only forbidden when nothing published claims it. This
     // is the same distinction `tooling/privacy-check` draws between an
     // `identifier` (never allowed) and a `name` (allowed once published).
-    if (bare.length > 0 && !permitted.has(bare)) forbidden.add(bare.toLowerCase());
+    if (bare.length > 0 && !permittedLowercase.has(bare.toLowerCase())) forbidden.add(bare.toLowerCase());
   }
 
   const reject = (where: string, reason: string): never =>

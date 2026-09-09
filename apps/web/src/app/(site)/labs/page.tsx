@@ -141,7 +141,7 @@ export default async function LabsPage() {
         <div className="hor-shell pb-16 sm:pb-20">
           <RecencyWindow {...derived} />
           <FeaturedLabs {...derived} />
-          <LabWall {...derived} />
+          <LabWall {...derived} labs={snapshot.labs} />
         </div>
       </div>
 
