@@ -1,8 +1,8 @@
 import type { CSSProperties } from "react";
+import Link from "next/link";
 
 import type { AiUsage, GitStats, Identity, Project } from "@/lib/snapshot";
 
-import { ContactSheetTrigger } from "./contact/ContactSheet";
 import { PersonalCard } from "./PersonalCard";
 import { num } from "./format";
 
@@ -97,8 +97,8 @@ export function Hero({
             className="hor-rise mt-9 flex flex-wrap items-center gap-3"
             style={delay(300)}
           >
-            <ContactSheetTrigger className="hor-btn">
-              Get in touch
+            <Link className="hor-btn" href="/resume">
+              View Resume
               <svg
                 width="13"
                 height="13"
@@ -114,7 +114,7 @@ export function Hero({
                   strokeLinejoin="round"
                 />
               </svg>
-            </ContactSheetTrigger>
+            </Link>
             <a
               className="hor-btn hor-btn-ghost"
               href={`https://github.com/${identity.github}`}
