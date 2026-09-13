@@ -33,7 +33,7 @@ export function Experience({
         title={`${yearsShipping} years of work experience across ${experience.length} roles.`}
         lede={`Work across ${companyCount} ${
           companyCount === 1 ? "employer" : "employers"
-        }, from customer service and business roles to software engineering and technical leadership.`}
+        }, covering software engineering, independent product development and technical leadership.`}
         aside={
           <span className="hor-pill">
             <span className="hor-live" aria-hidden="true" />

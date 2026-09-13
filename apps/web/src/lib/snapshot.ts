@@ -1208,51 +1208,6 @@ Visual Editor taught me to see a page builder as a constraint and serialisation 
         ],
         "start": "2016",
         "end": "Present"
-      },
-      {
-        "company": "Telstra",
-        "title": "iOS Developer",
-        "summary": "iOS development at Telstra Digital.",
-        "highlights": [],
-        "start": "2016",
-        "end": "2017"
-      },
-      {
-        "company": "Telstra",
-        "title": "Business NBN Resolutions",
-        "summary": "Business NBN resolutions at Telstra.",
-        "highlights": [],
-        "start": "2014",
-        "end": "2017"
-      },
-      {
-        "company": "Telstra",
-        "title": "Corporate Business Manager",
-        "summary": "Corporate business management at Telstra.",
-        "highlights": [],
-        "start": "2013",
-        "end": "2014"
-      },
-      {
-        "company": "Telstra",
-        "title": "Retail Business Sales",
-        "summary": "Retail business sales at Telstra.",
-        "highlights": [],
-        "start": "2013",
-        "end": "2013"
-      },
-      {
-        "company": "Coles",
-        "title": "Customer Service Supervisor",
-        "summary": "Customer service and team supervision at Coles.",
-        "highlights": [
-          "Represented Coles in a leadership capacity at events.",
-          "Team leadership, mentoring and coaching of new staff.",
-          "Participated in recruiting new employees.",
-          "Management experience as Grocery 2IC, with payroll and staff rostering responsibilities."
-        ],
-        "start": "2010",
-        "end": "2013"
       }
     ]
   } satisfies ResumeDocument as ResumeDocument,
