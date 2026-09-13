@@ -849,6 +849,22 @@
   width: 100%;
 }
 
+/* Keep the upper orbit outside the card. Clip a stationary wrapper so the
+   hidden portion stays behind the card while the ring and dot rotate. */
+.hor .hor-id-orbit-clip {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  clip-path: polygon(
+    -100px -100px,
+    calc(100% + 100px) -100px,
+    calc(100% + 100px) 100%,
+    100% 100%,
+    100% 0,
+    -100px 0
+  );
+}
+
 /* Dashed orbits — decorative arcs breaking the card's box, sun on the line. */
 .hor .hor-id-orbit {
   position: absolute;
@@ -910,26 +926,30 @@
 
 .hor .hor-id-photo {
   position: relative;
+  width: 88%;
+  margin-inline: auto;
   overflow: hidden;
   border-radius: 15px;
-  aspect-ratio: 10 / 9;
+  aspect-ratio: 1;
   /* Quiet backdrop while the photo decodes. */
   background: var(--hor-chip);
 }
 
 .hor .hor-id-img {
-  object-fit: cover;
-  object-position: center 22%;
+  object-fit: contain;
+  object-position: center;
 }
 
-/* Hairline ring above the photo so the edge stays crisp in both themes. */
-.hor .hor-id-photo::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  box-shadow: inset 0 0 0 1px var(--hor-art-line-2);
-  pointer-events: none;
+.hor .hor-id-img-dark {
+  display: none;
+}
+
+.hor[data-theme="dark"] .hor-id-img-light {
+  display: none;
+}
+
+.hor[data-theme="dark"] .hor-id-img-dark {
+  display: block;
 }
 
 .hor .hor-id-name {
