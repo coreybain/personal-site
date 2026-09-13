@@ -1131,9 +1131,12 @@ Visual Editor taught me to see a page builder as a constraint and serialisation 
    * truth. `embedGitStats` tells that page to splice the live `gitStats` and
    * `aiUsage` readouts in rather than quoting numbers in prose.
    *
-   * ⚠️ DRAFT COPY — every string below is placeholder prose, and the dates,
-   * employers and education entries are plausible fillers, NOT Corey's real
-   * history. Replace all of it before this page is published.
+   * ⚠️ DRAFT COPY — the summary, experience and capabilities below remain
+   * placeholder prose. Employment dates and employers are plausible fillers,
+   * NOT Corey's real history. Replace that draft copy before publishing.
+   * Education is sourced from Corey's LinkedIn
+   * profile (https://www.linkedin.com/in/coreybaines/details/education/),
+   * verified 13 September 2026.
    */
   resumeDocument: {
     summary:
@@ -1191,10 +1194,24 @@ Visual Editor taught me to see a page builder as a constraint and serialisation 
     ],
     education: [
       {
-        institution: 'University of Technology Sydney',
-        credential: 'BSc, Computer Science',
-        start: '2011',
-        end: '2014',
+        institution: 'Udacity',
+        credential: 'Nano-Degree, iOS Development',
+        start: '2016',
+        end: '2017',
+      },
+      {
+        institution: 'Charles Sturt University',
+        credential:
+          'Graduate Certificate in Mobile Applications Development, Cross platform Development - iOS, Android and Windows',
+        start: '2015',
+        end: '2016',
+      },
+      {
+        institution: 'Udemy',
+        credential:
+          'Online Study in Mobile Applications Development, Swift 2 & Objective-C Development',
+        start: '2014',
+        end: '2016',
       },
     ],
     embedGitStats: true,
