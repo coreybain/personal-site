@@ -1210,7 +1210,7 @@ Visual Editor taught me to see a page builder as a constraint and serialisation 
         "end": "Present"
       },
       {
-        "company": "Telstra Digital",
+        "company": "Telstra",
         "title": "iOS Developer",
         "summary": "iOS development at Telstra Digital.",
         "highlights": [],
