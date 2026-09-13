@@ -88,7 +88,7 @@ export function ResumeHeader({
             <span className="hor-body">{identity.location}</span>
             <span className="hor-vrule" aria-hidden="true" />
             <span className="hor-body">
-              {yearsShipping} years shipping · {companyCount}{" "}
+              {yearsShipping} years of work experience · {companyCount}{" "}
               {companyCount === 1 ? "employer" : "employers"}
             </span>
           </div>

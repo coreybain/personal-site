@@ -1127,108 +1127,134 @@ Visual Editor taught me to see a page builder as a constraint and serialisation 
   ] as Lab[],
 
   /**
-   * The /resume page reads this instead of shipping a PDF as the source of
-   * truth. `embedGitStats` tells that page to splice the live `gitStats` and
-   * `aiUsage` readouts in rather than quoting numbers in prose.
-   *
-   * ⚠️ DRAFT COPY — the summary, experience and capabilities below remain
-   * placeholder prose. Employment dates and employers are plausible fillers,
-   * NOT Corey's real history. Replace that draft copy before publishing.
-   * Education is sourced from Corey's LinkedIn
-   * profile (https://www.linkedin.com/in/coreybaines/details/education/),
-   * verified 13 September 2026.
+   * Resume seed aligned with LinkedIn and Corey's corrections on 14 September
+   * 2026. Promotion years are approximate; months were deliberately omitted.
+   * The live page and PDF read Convex's experienceEntries projection.
    */
   resumeDocument: {
-    summary:
-      'Principal engineer with a decade building the platforms other teams depend on — document automation, compliance, real-time auctions. I work end to end: the architecture, the delivery, and the people around both. For the last two years that has meant running agents in the loop every day, which is why the numbers on this site are measured rather than claimed.',
-    experience: [
+    "education": [
       {
-        company: 'Corporate Interactive',
-        title: 'Principal Engineer',
-        start: '2022',
-        end: 'Present',
-        summary:
-          'Technical lead across four production platforms, owning architecture, delivery standards and the engineering practice around them.',
-        highlights: [
-          'Set the architecture for four platforms serving enterprise customers',
-          'Introduced agent-assisted delivery across the engineering team',
-          'Mentored engineers from mid-level to senior ownership',
-        ],
+        "credential": "Nano-Degree, iOS Development",
+        "end": "2017",
+        "institution": "Udacity",
+        "start": "2016"
       },
       {
-        company: 'Corporate Interactive',
-        title: 'Senior Software Engineer',
-        start: '2018',
-        end: '2022',
-        summary:
-          'Built and shipped the first versions of the document and compliance platforms, moving from feature work into system ownership.',
-        highlights: [
-          'Shipped the first production release of the quoting platform',
-          'Rebuilt the rendering pipeline behind pixel-accurate PDF output',
-          'Established the testing and release process still in use',
-        ],
+        "credential": "Graduate Certificate in Mobile Applications Development, Cross platform Development - iOS, Android and Windows",
+        "end": "2016",
+        "institution": "Charles Sturt University",
+        "start": "2015"
       },
       {
-        company: 'Freelance & contract',
-        title: 'Full-stack Developer',
-        start: '2015',
-        end: '2018',
-        summary:
-          'Independent delivery for small teams and startups — full-stack web work, usually as the only engineer on the project.',
-        highlights: [
-          'Delivered end-to-end web products as sole engineer',
-          'Worked directly with founders on scope and trade-offs',
-          'Learned to ship small, ship often and own the consequences',
-        ],
-      },
+        "credential": "Online Study in Mobile Applications Development, Swift 2 & Objective-C Development",
+        "end": "2016",
+        "institution": "Udemy",
+        "start": "2014"
+      }
     ],
-    capabilities: [
-      'Platform architecture and system design',
-      'TypeScript, React and Next.js at production scale',
-      '.NET and C# services',
-      'Relational data modelling — PostgreSQL and SQL Server',
-      'Real-time systems: websockets, queues, durable workflows',
-      'Cloud delivery on Azure and AWS',
-      'Agent-assisted engineering workflows',
-      'Technical leadership, mentoring and hiring',
+    "embedGitStats": true,
+    "summary": "Principal Engineer at Corporate Interactive, working across its product portfolio: QuoteCloud, TravelDocs, ZeroRisk, SoldOnline and Visual Editor. My responsibilities include architecture, implementation, code review, migrations, production debugging and helping other engineers take ownership of systems. I also build independent web, mobile and desktop products through SpiritDevs, including Pathway, an open-source workspace for coding agents.",
+    "capabilities": [
+      "Platform architecture, migrations and production debugging",
+      "TypeScript, React and Next.js",
+      "Convex, Drizzle and real-time collaboration with Ably",
+      "Document editors, pricing tools and shared web/PDF rendering",
+      "Native apps, offline persistence and synchronisation",
+      "WebSocket systems, integrations and AWS delivery",
+      "Agent-assisted engineering workflows",
+      "Code review, technical leadership and mentoring"
     ],
-    education: [
+    "experience": [
       {
-        institution: 'Udacity',
-        credential: 'Nano-Degree, iOS Development',
-        start: '2016',
-        end: '2017',
+        "company": "Corporate Interactive",
+        "title": "Principal Engineer",
+        "summary": "Principal Engineer at Corporate Interactive, working across its product portfolio: QuoteCloud, TravelDocs, ZeroRisk, SoldOnline and Visual Editor. My responsibilities include architecture, implementation, code review, migrations, production debugging and helping other engineers take ownership of systems.",
+        "highlights": [
+          "QuoteCloud: document and block-editor architecture, pricing and spreadsheet tools, document layout, embedded PDFs, session recovery and shared rendering across the editor, recipient viewer and PDF output. I work on platform migrations, real-time collaboration and integrations including Zapier and Salesforce, using TypeScript, Next.js, React, Convex, Drizzle and Ably.",
+          "TravelDocs: itinerary services and native apps connected to Sabre and QuoteCloud, with work on offline persistence, synchronisation, notifications, widgets, Live Activities and Apple Watch experiences.",
+          "ZeroRisk: location and notification behaviour, SOS and check-in flows, tenant-aware permissions, operator maps and the newer web and Expo platform.",
+          "SoldOnline: live auction interfaces, WebSocket connections, buyer registration, offers, role-based visibility, administration, payments and AWS delivery.",
+          "Visual Editor: responsive page composition, editor interactions, content and asset tooling, caching, custom HTML isolation and the modern Next.js application.",
+          "I define contracts between packages, review and integrate other engineers' work, and plan compatible changes for products customers already use. I also introduced agent-assisted delivery across the engineering team and mentor engineers as they take on broader technical responsibility."
+        ],
+        "start": "2023",
+        "end": "Present"
       },
       {
-        institution: 'Charles Sturt University',
-        credential:
-          'Graduate Certificate in Mobile Applications Development, Cross platform Development - iOS, Android and Windows',
-        start: '2015',
-        end: '2016',
+        "company": "Corporate Interactive",
+        "title": "Senior Software Engineer",
+        "summary": "Built and shipped the first versions of the document and compliance platforms, moving from feature development into system ownership.",
+        "highlights": [
+          "Shipped the first production release of the quoting platform, rebuilt the PDF rendering pipeline and established testing and release processes."
+        ],
+        "start": "2020",
+        "end": "2023"
       },
       {
-        institution: 'Udemy',
-        credential:
-          'Online Study in Mobile Applications Development, Swift 2 & Objective-C Development',
-        start: '2014',
-        end: '2016',
+        "company": "Corporate Interactive",
+        "title": "Software Engineer",
+        "summary": "Joined Corporate Interactive as a Software Engineer before progressing to Senior Software Engineer.",
+        "highlights": [],
+        "start": "2017",
+        "end": "2020"
       },
-    ],
-    embedGitStats: true,
-    /*
-     * `satisfies` checks the literal against the contract; the `as` then widens
-     * the *inferred* type back to `ResumeDocument`.
-     *
-     * Without the second half, `Snapshot['resumeDocument']['embedGitStats']` is
-     * the literal type `true` rather than `boolean` — a boolean literal keeps its
-     * literal type when the contextual type contains it — which makes the
-     * contract unsatisfiable by any document that is not this one. A Convex row
-     * with `embedGitStats: false` could not be assigned to `Snapshot`, and
-     * /resume's `embedGitStats ? … : null` would have a provably dead branch.
-     *
-     * No runtime change: this is types only, and the rendered output is
-     * byte-identical.
-     */
+      {
+        "company": "SpiritDevs",
+        "title": "Full Stack Engineer",
+        "summary": "I build independent web, mobile and desktop products, from the application and backend through to deployment.",
+        "highlights": [
+          "My current projects include Pathway, an open-source workspace for coding agents; PartyBooth, a private event photo and video platform; and Boca, a catalogue and quoting product for a hardware retailer in Niterói, Brazil.",
+          "I also built my personal site to bring together project case studies, Git activity, agent usage and publishing, with browser and native administration. Pintlog is a smaller Swift project for logging beers and where I tried them."
+        ],
+        "start": "2016",
+        "end": "Present"
+      },
+      {
+        "company": "Telstra Digital",
+        "title": "iOS Developer",
+        "summary": "iOS development at Telstra Digital.",
+        "highlights": [],
+        "start": "2016",
+        "end": "2017"
+      },
+      {
+        "company": "Telstra",
+        "title": "Business NBN Resolutions",
+        "summary": "Business NBN resolutions at Telstra.",
+        "highlights": [],
+        "start": "2014",
+        "end": "2017"
+      },
+      {
+        "company": "Telstra",
+        "title": "Corporate Business Manager",
+        "summary": "Corporate business management at Telstra.",
+        "highlights": [],
+        "start": "2013",
+        "end": "2014"
+      },
+      {
+        "company": "Telstra",
+        "title": "Retail Business Sales",
+        "summary": "Retail business sales at Telstra.",
+        "highlights": [],
+        "start": "2013",
+        "end": "2013"
+      },
+      {
+        "company": "Coles",
+        "title": "Customer Service Supervisor",
+        "summary": "Customer service and team supervision at Coles.",
+        "highlights": [
+          "Represented Coles in a leadership capacity at events.",
+          "Team leadership, mentoring and coaching of new staff.",
+          "Participated in recruiting new employees.",
+          "Management experience as Grocery 2IC, with payroll and staff rostering responsibilities."
+        ],
+        "start": "2010",
+        "end": "2013"
+      }
+    ]
   } satisfies ResumeDocument as ResumeDocument,
 
   funEntries,

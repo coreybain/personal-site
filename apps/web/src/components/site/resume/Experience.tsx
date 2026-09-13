@@ -30,10 +30,10 @@ export function Experience({
       <SkyHead
         index="03"
         eyebrow="Experience"
-        title={`${yearsShipping} years of shipping, ${experience.length} roles deep.`}
-        lede={`Across ${companyCount} ${
+        title={`${yearsShipping} years of work experience across ${experience.length} roles.`}
+        lede={`Work across ${companyCount} ${
           companyCount === 1 ? "employer" : "employers"
-        } the shape of the work has stayed the same: own the architecture, own the delivery, and leave the practice better than it was found.`}
+        }, from customer service and business roles to software engineering and technical leadership.`}
         aside={
           <span className="hor-pill">
             <span className="hor-live" aria-hidden="true" />

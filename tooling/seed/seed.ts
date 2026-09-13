@@ -247,7 +247,7 @@ const projects = mock.projects.map((project, index) => ({
   role: project.role,
   /**
    * SKIPPED. `period` is optional and the mock has no engagement dates. The
-   * resume says the Principal Engineer role runs 2022–Present, but attributing
+   * resume says the Principal Engineer role runs 2023–Present, but attributing
    * that span to each individual platform would be a claim the mock never makes.
    */
 
@@ -380,8 +380,9 @@ const labs = mock.labs.map((lab, index) => ({
  *
  * January 1st is the honest reading of a year-only label: the mock asserts the
  * year and says nothing about the month, and boundaries that touch (Senior ends
- * `2022-01-01`, Principal starts `2022-01-01`) are exactly what "2018–2022" then
- * "2022–Present" means. `assertPeriod` only rejects `end < start`.
+ * `2023-01-01`, Principal starts `2023-01-01`) represent the approximate
+ * "2020–2023" then "2023–Present" promotion years, not known promotion days.
+ * `assertPeriod` only rejects `end < start`.
  */
 function yearToCalendarDate(label: string): string {
   return `${label}-01-01`;
@@ -411,7 +412,7 @@ const experienceEntries = mock.resumeDocument.experience.map((role, index) => ({
    * `role: 'Principal Engineer'` and `client: 'Corporate Interactive'`, which is
    * this entry and no other, so pointing it at all five case studies restates
    * what the mock already says rather than guessing. Omitted entirely on the
-   * other two entries: an absent key means "never asked", which is true.
+   * other entries: an absent key means "never asked", which is true.
    */
   ...(role.title === 'Principal Engineer' && role.company === 'Corporate Interactive'
     ? { projectSlugs: mock.projects.map((project) => project.slug) }

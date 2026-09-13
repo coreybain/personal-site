@@ -47,7 +47,7 @@ export function ProfileJsonLd({
   yearsShipping: number;
   computedAt: string;
 }) {
-  const description = `${identity.role} in ${identity.location}, ${yearsShipping} years shipping platforms. ${num(
+  const description = `${identity.role} in ${identity.location}, ${yearsShipping} years of work experience. ${num(
     gitStats.totalContributionsYear,
   )} contributions and ${num(
     aiUsage.totalSessions,
