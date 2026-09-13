@@ -1,6 +1,7 @@
 import Image from "next/image";
 
 import portrait from "@/assets/portrait.jpg";
+import portraitDark from "@/assets/portrait-dark.jpg";
 import type { Identity } from "@/lib/snapshot";
 
 import { CommandCopyPicker } from "./CommandCopyPicker";
@@ -16,8 +17,10 @@ import { CommandCopyPicker } from "./CommandCopyPicker";
 export function PersonalCard({ identity }: { identity: Identity }) {
   return (
     <div className="hor-id-wrap">
-      <span className="hor-id-orbit" aria-hidden="true">
-        <i />
+      <span className="hor-id-orbit-clip" aria-hidden="true">
+        <span className="hor-id-orbit">
+          <i />
+        </span>
       </span>
       <span className="hor-id-orbit hor-id-orbit-b" aria-hidden="true" />
 
@@ -28,8 +31,15 @@ export function PersonalCard({ identity }: { identity: Identity }) {
             alt={`Portrait of ${identity.name}`}
             fill
             sizes="(min-width: 1024px) 340px, 100vw"
-            className="hor-id-img"
+            className="hor-id-img hor-id-img-light"
             priority
+          />
+          <Image
+            src={portraitDark}
+            alt={`Portrait of ${identity.name}`}
+            fill
+            sizes="(min-width: 1024px) 340px, 100vw"
+            className="hor-id-img hor-id-img-dark"
           />
         </div>
 
