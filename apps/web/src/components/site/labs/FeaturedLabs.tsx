@@ -39,6 +39,7 @@ type FeaturedSpec = {
   fallbackLab?: Lab;
   image: string;
   imageAlt: string;
+  imageFit?: "contain" | "cover";
   capture: string;
   liveUrl: string;
   liveLabel: string;
@@ -54,9 +55,10 @@ const FEATURED_SPECS: FeaturedSpec[] = [
   {
     slug: "pathway",
     fallbackLab: PATHWAY_LAB,
-    image: "/images/labs/pathway-repository.png",
-    imageAlt: "GitHub repository preview for SpiritDevs/pathway.",
-    capture: "Public repository / GitHub",
+    image: "/images/labs/pathway-nightly.png",
+    imageAlt: "Pathway Nightly showing the task workspace with the Jarvis agent conversation open.",
+    imageFit: "contain",
+    capture: "Desktop app / Nightly",
     liveUrl: "https://github.com/SpiritDevs/pathway",
     liveLabel: "github.com/SpiritDevs/pathway",
     eyebrow: "Open source · desktop, web + iOS",
@@ -158,6 +160,7 @@ function FeaturedBuildPlate({
             fill
             sizes="(min-width: 1024px) 54vw, 100vw"
             className="labs-feature-image"
+            style={build.imageFit ? { objectFit: build.imageFit } : undefined}
           />
           <span className="labs-feature-grid" aria-hidden="true" />
           <figcaption className="labs-feature-caption">{build.capture}</figcaption>
