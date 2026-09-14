@@ -5,11 +5,13 @@ import { num, stampTime } from "@/components/site/format";
 import { Capabilities } from "@/components/site/resume/Capabilities";
 import { Education } from "@/components/site/resume/Education";
 import { Experience } from "@/components/site/resume/Experience";
+import { PersonalProjects } from "@/components/site/resume/PersonalProjects";
 import { LiveSignal } from "@/components/site/resume/LiveSignal";
 import { ResumeHeader } from "@/components/site/resume/ResumeHeader";
 import { ProfileJsonLd } from "@/components/site/seo";
 import { getSiteData } from "@/lib/data";
 import { deriveResume } from "@/lib/derive";
+import { resumeWithProjectSection } from "@/lib/resumeProjects";
 
 import "./resume.css";
 
@@ -125,11 +127,12 @@ export default async function ResumePage() {
       <section className="hor-sky">
         <div className="hor-shell">
           <Experience
-            experience={resumeDocument.experience}
+            experience={resumeWithProjectSection(resumeDocument).experience}
             companyCount={derived.companyCount}
             yearsShipping={derived.yearsShipping}
             tenureYears={derived.tenureYears}
           />
+          <PersonalProjects />
           <Capabilities
             languages={gitStats.languages}
             capabilities={resumeDocument.capabilities}

@@ -21,7 +21,7 @@ export function Education({
 }) {
   return (
     <section id="education" className="res-section scroll-mt-20 pt-16 pb-16 sm:pt-20 sm:pb-20">
-      <SkyHead index="05" eyebrow="Education" title="Where it started." />
+      <SkyHead index="06" eyebrow="Education" title="Where it started." />
 
       <div className="grid gap-3">
         {education.map((entry, i) => (

@@ -136,6 +136,9 @@ export type ResumePdfProps = {
 
   /** The Resume Document. `experience` is printed in the order it arrives. */
   resume: ResumePdfDocument;
+  /** Selected independent projects, shared with the public résumé page. */
+  personalProjects?: readonly { name: string; description: string; url: string }[];
+  moreProjectsUrl?: string;
 
   /**
    * Trailing-year git aggregates. Required even when

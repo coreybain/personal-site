@@ -419,6 +419,8 @@ export function ResumePdf({
   identity,
   availabilityVisible,
   resume,
+  personalProjects = [],
+  moreProjectsUrl,
   gitStats,
   computedAt,
   generatedAt,
@@ -501,6 +503,24 @@ export function ResumePdf({
             so "72pt fits below the heading" would be satisfied on a page where
             the 115pt grid plainly does not — stranding the heading. A
             `wrap={false}` group makes the pair move together, exactly. */}
+        {personalProjects.length > 0 ? (
+          <>
+            <SectionHead>SELECTED PERSONAL PROJECTS</SectionHead>
+            {personalProjects.map((project, i) => (
+              <View key={project.name} style={i === 0 ? undefined : { marginTop: 8 }} wrap={false}>
+                <Text style={styles.roleTitle}>{project.name}</Text>
+                <Text style={styles.roleSummary}>{project.description}</Text>
+                <Link style={styles.micro} src={project.url}>{bareUrl(project.url)}</Link>
+              </View>
+            ))}
+            {moreProjectsUrl ? (
+              <Text style={[styles.micro, styles.roleGap]}>
+                More independent projects and details: <Link src={moreProjectsUrl}>{bareUrl(moreProjectsUrl)}</Link>
+              </Text>
+            ) : null}
+          </>
+        ) : null}
+
         {resume.capabilities.length > 0 ? (
           <View style={styles.capBlock} wrap={false}>
             <SectionHead>CAPABILITIES</SectionHead>

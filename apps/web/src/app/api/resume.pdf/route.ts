@@ -2,6 +2,7 @@ import { renderResumePdf, resumePdfFilename } from "@home/pdf";
 import type { ResumePdfProps } from "@home/pdf";
 
 import { getSiteData } from "@/lib/data";
+import { moreProjectsUrl, resumeProjects, resumeWithProjectSection } from "@/lib/resumeProjects";
 import { SITE_URL } from "@/lib/seo";
 
 /**
@@ -125,7 +126,9 @@ export async function GET(): Promise<Response> {
   const props: ResumePdfProps = {
     identity,
     availabilityVisible: identity.availabilityVisible,
-    resume: resumeDocument,
+    resume: resumeWithProjectSection(resumeDocument),
+    personalProjects: resumeProjects,
+    moreProjectsUrl,
     gitStats,
     computedAt,
     siteUrl: RESUME_URL,
