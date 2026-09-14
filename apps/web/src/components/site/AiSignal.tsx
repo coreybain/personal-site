@@ -75,7 +75,7 @@ export function AiSignal({
 
           <p className="hor-micro mt-5 max-w-[46ch]">
             Not a side experiment. Agents are the delivery method: every platform
-            below was specified, reviewed and shipped with one in the loop.
+            above was specified, reviewed and shipped with one in the loop.
           </p>
 
           <div className="mt-5 border-t border-[var(--hor-line-soft)] pt-1">
