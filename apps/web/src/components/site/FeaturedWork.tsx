@@ -97,7 +97,7 @@ export function FeaturedWork({ projects }: { projects: Project[] }) {
   return (
     <section id="work" className="scroll-mt-20 pt-16 sm:pt-20 lg:pt-24">
       <SkyHead
-        index="03"
+        index="02"
         eyebrow="Featured work"
         title={
           projects.length > 0

@@ -87,6 +87,14 @@ export default async function HomePage() {
     computedAt,
   } = await getSiteData();
 
+  const homepageProjects = projects.filter((project) => project.slug !== "soldonline");
+  const homepageAiUsage = {
+    ...aiUsage,
+    topProjects: aiUsage.topProjects.filter(
+      (project) => project.name.toLowerCase().replace(/\s+/g, "") !== "soldonline",
+    ),
+  };
+
   return (
     <main>
       {/* Person + WebSite, rendered server-side from the snapshot this page
@@ -97,7 +105,7 @@ export default async function HomePage() {
         identity={identity}
         gitStats={gitStats}
         aiUsage={aiUsage}
-        projects={projects}
+        projects={homepageProjects}
       />
 
       {/* ── above the horizon: calm ───────────────────────────────── */}
@@ -108,7 +116,7 @@ export default async function HomePage() {
             identity={identity}
             gitStats={gitStats}
             aiUsage={aiUsage}
-            projects={projects}
+            projects={homepageProjects}
           />
         </div>
       </section>
@@ -120,9 +128,25 @@ export default async function HomePage() {
         <div className="hor-deck-grid" aria-hidden="true" />
         <div className="hor-shell pb-16 sm:pb-20">
           <GitSignal gitStats={gitStats} />
+        </div>
+      </div>
+
+      <Boundary direction="out" />
+
+      <section className="hor-sky">
+        <div className="hor-shell pb-16 sm:pb-20">
+          <FeaturedWork projects={homepageProjects} />
+        </div>
+      </section>
+
+      <Boundary label="AI-native delivery" />
+
+      <div className="hor-deck-zone">
+        <div className="hor-deck-grid" aria-hidden="true" />
+        <div className="hor-shell pb-16 sm:pb-20">
           {/* The cadence figures divide by the same window the heatmap
               draws, so the week count is read once and handed to both. */}
-          <AiSignal aiUsage={aiUsage} weeks={gitStats.calendar.length} />
+          <AiSignal aiUsage={homepageAiUsage} weeks={gitStats.calendar.length} />
         </div>
       </div>
 
@@ -131,7 +155,6 @@ export default async function HomePage() {
       {/* ── back above the horizon: calm again ────────────────────── */}
       <section className="hor-sky">
         <div className="hor-shell">
-          <FeaturedWork projects={projects} />
           <LifeStrip
             labs={labs}
             favoriteLabSlug={favoriteLabSlug}

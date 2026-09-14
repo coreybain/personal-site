@@ -6,7 +6,7 @@ import { num, pct } from "./format";
 const AGENT_FILL = ["var(--hor-l4)", "var(--hor-l2)"] as const;
 
 /**
- * Deck zone, panel 02 — how the work actually gets made.
+ * Deck zone, panel 03 — how the work actually gets made.
  *
  * `weeks` is `gitStats.calendar.length`, passed in rather than reached for, and
  * that is the point of the prop: every "a week" figure on this panel is divided
@@ -50,7 +50,7 @@ export function AiSignal({
   return (
     <section id="ai" className="mt-14 scroll-mt-20 sm:mt-16">
       <DeckHead
-        index="02"
+        index="03"
         title="AI-native delivery"
         meta={`Same ${weeks} weeks · measured, not estimated`}
       />
