@@ -48,7 +48,7 @@ export function AiSignal({
   ];
 
   return (
-    <section id="ai" className="mt-14 scroll-mt-20 sm:mt-16">
+    <section id="ai" className="scroll-mt-20 pt-14 sm:pt-16">
       <DeckHead
         index="03"
         title="AI-native delivery"
