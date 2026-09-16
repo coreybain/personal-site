@@ -67,6 +67,7 @@ export * from './ingest';
 export * from './knowledge';
 export * from './contact';
 export * from './rateLimit';
+export * from './management';
 
 import { ContactMessageSchema } from './contact';
 import {
@@ -82,6 +83,7 @@ import {
 } from './ingest';
 import { KnowledgeDocSchema } from './knowledge';
 import { RateLimitSchema } from './rateLimit';
+import { ManagementAuditSchema, ManagementReceiptSchema, ManagementTokenSchema } from './management';
 import { ExperienceEntrySchema, ResumeDocumentSchema } from './resume';
 import { SiteSettingsSchema } from './settings';
 import { SnapshotSchema } from './snapshot';
@@ -104,6 +106,9 @@ export const tableSchemas = {
   posts: PostSchema,
   funEntries: FunEntrySchema,
   ingestTokens: IngestTokenSchema,
+  managementTokens: ManagementTokenSchema,
+  managementReceipts: ManagementReceiptSchema,
+  managementAudit: ManagementAuditSchema,
   aiUsageDays: AiUsageDaySchema,
   healthDays: HealthDaySummarySchema,
   gitRepoMap: GitRepoMapEntrySchema,

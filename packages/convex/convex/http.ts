@@ -1,16 +1,17 @@
 /**
- * http.ts — the public HTTP surface. Two routes, both machine-to-machine.
+ * http.ts — the public HTTP surface. All routes are machine-to-machine.
  *
  * ```
  * POST /ingest/ai-usage   scope ai-usage:write   producer: tooling/collector (launchd, daily)
  * POST /ingest/health     scope health:write     producer: apps/ios (HKObserverQuery)
+ * POST /management/v1    scoped management operations; local stdio MCP client
  * ```
  *
  * These exist because of the Ingest entry in the glossary: some data cannot be
  * pulled. The homepage's git Signal is a cron *calling out* to GitHub, but no
  * server can reach into `~/.codex` on a laptop or HealthKit on a phone, so those
- * two push. Nothing else does. There is no third route, and adding one to serve
- * a browser would be a mistake — the web app talks to Convex over the client
+ * two push. Management uses separate credentials and a fixed operation allowlist
+ * implemented in managementHttp.ts. The web app talks to Convex over the client
  * protocol with a Clerk session, which is authenticated, typed, reactive and
  * already there.
  *
@@ -73,6 +74,7 @@ import { httpAction } from './_generated/server';
 import type { ActionCtx } from './_generated/server';
 import { SNAPSHOT_REFOLD_FUNCTION, parseAiUsageBody, parseHealthBody } from './ingest';
 import type { IngestProblem, ParseResult } from './ingest';
+import { managementGateway } from './managementHttp';
 
 /* ------------------------------------------------------------------ *
  * Limits
@@ -494,6 +496,8 @@ const healthIngest = httpAction(async (ctx, request) => {
  * ------------------------------------------------------------------ */
 
 const http = httpRouter();
+
+http.route({ path: '/management/v1', method: 'POST', handler: managementGateway });
 
 http.route({ path: '/ingest/ai-usage', method: 'POST', handler: aiUsageIngest });
 http.route({ path: '/ingest/health', method: 'POST', handler: healthIngest });

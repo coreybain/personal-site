@@ -214,6 +214,79 @@ No secret belongs in `packages/convex/.env.local` other than what the CLI puts
 there. Anything a Convex *function* needs at runtime goes in the Convex
 dashboard, because functions do not see this repo's `.env` files at all.
 
+## Management MCP setup (first milestone)
+
+This milestone adds protected reads and the post draft/publish workflow. The
+implementation has **not been deployed**; the commands below are operator setup
+instructions. The existing browser admin, native authentication and ingest
+credentials remain in place. See the [MCP client setup](../mcp/README.md) for
+connection configuration and the supported tools.
+
+Management credentials are separate from ingest tokens and are bound to the
+existing `ADMIN_CLERK_USER_ID` and one deployment environment. Set
+`MANAGEMENT_ENVIRONMENT` on the **Convex deployment**, explicitly to
+`development` or `production`. Missing or invalid configuration denies access;
+the client environment must match, and changing the configured owner invalidates
+credentials issued for the previous owner.
+
+From `packages/convex`, after confirming the CLI targets the intended development
+deployment:
+
+```sh
+bunx convex env set MANAGEMENT_ENVIRONMENT development
+bunx convex dev --once
+```
+
+For production, set `MANAGEMENT_ENVIRONMENT=production` in that deployment's
+dashboard and deploy through the existing CI process described below. Neither
+environment gains an MCP credential just by deploying. Keep separate client
+configurations and credentials; never give the MCP process a deploy key.
+
+After deployment, bootstrap a credential through the Convex CLI, authenticated
+with your deployment access. Replace the expiry placeholder with a future UTC
+timestamp such as `YYYY-MM-DDTHH:mm:ss.sssZ`. This example grants editorial reads
+and draft saves only; add `content:publish` only when the client should be able
+to publish. Other scope families are listed in the MCP README.
+
+```sh
+umask 077
+management_token_file="$(mktemp "${TMPDIR:-/tmp}/personal-site-management.XXXXXX")"
+bunx convex run managementTokens:issueForMachine '{
+  "name": "Pathway development editor",
+  "environment": "development",
+  "scopes": ["content:read", "content:write"],
+  "expiresAt": "REPLACE_WITH_FUTURE_UTC_TIMESTAMP"
+}' > "$management_token_file"
+```
+
+The private temporary file is outside the repository and contains the one-time
+issuance response, including `token` and `tokenId`. Transfer the secret directly
+to the MCP client's private configuration or credential store; keep it out of
+terminal logs, shell history and tool arguments. Remove the temporary file after
+secure storage. Convex retains only its SHA-256 digest, so a lost secret must be
+replaced. For a production bootstrap, explicitly select `--prod` and use
+`"environment": "production"`; never reuse the development credential.
+
+The Clerk owner can call `managementTokens:issue`, `list` and `revoke`; list
+returns metadata without hashes or secrets. Before native credential controls
+exist, CLI recovery remains available without a browser session:
+
+```sh
+bunx convex run managementTokens:revokeForMachine '{"tokenId":"TOKEN_ID_FROM_ISSUANCE"}'
+```
+
+Use `--prod` when revoking a production credential. Revocation is immediate and
+idempotent; ordinary MCP tokens cannot issue or revoke credentials. Every
+protected operation checks owner, environment, expiry, revocation and scope
+inside its database transaction, including idempotent retries.
+
+Writes store their result and metadata-only audit entry atomically with the
+content change. Retry receipts last **seven days**; the hourly cleanup removes
+at most **100 expired receipts** per run. Reusing a key with a different request
+fails, and retries after the retention window require checking current content.
+`lastUsedAt` records successful writes and write replays; read-only requests do
+not update it.
+
 ## Ask Corey keys (ADR 015 — build phase 6)
 
 Ask Corey needs **one** provider key: `OPENAI_API_KEY`. It embeds the corpus and

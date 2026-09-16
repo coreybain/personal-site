@@ -166,6 +166,14 @@ export const ingestScope = v.union(
   v.literal("git:write"),
 );
 
+/** Dedicated agent management scopes, independent of ingest authorization. */
+export const managementScope = v.union(
+  v.literal("content:read"), v.literal("content:write"), v.literal("content:publish"),
+  v.literal("profile:read"), v.literal("profile:write"), v.literal("media:write"),
+  v.literal("inbox:read"), v.literal("inbox:write"), v.literal("operations:run"),
+);
+export const managementEnvironment = v.union(v.literal("development"), v.literal("production"));
+
 /**
  * Contact triage state. Mirrors `ContactStatusSchema`.
  *
@@ -765,6 +773,21 @@ export default defineSchema({
     .index("by_slug", ["slug"])
     .index("by_published_publishedAt", ["published", "publishedAt"]),
 
+  /** Private editorial changes; public readers only use the posts table. */
+  managementPostDrafts: defineTable({
+    postId: v.id("posts"),
+    /** Public/base revision this edit was prepared against. */
+    baseRevision: v.number(),
+    revision: v.number(),
+    slug,
+    title: v.string(),
+    excerpt: v.string(),
+    body: v.string(),
+    coverImage: mediaAsset,
+    tags: v.array(v.string()),
+    updatedAt: isoDateTime,
+  }).index("by_postId", ["postId"]),
+
   /**
    * Fun Entries — dated life items, photo-first, usually captured on the phone.
    * Mirrors `FunEntrySchema` via `funEntryFields`.
@@ -835,17 +858,51 @@ export default defineSchema({
     // Admin list order, independent of the resume's own selection.
     .index("by_sortOrder", ["sortOrder"]),
 
+  /** Mirrors ManagementTokenSchema; only a digest is persisted. */
+  managementTokens: defineTable({
+    name: v.string(),
+    hashedToken: v.string(),
+    ownerSubject: v.string(),
+    environment: managementEnvironment,
+    scopes: v.array(managementScope),
+    expiresAt: isoDateTime,
+    lastUsedAt: v.union(isoDateTime, v.null()),
+    revokedAt: v.union(isoDateTime, v.null()),
+  }).index("by_hashedToken", ["hashedToken"])
+    .index("by_ownerSubject", ["ownerSubject"]),
+
+  /** Mirrors ManagementReceiptSchema; pruned after the retry window. */
+  managementReceipts: defineTable({
+    ownerSubject: v.string(),
+    environment: managementEnvironment,
+    idempotencyKey: v.string(),
+    operation: v.string(),
+    requestHash: v.string(),
+    resultJson: v.string(),
+    createdAt: isoDateTime,
+    expiresAt: isoDateTime,
+  }).index("by_owner_environment_key", ["ownerSubject", "environment", "idempotencyKey"])
+    .index("by_expiresAt", ["expiresAt"]),
+
+  /** Mirrors ManagementAuditSchema. Bodies and secret material are excluded. */
+  managementAudit: defineTable({
+    ownerSubject: v.string(),
+    actorTokenId: v.string(),
+    environment: managementEnvironment,
+    operation: v.string(),
+    entityType: v.string(),
+    entityId: v.string(),
+    oldRevision: v.union(v.number(), v.null()),
+    newRevision: v.union(v.number(), v.null()),
+    changedFields: v.array(v.string()),
+    createdAt: isoDateTime,
+  }).index("by_createdAt", ["createdAt"])
+    .index("by_actorTokenId", ["actorTokenId"]),
+
   /**
-   * Scoped bearer tokens for machine Ingest (ADR 006a). Mirrors
-   * `IngestTokenSchema`.
-   *
-   * Never a user session: the HealthKit push, the AI-usage Collector and the git
-   * job all authenticate with one of these, and each is independently revocable.
-   * Only the hash is stored — the plaintext is shown once, at issue.
-   *
-   * There is no `createdAt`: a token row is inserted once and never rewritten,
-   * so Convex's own `_creationTime` *is* the issue time, and a duplicate field
-   * would just be a second thing to keep true.
+   * Scoped bearer tokens for machine Ingest (ADR 006a). Mirrors IngestTokenSchema.
+   * HealthKit, the AI-usage collector and the git job use separately revocable
+   * credentials. Only the digest is stored; `_creationTime` is the issue time.
    */
   ingestTokens: defineTable({
     /** Human label shown in admin, e.g. `'MacBook collector'`, `'iPhone 16 Pro'`. */

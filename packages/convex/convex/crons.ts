@@ -105,4 +105,12 @@ crons.daily(
   {},
 );
 
+// Receipts guarantee retry safety for seven days; keep cleanup bounded.
+crons.hourly(
+  'prune expired management receipts',
+  { minuteUTC: 37 },
+  internal.managementReceipts.pruneExpired,
+  {},
+);
+
 export default crons;
