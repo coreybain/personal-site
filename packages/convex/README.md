@@ -216,7 +216,7 @@ dashboard, because functions do not see this repo's `.env` files at all.
 
 ## Management MCP setup (first milestone)
 
-This milestone adds protected reads and the post draft/publish workflow. The
+This milestone adds protected reads and post, project and Labs draft/publish workflows. The
 implementation has **not been deployed**; the commands below are operator setup
 instructions. The existing browser admin, native authentication and ingest
 credentials remain in place. See the [MCP client setup](../mcp/README.md) for

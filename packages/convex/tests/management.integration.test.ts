@@ -4,6 +4,8 @@ import { convexTest } from 'convex-test';
 import schema from '../convex/schema';
 import { managementSha256, type ManagementScope } from '../convex/lib/managementAuth';
 import { api } from '../convex/_generated/api';
+import { READ_OPERATIONS, WRITE_OPERATIONS } from '../convex/managementReads';
+import { toolDefinitions } from '../../mcp/src/tools';
 
 const modules = {
   '../convex/_generated/api.js': () => import('../convex/_generated/api.js'),
@@ -11,6 +13,10 @@ const modules = {
   '../convex/managementReads.ts': () => import('../convex/managementReads'),
   '../convex/managementPosts.ts': () => import('../convex/managementPosts'),
   '../convex/managementTokens.ts': () => import('../convex/managementTokens'),
+  '../convex/managementProjects.ts': () => import('../convex/managementProjects'),
+  '../convex/managementLabs.ts': () => import('../convex/managementLabs'),
+  '../convex/projects.ts': () => import('../convex/projects'),
+  '../convex/labs.ts': () => import('../convex/labs'),
   '../convex/posts.ts': () => import('../convex/posts'),
   '../convex/knowledge.ts': () => import('../convex/knowledge'),
 };
@@ -44,6 +50,61 @@ async function setup(scopes: ManagementScope[] = ['content:read', 'content:write
 }
 
 describe('management HTTP with actual Convex dispatch', () => {
+  it('advertises exactly the operations accepted by the gateway', () => {
+    assert.deepEqual(toolDefinitions.map((tool) => tool.name).sort(), [...READ_OPERATIONS, ...WRITE_OPERATIONS].sort());
+  });
+
+  for (const kind of ['project', 'lab'] as const) {
+    it(`routes ${kind} drafts, blocks publication bypasses and publishes only reviewed edits`, async () => {
+      const { t, tokenId, call } = await setup();
+      const fields = kind === 'project' ? {
+        slug: 'http-project', title: 'Original project', client: 'Example', attribution: 'Corporate Interactive',
+        role: 'Engineer', summary: 'Public summary', stack: ['TypeScript'], media: [], links: {}, accent: 'violet', accentHue: 270,
+      } : {
+        slug: 'http-lab', title: 'Original lab', summary: 'Public summary', repoFullName: 'example/lab', language: 'TypeScript',
+        coverImage: { kind: 'image', url: 'https://example.com/lab.png', alt: 'Lab screenshot', sanitised: true },
+        links: { repo: 'https://github.com/example/lab' },
+      };
+      const forbidden = await call(`create_${kind}_draft`, { ...fields, published: true, idempotencyKey: `${kind}-bypass` });
+      assert.equal(forbidden.status, 400);
+      const created = await call(`create_${kind}_draft`, { ...fields, idempotencyKey: `${kind}-create` });
+      assert.equal(created.status, 200, await created.clone().text());
+      const first = (await created.json()).result;
+      const identifier = { [`${kind}Id`]: first[`${kind}Id`] };
+      const publicRead = () => kind === 'project'
+        ? t.query(api.projects.getBySlug, { slug: fields.slug })
+        : t.query(api.labs.getBySlug, { slug: fields.slug });
+      assert.equal(await publicRead(), null);
+      const published = await call(`publish_${kind}`, {
+        ...identifier, expectedRevision: first.revision, expectedDraftRevision: 0, idempotencyKey: `${kind}-publish`,
+      });
+      assert.equal(published.status, 200, await published.clone().text());
+      const live = (await published.json()).result;
+      const staged = await call(`update_${kind}_draft`, {
+        ...identifier, expectedRevision: live.revision, expectedDraftRevision: 0,
+        patch: { title: 'Reviewed replacement' }, idempotencyKey: `${kind}-stage`,
+      });
+      assert.equal(staged.status, 200, await staged.clone().text());
+      const draft = (await staged.json()).result;
+      assert.equal((await publicRead())?.title, fields.title);
+      const detail = (await (await call(`get_${kind}`, identifier)).json()).result;
+      assert.equal(detail[kind].title, fields.title);
+      assert.equal(detail.draft.title, 'Reviewed replacement');
+      await t.run((ctx) => ctx.db.patch(tokenId, { scopes: ['content:write'] }));
+      const publishInput = {
+        ...identifier, expectedRevision: live.revision, expectedDraftRevision: draft.draftRevision,
+        idempotencyKey: `${kind}-publish-reviewed`,
+      };
+      assert.equal((await call(`publish_${kind}`, publishInput)).status, 403);
+      assert.equal((await publicRead())?.title, fields.title);
+      await t.run((ctx) => ctx.db.patch(tokenId, { scopes: ['content:publish'] }));
+      assert.equal((await call(`publish_${kind}`, publishInput)).status, 200);
+      assert.equal((await publicRead())?.title, 'Reviewed replacement');
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      await t.finishInProgressScheduledFunctions();
+    });
+  }
+
   it('blocks strangers, guessed credentials and read-only tokens without changing content', async () => {
     const { t, tokenId, call } = await setup(['content:read']);
     const input = {

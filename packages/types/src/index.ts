@@ -68,6 +68,9 @@ export * from './knowledge';
 export * from './contact';
 export * from './rateLimit';
 export * from './management';
+export * from './managementLab';
+export * from './managementPost';
+export * from './managementProject';
 
 import { ContactMessageSchema } from './contact';
 import {
@@ -84,6 +87,9 @@ import {
 import { KnowledgeDocSchema } from './knowledge';
 import { RateLimitSchema } from './rateLimit';
 import { ManagementAuditSchema, ManagementReceiptSchema, ManagementTokenSchema } from './management';
+import { ManagementLabDraftSchema } from './managementLab';
+import { ManagementPostDraftSchema } from './managementPost';
+import { ManagementProjectDraftSchema } from './managementProject';
 import { ExperienceEntrySchema, ResumeDocumentSchema } from './resume';
 import { SiteSettingsSchema } from './settings';
 import { SnapshotSchema } from './snapshot';
@@ -109,6 +115,9 @@ export const tableSchemas = {
   managementTokens: ManagementTokenSchema,
   managementReceipts: ManagementReceiptSchema,
   managementAudit: ManagementAuditSchema,
+  managementLabDrafts: ManagementLabDraftSchema,
+  managementPostDrafts: ManagementPostDraftSchema,
+  managementProjectDrafts: ManagementProjectDraftSchema,
   aiUsageDays: AiUsageDaySchema,
   healthDays: HealthDaySummarySchema,
   gitRepoMap: GitRepoMapEntrySchema,

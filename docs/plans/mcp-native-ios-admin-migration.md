@@ -27,8 +27,27 @@ made for this slice.
   cache propagation, deployed credentials and a Pathway connection remain
   acceptance checks for rollout.
 
-Next: add project/Labs/Fun writes, profile/settings/experience and inbox changes;
-migrate code-owned résumé projects; add media and operational tools. Then run
+The security-reviewed foundation was committed locally as `aa981e4`. The next
+slice adds ten project/Labs draft operations, bringing the server to 30 tools.
+It preserves collector statistics and curation, validates project media before
+publication, and supports explicit clearing of optional case-study fields.
+Project/Labs detail reads return both the base record and private draft. Shared
+human operations retain their owner-only authorization.
+
+Combined validation now passes 87 backend tests, 27 MCP tests, 30 web tests and
+all seven workspace typechecks. The changed website files also pass lint. An
+independent source review found no remaining must-fix issue in this slice.
+
+The public Labs catalogue and featured plates now respect missing/unpublished
+Pathway rows instead of recreating a hard-coded fallback. A read-only check
+confirmed that the configured live backend already has a published Pathway row;
+this change does not require inventing or seeding a replacement. Catalogue and
+server-render regression tests cover its absence. Page cache refresh still
+follows the existing ISR behavior.
+
+Next: add Fun writes, profile/settings/experience and inbox changes; featuring
+and reordering; migrate code-owned résumé projects; add media and operational
+tools. Then run
 the deployment/client acceptance exercise before starting the native shell and
 remaining iOS parity work. Existing browser administration stays available.
 

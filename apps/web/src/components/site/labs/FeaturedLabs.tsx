@@ -4,7 +4,6 @@ import type { CSSProperties } from "react";
 import { DeckHead } from "@/components/site/Panel";
 import type { LabsDerived } from "@/lib/derive";
 import { activePhrase, band, cadence, repoUrl } from "@/lib/derive";
-import { PATHWAY_LAB } from "@/lib/labsCatalog";
 import type { Lab } from "@/lib/snapshot";
 
 /**
@@ -32,11 +31,6 @@ import type { Lab } from "@/lib/snapshot";
 /** The editorial half of a plate: everything the `Lab` contract has no field for. */
 type FeaturedSpec = {
   slug: string;
-  /**
-   * Keeps a newly launched editorial plate visible until its Convex row has
-   * reached production. Once the row exists, live telemetry wins.
-   */
-  fallbackLab?: Lab;
   image: string;
   imageAlt: string;
   imageFit?: "contain" | "cover";
@@ -54,7 +48,6 @@ type FeaturedBuild = FeaturedSpec & { lab: Lab };
 const FEATURED_SPECS: FeaturedSpec[] = [
   {
     slug: "pathway",
-    fallbackLab: PATHWAY_LAB,
     image: "/images/labs/pathway-nightly.png",
     imageAlt: "Pathway Nightly showing the task workspace with the Jarvis agent conversation open.",
     imageFit: "contain",
@@ -227,8 +220,7 @@ function FeaturedBuildPlate({
 
 export function FeaturedLabs({ labs }: Pick<LabsDerived, "labs">) {
   const builds: FeaturedBuild[] = FEATURED_SPECS.flatMap((spec) => {
-    const lab =
-      labs.find((candidate) => candidate.slug === spec.slug) ?? spec.fallbackLab;
+    const lab = labs.find((candidate) => candidate.slug === spec.slug);
     return lab ? [{ ...spec, lab }] : [];
   });
 

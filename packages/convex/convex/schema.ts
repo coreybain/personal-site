@@ -685,6 +685,30 @@ export default defineSchema({
     // `published` to one value, and admin wants both in a single ordered read.
     .index("by_sortOrder", ["sortOrder"]),
 
+  /** Private case-study edits; no publication, placement or collector statistics. */
+  managementProjectDrafts: defineTable({
+    projectId: v.id("projects"),
+    baseRevision: v.number(),
+    revision: v.number(),
+    slug,
+    title: v.string(),
+    client: v.string(),
+    attribution: v.string(),
+    role: v.string(),
+    period: v.optional(v.string()),
+    summary: v.string(),
+    problem: v.optional(v.string()),
+    approach: v.optional(v.string()),
+    outcomes: v.optional(v.array(v.string())),
+    body: v.optional(v.string()),
+    stack: v.array(v.string()),
+    media: v.array(mediaAsset),
+    links: v.object({ live: v.optional(v.string()), press: v.optional(v.string()) }),
+    accent: v.string(),
+    accentHue: v.number(),
+    updatedAt: isoDateTime,
+  }).index("by_projectId", ["projectId"]),
+
   /**
    * Labs — personal side projects. Mirrors `LabSchema`.
    *
@@ -772,6 +796,21 @@ export default defineSchema({
   })
     .index("by_slug", ["slug"])
     .index("by_published_publishedAt", ["published", "publishedAt"]),
+
+  /** Private Lab edits. Generated stats and live curation are never copied here. */
+  managementLabDrafts: defineTable({
+    labId: v.id("labs"),
+    baseRevision: v.number(),
+    revision: v.number(),
+    slug,
+    title: v.string(),
+    summary: v.string(),
+    repoFullName: v.string(),
+    language: v.string(),
+    coverImage: mediaAsset,
+    links: v.object({ repo: v.string(), live: v.optional(v.string()), docs: v.optional(v.string()) }),
+    updatedAt: isoDateTime,
+  }).index("by_labId", ["labId"]),
 
   /** Private editorial changes; public readers only use the posts table. */
   managementPostDrafts: defineTable({

@@ -2,7 +2,7 @@
 
 Local stdio MCP server for the personal site. An MCP client launches this package; it calls the authenticated Convex management gateway over HTTPS. The website does not need to be running locally.
 
-This first slice provides editorial reads and a complete post draft/publish workflow. Project/Labs writes, résumé/settings edits, media uploads, native navigation changes and browser-admin removal are later work. Keep the existing admin and iOS app available for those operations.
+The server provides **30 tools: 15 reads and 15 writes**, including separate draft and publication workflows for posts, projects and Labs. Résumé/settings edits, featuring/reordering, media uploads, native navigation changes and browser-admin removal are later work. Keep the existing admin and iOS app available for those operations.
 
 ## Install and verify
 
@@ -70,10 +70,16 @@ Connect and call `get_management_status` first to verify the environment, creden
 | `create_post_draft`, `update_post_draft` | `content:write` | Save unpublished changes. |
 | `discard_post_draft` | `content:write` | Permanently discard staged changes; preserve the base post. |
 | `publish_post`, `unpublish_post` | `content:publish` | Change public visibility/content and schedule knowledge updates. |
+| `create_project_draft`, `update_project_draft` | `content:write` | Save unpublished case-study changes. |
+| `discard_project_draft` | `content:write` | Permanently discard staged case-study changes; preserve the base project. |
+| `publish_project`, `unpublish_project` | `content:publish` | Change public visibility/content after enforcing media sanitisation. |
+| `create_lab_draft`, `update_lab_draft` | `content:write` | Save unpublished personal-project changes. |
+| `discard_lab_draft` | `content:write` | Permanently discard staged changes; preserve the base Labs entry. |
+| `publish_lab`, `unpublish_lab` | `content:publish` | Change public visibility/content while preserving repository statistics. |
 
 Collection tools accept `limit` (1–50) and `cursor` (omit or null for the first page). They return `{items, continueCursor, isDone}`. Pass `continueCursor` unchanged into the next request; do not construct cursors. `list_posts` also accepts a `published` filter. Lists omit large post/case-study bodies; use detail tools for those.
 
-Detail tools take explicit record IDs: `postId`, `projectId`, `labId`, `entryId` or `messageId`. `get_post` returns `{post, draft}` with the current base post plus a staged draft or null. Other detail reads return a record or null. The saved résumé currently excludes selected personal projects injected by website code; moving those into editable backend data remains part of the migration.
+Detail tools take explicit record IDs: `postId`, `projectId`, `labId`, `entryId` or `messageId`. `get_post`, `get_project` and `get_lab` return `{post, draft}`, `{project, draft}` and `{lab, draft}` respectively. Each includes the current base record plus a staged draft or null. Other detail reads return a record or null. The saved résumé currently excludes selected personal projects injected by website code; moving those into editable backend data remains part of the migration.
 
 ## Post editing workflow
 
@@ -87,11 +93,32 @@ Use `post.revision` as `expectedRevision`, and `draft.revision` as `expectedDraf
 
 Edits made through the current browser/native clients can change the base post while an MCP editorial draft exists. A base-revision conflict requires reviewing both versions. `discard_post_draft` can remove the exact staged revision after that review; it does not discard the whole post or restore old content. Do not silently replace expected revisions and retry.
 
+## Project and Labs editing
+
+Projects and Labs use the same read → draft → review → publish workflow. Substitute `projectId` or `labId`, read `project.revision` or `lab.revision` for `expectedRevision`, and use `draft.revision` (zero for no draft) as `expectedDraftRevision`. Every write needs a new `idempotencyKey`, retained only for an identical retry. Update, publish and discard require both revision expectations; unpublish requires the base revision only.
+
+Each result contains the relevant record ID, `slug`, `revision`, `draftRevision`, `published`, `status` and `changed`. New records start unpublished at the end of their collection. Existing featured selections, sort order and statistics cannot be supplied in these tools. Updating a draft does not change the base record, its public content or cron-managed metrics. Discard permanently removes only the staged changes and advances the base revision so an old revision pair cannot accidentally match a later draft.
+
+For **projects**, creation requires `slug`, `title`, `client`, `attribution`, `role`, `summary`, `stack`, `media`, `links`, `accent` and `accentHue`. Optional narrative fields are `period`, `problem`, `approach`, `outcomes` and Markdown `body`.
+
+- Title/client: 160 characters; attribution: 200; role: 120; summary: 400; period: 60.
+- Problem/approach: 4,000 characters each; outcomes: at most 12 lines of 280 characters; body: 40,000 characters, including an empty string.
+- Stack: at most 40 nonempty entries of 60 characters; media: at most 24 assets; accent: 64 characters; hue: 0–360.
+- `links` accepts only optional HTTP(S) `live` and `press` URLs. Case studies cannot contain repository links.
+
+In a project patch, `null` explicitly clears `period`, `problem`, `approach`, `outcomes` or `body`; omitting one preserves it. Arrays and `links` replace whole values, so include every item/link to keep. `media: []` clears imagery, and `links: {}` clears links. Media may be unsanitised in drafts, but publication requires `sanitised: true` on every asset. Check the actual asset before asserting that flag; a draft save does not perform image sanitisation.
+
+For **Labs**, creation requires `slug`, `title`, `summary`, `repoFullName`, `language`, `coverImage` and `links`. Title is bounded to 160 characters, summary to 400, repository name to 140 and language to 60. `repoFullName` is GitHub `owner/name`. `links` requires an HTTP(S) `repo` URL and optionally `live`/`docs`; a GitHub URL must name the same repository. The backend checks repository uniqueness and the effective link/name pair when publishing. Patches preserve omitted fields and replace supplied objects whole; to remove optional links, send the complete `links` object containing those to keep. Required fields cannot be cleared with null.
+
+Project/Labs assets use the same fields as post covers, with tighter bounds: alt/caption 300 characters, nonempty storage key up to 256 characters, and optional whole-pixel dimensions from 1–20,000. No tool accepts `published`, `featured`, `sortOrder`, `liveStats`, `aiBuildStats` or stored revision fields inside draft content. Publication and revision expectations have their own explicit operations/arguments.
+
+## Retries and publication
+
 An idempotency key identifies one intended change, preferably a UUID. Reuse it only for an identical retry after a timeout or lost response. Changing the operation or input requires a new key. The server never automatically retries writes; a timeout/cancellation does not prove that the backend did not commit the change. Backend receipts expire after seven days, so reconcile older uncertain writes with current data rather than assuming an old key will deduplicate forever.
 
 Post limits match the editorial backend: slug 96 characters, title 200, excerpt 400, body 120,000, up to 12 tags of 40 characters. A cover asset needs `kind` (`image` or `video`), an HTTP(S) `url` and `alt` text (400 characters maximum). Optional fields are `caption`, `width`, `height`, `storageKey` and `sanitised`. Upload the file through the existing approved workflow first; this slice accepts metadata and does not upload local files.
 
-Publication schedules knowledge indexing. Public page caches may refresh later, so a successful write does not prove every cached page or search answer already changed.
+Publication schedules knowledge indexing. Public page caches and derived snapshots may refresh later, so a successful write does not prove every cached page, dashboard or search answer already changed. Unpublishing preserves the record and any staged editorial changes for later review.
 
 ## Errors and operating limits
 

@@ -42,6 +42,19 @@ on replay, private drafts, transaction rollback and credential redaction.
 
 ## Deployment boundary
 
+The follow-up project/Labs slice applies the same authorization, transactional
+receipts and separate publication scopes. Draft input schemas exclude
+`published`, generated statistics, featuring and ordering. Existing human
+project/Labs mutations retain their owner check, and applying a staged edit
+preserves current statistics and curation. Project publication still enforces
+the existing sanitised-media requirement. Regression tests cover these gates,
+stale drafts, revoked credentials, rollback and publish-time uniqueness checks.
+
+The public Labs catalogue and featured plates no longer synthesize a Pathway
+entry after its backend row is unpublished. This closes a visibility mismatch;
+normal cached pages still need their existing ISR refresh before a change is
+visible everywhere.
+
 Management is not deployed or enabled by this review. Before rollout, confirm
 the intended deployment's `ADMIN_CLERK_USER_ID` and `MANAGEMENT_ENVIRONMENT`,
 issue a minimally scoped credential through the owner/deployment-authorized

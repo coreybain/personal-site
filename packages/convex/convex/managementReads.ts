@@ -9,9 +9,16 @@ export const READ_OPERATIONS = [
   'list_labs', 'get_lab', 'get_resume', 'list_experience', 'get_experience', 'get_site_settings',
   'list_fun_entries', 'get_fun_entry', 'list_inbox', 'get_inbox_message',
 ] as const;
-export const WRITE_OPERATIONS = [
+export const POST_WRITE_OPERATIONS = [
   'create_post_draft', 'update_post_draft', 'publish_post', 'unpublish_post', 'discard_post_draft',
 ] as const;
+export const PROJECT_WRITE_OPERATIONS = [
+  'create_project_draft', 'update_project_draft', 'publish_project', 'unpublish_project', 'discard_project_draft',
+] as const;
+export const LAB_WRITE_OPERATIONS = [
+  'create_lab_draft', 'update_lab_draft', 'publish_lab', 'unpublish_lab', 'discard_lab_draft',
+] as const;
+export const WRITE_OPERATIONS = [...POST_WRITE_OPERATIONS, ...PROJECT_WRITE_OPERATIONS, ...LAB_WRITE_OPERATIONS] as const;
 
 function badInput(message: string): never {
   throw new ConvexError({ code: 'invalid-input', message });
@@ -81,9 +88,17 @@ export async function readManagement(ctx: QueryCtx, args: {
       return { post: post ? { ...post, revision: post.revision ?? 0 } : null, draft };
     }
     case 'list_projects': return await list(ctx, 'projects', args.input);
-    case 'get_project': return await detail(ctx, 'projects', args.input, 'projectId');
+    case 'get_project': {
+      const project = await detail(ctx, 'projects', args.input, 'projectId');
+      const draft = project ? await ctx.db.query('managementProjectDrafts').withIndex('by_projectId', (q) => q.eq('projectId', project._id)).unique() : null;
+      return { project: project ? { ...project, revision: project.revision ?? 0 } : null, draft };
+    }
     case 'list_labs': return await list(ctx, 'labs', args.input);
-    case 'get_lab': return await detail(ctx, 'labs', args.input, 'labId');
+    case 'get_lab': {
+      const lab = await detail(ctx, 'labs', args.input, 'labId');
+      const draft = lab ? await ctx.db.query('managementLabDrafts').withIndex('by_labId', (q) => q.eq('labId', lab._id)).unique() : null;
+      return { lab: lab ? { ...lab, revision: lab.revision ?? 0 } : null, draft };
+    }
     case 'list_experience': return await list(ctx, 'experienceEntries', args.input);
     case 'get_experience': return await detail(ctx, 'experienceEntries', args.input, 'entryId');
     case 'list_fun_entries': return await list(ctx, 'funEntries', args.input);

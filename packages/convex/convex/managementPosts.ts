@@ -1,7 +1,8 @@
 /** Private machine post writes. Authorization, revisions and receipts share one transaction. */
-import { ConvexError, type Infer, type GenericValidator, v } from 'convex/values';
+import { ConvexError, type Infer, v } from 'convex/values';
 import type { Doc, Id } from './_generated/dataModel';
 import { internalMutation, type MutationCtx } from './_generated/server';
+import { matchesValidator } from './lib/managementValidation';
 import { requireManagement } from './lib/managementAuth';
 import { beginManagementWrite, completeManagementWrite } from './lib/managementWrites';
 import {
@@ -27,31 +28,6 @@ const managementPostRequest = v.union(
 export const managementPostWriteArgs = { ...auth, request: managementPostRequest };
 export type ManagementPostRequest = Infer<typeof managementPostRequest>;
 export type ManagementPostWriteArgs = ManagementPostRequest & { token: string; environment: Infer<typeof managementEnvironment> };
-/** Structural validation for the HTTP boundary, derived from the Convex contract. */
-function matchesValidator(value: unknown, validator: GenericValidator): boolean {
-  switch (validator.kind) {
-    case 'null': return value === null;
-    case 'string': return typeof value === 'string';
-    case 'float64': return typeof value === 'number' && Number.isFinite(value);
-    case 'boolean': return typeof value === 'boolean';
-    case 'literal': return value === validator.value;
-    case 'union': return validator.members.some((member: GenericValidator) => matchesValidator(value, member));
-    case 'array': return Array.isArray(value) && value.every((item) => matchesValidator(item, validator.element));
-    case 'object': {
-      if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
-      const object = value as Record<string, unknown>;
-      const prototype = Object.getPrototypeOf(object);
-      if (prototype !== Object.prototype && prototype !== null) return false;
-      if (Object.keys(object).some((key) => !Object.prototype.hasOwnProperty.call(validator.fields, key))) return false;
-      return Object.entries(validator.fields).every(([key, field]) =>
-        Object.prototype.hasOwnProperty.call(object, key) ? matchesValidator(object[key], field) : field.isOptional === 'optional',
-      );
-    }
-    // This contract is JSON-only. New validator types must be handled explicitly.
-    default: return false;
-  }
-}
-
 export function parseManagementPostRequest(value: unknown): ManagementPostRequest {
   if (!matchesValidator(value, managementPostRequest)) {
     throw new ConvexError({ code: 'invalid-input', message: 'Invalid post management operation or input fields.' });
