@@ -840,6 +840,31 @@
   height: 9px;
 }
 
+/* Leading separators stay with their detail and are clipped at each row start. */
+.hor .hor-hero-details {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem calc(1.5rem + 1px);
+  overflow: hidden;
+}
+
+.hor .hor-hero-details > span {
+  position: relative;
+  min-width: 0;
+}
+
+.hor .hor-hero-details > span + span::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: calc(-0.75rem - 1px);
+  top: 50%;
+  width: 1px;
+  height: 12px;
+  transform: translateY(-50%);
+  background: var(--hor-line-strong);
+}
+
 /* ------------------------------------------------------------------ *
  * ID card — the hero's right column
  * ------------------------------------------------------------------ */

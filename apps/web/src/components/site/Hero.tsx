@@ -70,13 +70,11 @@ export function Hero({
 
           <div className="hor-rise mt-6 sm:mt-7" style={delay(180)}>
             <p className="hor-h2">{identity.role}</p>
-            <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+            <div className="hor-hero-details mt-3">
               <span className="hor-body" style={{ color: "var(--hor-ink)" }}>
                 {identity.company}
               </span>
-              <span className="hor-vrule" aria-hidden="true" />
               <span className="hor-body">{identity.location}</span>
-              <span className="hor-vrule" aria-hidden="true" />
               <span className="hor-body">
                 {gitStats.currentStreakDays}-day streak, unbroken
               </span>
