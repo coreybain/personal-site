@@ -80,17 +80,19 @@ export const IS_INDEXABLE = process.env.NEXT_PUBLIC_SITE_INDEXABLE === "true";
 /**
  * Paths that are disallowed to crawlers **even after cutover**.
  *
- *   /api       Route handlers — the iOS upload endpoint, Ask Corey, the résumé
- *              PDF. Never a page.
+ *   /api       Route handlers — Ask Corey, the résumé PDF, cache revalidation.
+ *              Never a page.
+ *   /preview   The private drafts area. Code-gated and `noindex` already; this
+ *              keeps crawlers from even requesting it.
  *
  * (`/admin` used to be here too. The browser admin has been removed — content
  * is managed through the MCP server — so the path no longer exists to guard.)
  *
- * This is the same prefix `sitemap.ts` refuses to emit. Independent
+ * `sitemap.ts` emits neither. Independent
  * mechanisms are deliberate — robots.txt is a request, a `<meta>` is an
  * instruction, and an absent sitemap entry is silence.
  */
-export const CRAWLER_DISALLOW = ["/api"] as const;
+export const CRAWLER_DISALLOW = ["/api", "/preview"] as const;
 
 /**
  * Crawlers that fetch a page only to draw its link preview, and are let in

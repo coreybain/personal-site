@@ -223,4 +223,6 @@ export const BUDGETS: Budget[] = [
  * libraries reach a public route" — is still asserted in `budget.ts` (see
  * `CONTRABAND`).
  */
-export const IGNORED_PREFIXES = ['/admin', '/api', '/_global-error'];
+// `/preview` is the private, code-gated drafts area (docs/plans/preview-area.md):
+// not a public surface, and it carries interactive review tooling on purpose.
+export const IGNORED_PREFIXES = ['/admin', '/api', '/_global-error', '/preview'];

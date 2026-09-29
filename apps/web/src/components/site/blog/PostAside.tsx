@@ -18,15 +18,18 @@ export function PostAside({
   toc,
   url,
   title,
+  share = true,
 }: {
   toc: TocEntry[];
   url: string;
   title: string;
+  /** False in the preview area, so an unpublished post's link cannot be shared by accident. */
+  share?: boolean;
 }) {
   return (
     <aside className="blog-aside">
       {toc.length >= 2 ? <PostToc toc={toc} /> : null}
-      <PostShare url={url} title={title} />
+      {share ? <PostShare url={url} title={title} /> : null}
     </aside>
   );
 }

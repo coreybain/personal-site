@@ -812,9 +812,97 @@ export default defineSchema({
      */
     publishedAt: v.union(isoDateTime, v.null()),
     published: v.boolean(),
+
+    /* ---- scheduling (docs/plans/preview-area.md) --------------------- *
+     * Metadata about *when* the post goes live, not content: none of these
+     * bump `revision`, so scheduling never reads as an edit. */
+
+    /** UTC instant the post (or its pending changes) publishes at; null or absent = not scheduled. */
+    scheduledFor: v.optional(v.union(isoDateTime, v.null())),
+    /** Publish attempts made for the current schedule. Reset on (re)schedule and on success. */
+    scheduleAttempts: v.optional(v.number()),
+    /** Why the current schedule could not publish. The cron skips a schedule while this is set. */
+    scheduleFailure: v.optional(v.union(
+      v.object({ message: v.string(), failedAt: isoDateTime, attempts: v.number() }),
+      v.null(),
+    )),
+    /**
+     * `${revision}:${draftRevision}` last opened in the preview area. The list
+     * flags a scheduled post "edited since you viewed it" when this differs
+     * from the current key.
+     */
+    previewSeenKey: v.optional(v.union(v.string(), v.null())),
   })
     .index("by_slug", ["slug"])
-    .index("by_published_publishedAt", ["published", "publishedAt"]),
+    .index("by_published_publishedAt", ["published", "publishedAt"])
+    .index("by_scheduledFor", ["scheduledFor"]),
+
+  /* ------------------------------------------------------------------ *
+   * The preview area (docs/plans/preview-area.md)
+   * ------------------------------------------------------------------ */
+
+  /**
+   * Single-use sign-in codes, issued through MCP. Only a SHA-256 hash is kept;
+   * a code expires ten minutes after issue and is spent on first redemption.
+   */
+  previewCodes: defineTable({
+    hashedCode: v.string(),
+    expiresAt: v.number(),
+    usedAt: v.union(v.number(), v.null()),
+    createdAt: v.number(),
+  }).index("by_hashedCode", ["hashedCode"]),
+
+  /**
+   * A signed-in browser. The bearer secret lives only in the browser's
+   * httpOnly cookie; this row holds its hash. `expiresAt` rolls forward as the
+   * session is used (30 days from last use).
+   */
+  previewSessions: defineTable({
+    hashedSession: v.string(),
+    createdAt: v.number(),
+    lastSeenAt: v.number(),
+    expiresAt: v.number(),
+    revokedAt: v.union(v.number(), v.null()),
+  }).index("by_hashedSession", ["hashedSession"]),
+
+  /** Failed code redemptions, counted to lock code entry after too many guesses. */
+  previewFailures: defineTable({
+    at: v.number(),
+  }).index("by_at", ["at"]),
+
+  /**
+   * Reviewer feedback on a post, anchored to a quoted passage or an image.
+   * A reaction, a note, or both. See the plan for the lifecycle: the agent
+   * resolves with a short reply; ✅-only items are standing instructions and
+   * are never resolved; everything is archived when the post publishes.
+   */
+  postFeedback: defineTable({
+    postId: v.id("posts"),
+    anchor: v.union(
+      v.object({
+        kind: v.literal("text"),
+        quote: v.string(),
+        /** Up to ~32 characters either side, to disambiguate repeated quotes. */
+        prefix: v.string(),
+        suffix: v.string(),
+      }),
+      v.object({ kind: v.literal("image"), src: v.string(), alt: v.string() }),
+    ),
+    reaction: v.union(
+      v.literal("love"),
+      v.literal("unclear"),
+      v.literal("dislike"),
+      v.null(),
+    ),
+    note: v.union(v.string(), v.null()),
+    status: v.union(v.literal("open"), v.literal("resolved"), v.literal("archived")),
+    /** The agent's 1–3 sentence account of what it changed. */
+    resolution: v.union(v.string(), v.null()),
+    resolvedAt: v.union(isoDateTime, v.null()),
+    createdAt: isoDateTime,
+    updatedAt: isoDateTime,
+  }).index("by_postId", ["postId"])
+    .index("by_status", ["status"]),
 
   /** Private Lab edits. Generated stats and live curation are never copied here. */
   managementLabDrafts: defineTable({

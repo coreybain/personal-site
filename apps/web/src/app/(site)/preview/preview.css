@@ -1,0 +1,539 @@
+/*
+ * preview.css — the private /preview area (docs/plans/preview-area.md).
+ *
+ * Same contract as blog.css: everything nests under `.hor`, every class is
+ * prefixed `pv-`, and colours come from `--hor-*` tokens so both themes work.
+ * Warnings and destructive actions use `--hor-sun`, the palette's one warm hue.
+ */
+
+/* ---- sign-in ------------------------------------------------------ */
+
+.hor .pv-gate {
+  max-width: 40rem;
+}
+
+.hor .pv-code-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 0.6rem;
+}
+
+.hor .pv-input {
+  height: 43px;
+  padding-inline: 0.9rem;
+  border-radius: 12px;
+  border: 1px solid var(--hor-line-strong);
+  background: var(--hor-panel);
+  color: var(--hor-ink);
+  font: inherit;
+}
+
+.hor textarea.pv-input {
+  width: 100%;
+  height: auto;
+  padding: 0.6rem 0.75rem;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.hor .pv-input:focus-visible {
+  outline: 2px solid var(--hor-focus);
+  outline-offset: 1px;
+}
+
+.hor .pv-code-input {
+  width: 12rem;
+  font-size: 1.05rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.hor .pv-error {
+  margin-top: 0.6rem;
+  color: var(--hor-sun);
+  font-size: 0.8125rem;
+}
+
+.hor .pv-ok {
+  margin-top: 0.6rem;
+  color: var(--hor-ink-2);
+  font-size: 0.8125rem;
+}
+
+/* ---- the list ------------------------------------------------------ */
+
+.hor .pv-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.hor .pv-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1.5rem;
+  padding: 1.1rem 1.25rem;
+  color: inherit;
+  text-decoration: none;
+}
+
+.hor .pv-row:hover .pv-row-title {
+  color: var(--hor-accent);
+}
+
+.hor .pv-row-main {
+  display: grid;
+  gap: 0.3rem;
+  min-width: 0;
+  flex: 1 1 22rem;
+}
+
+.hor .pv-row-title {
+  font-size: 1.05rem;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: var(--hor-ink);
+  transition: color 200ms var(--hor-ease);
+}
+
+.hor .pv-row-excerpt {
+  font-size: 0.8125rem;
+  color: var(--hor-ink-3);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+  overflow: hidden;
+}
+
+.hor .pv-row-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  justify-content: flex-end;
+}
+
+.hor .pv-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding-inline: 0.6rem;
+  border-radius: 999px;
+  border: 1px solid var(--hor-line);
+  background: var(--hor-chip);
+  color: var(--hor-ink-2);
+  font-size: 0.72rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.hor .pv-chip-scheduled {
+  border-color: color-mix(in srgb, var(--hor-accent) 45%, transparent);
+  color: var(--hor-ink);
+  background: var(--hor-accent-wash);
+}
+
+.hor .pv-chip-live {
+  color: var(--hor-ink);
+}
+
+.hor .pv-chip-failed {
+  border-color: color-mix(in srgb, var(--hor-sun) 55%, transparent);
+  color: var(--hor-sun);
+}
+
+.hor .pv-flag {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding-inline: 0.55rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--hor-sun) 14%, transparent);
+  color: var(--hor-ink);
+  font-size: 0.72rem;
+}
+
+.hor .pv-flag-quiet {
+  background: var(--hor-chip);
+  color: var(--hor-ink-2);
+}
+
+/* ---- the action bar -------------------------------------------------- */
+
+.hor .pv-bar-shell {
+  position: relative;
+  z-index: 5;
+  padding-top: 5.5rem;
+}
+
+.hor .pv-bar-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.hor .pv-bar {
+  border: 1px solid var(--hor-line);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--hor-panel) 88%, transparent);
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  box-shadow: var(--hor-shadow-sky);
+  padding: 0.9rem 1rem;
+}
+
+.hor .pv-bar-inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1.25rem;
+}
+
+.hor .pv-bar-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1rem;
+  align-items: baseline;
+  font-size: 0.875rem;
+  color: var(--hor-ink-2);
+}
+
+.hor .pv-bar-status strong {
+  color: var(--hor-ink);
+  font-weight: 600;
+}
+
+.hor .pv-bar-status .pv-error {
+  margin: 0;
+}
+
+.hor .pv-bar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.hor .pv-bar .hor-btn {
+  height: 36px;
+  padding-inline: 0.9rem;
+  font-size: 0.8125rem;
+}
+
+.hor .pv-btn-danger {
+  background: color-mix(in srgb, var(--hor-sun) 85%, var(--hor-bg));
+  color: #1a1206;
+}
+
+.hor .pv-confirm {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.hor .pv-schedule {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem;
+  margin-top: 0.9rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--hor-line-soft);
+}
+
+.hor .pv-field {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.hor .pv-link {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--hor-ink-2);
+  font: inherit;
+  font-size: 0.8125rem;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.hor .pv-link:hover {
+  color: var(--hor-accent);
+}
+
+.hor .pv-link-danger:hover {
+  color: var(--hor-sun);
+}
+
+/* ---- feedback: highlights and badges ---------------------------------- *
+ * `::highlight()` rules are global (the CSS parser rejects them under a
+ * descendant selector); the `pv-` names only exist on preview pages. */
+
+.hor .pv-feedback {
+  position: relative;
+}
+
+::highlight(pv-love) {
+  background-color: color-mix(in srgb, #3fb37f 26%, transparent);
+}
+
+::highlight(pv-unclear) {
+  background-color: var(--hor-accent-wash);
+  text-decoration: underline wavy var(--hor-accent);
+}
+
+::highlight(pv-dislike) {
+  background-color: color-mix(in srgb, var(--hor-sun) 24%, transparent);
+}
+
+::highlight(pv-note) {
+  background-color: var(--hor-chip);
+  text-decoration: underline dotted var(--hor-ink-3);
+}
+
+.hor .pv-badge {
+  position: absolute;
+  z-index: 6;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: 1px solid var(--hor-line-strong);
+  background: var(--hor-panel);
+  box-shadow: var(--hor-shadow-sky);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  transition: transform 200ms var(--hor-spring);
+}
+
+.hor .pv-badge:hover {
+  transform: scale(1.12);
+}
+
+.hor .pv-badge-resolved {
+  opacity: 0.55;
+}
+
+.hor .pv-badge-dot {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--hor-accent);
+}
+
+/* ---- feedback: bubbles ------------------------------------------------ */
+
+.hor .pv-bubble {
+  position: absolute;
+  z-index: 8;
+  display: grid;
+  gap: 0.5rem;
+  min-width: 11rem;
+  max-width: min(22rem, calc(100vw - 2rem));
+  padding: 0.45rem;
+  border-radius: 14px;
+  border: 1px solid var(--hor-line-strong);
+  background: var(--hor-panel);
+  box-shadow: var(--hor-shadow-panel), var(--hor-shadow-sky);
+}
+
+.hor .pv-bubble-item {
+  padding: 0.7rem;
+  width: min(18rem, calc(100vw - 2.5rem));
+}
+
+.hor .pv-bubble-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.hor .pv-bubble-end {
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.hor .pv-bubble .hor-btn {
+  height: 32px;
+  padding-inline: 0.8rem;
+  font-size: 0.78rem;
+}
+
+.hor .pv-emoji {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: none;
+  font-size: 18px;
+  cursor: pointer;
+  transition: background-color 150ms var(--hor-ease), transform 200ms var(--hor-spring);
+}
+
+.hor .pv-emoji:hover {
+  background: var(--hor-chip);
+  transform: translateY(-1px) scale(1.08);
+}
+
+.hor .pv-emoji-on {
+  background: var(--hor-accent-wash);
+  border-color: color-mix(in srgb, var(--hor-accent) 45%, transparent);
+}
+
+.hor .pv-emoji-sm {
+  width: 30px;
+  height: 30px;
+  font-size: 15px;
+}
+
+.hor .pv-note {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--hor-ink);
+  white-space: pre-wrap;
+}
+
+.hor .pv-note-editor {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 16rem;
+}
+
+.hor .pv-resolution {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.6rem;
+  border-radius: 10px;
+  background: var(--hor-chip);
+}
+
+.hor .pv-resolution p {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--hor-ink-2);
+}
+
+.hor .pv-float-error {
+  position: fixed;
+  bottom: 5rem;
+  left: 1rem;
+  z-index: 70;
+  padding: 0.6rem 0.8rem;
+  border-radius: 10px;
+  background: var(--hor-panel);
+  box-shadow: var(--hor-shadow-sky);
+}
+
+/* ---- feedback: the panel ---------------------------------------------- */
+
+.hor .pv-panel-toggle {
+  position: fixed;
+  left: 1rem;
+  bottom: 1rem;
+  z-index: 65;
+}
+
+.hor .pv-panel {
+  position: fixed;
+  left: 1rem;
+  bottom: 4.5rem;
+  z-index: 66;
+  width: min(24rem, calc(100vw - 2rem));
+  max-height: min(70vh, 40rem);
+  overflow-y: auto;
+  padding: 1rem;
+  border-radius: 16px;
+  border: 1px solid var(--hor-line-strong);
+  background: var(--hor-panel);
+  box-shadow: var(--hor-shadow-panel), var(--hor-shadow-sky);
+}
+
+.hor .pv-panel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.hor .pv-panel-heading {
+  margin-top: 1rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--hor-ink-2);
+  cursor: default;
+}
+
+.hor .pv-panel ul {
+  display: grid;
+  gap: 0.6rem;
+  margin-top: 0.5rem;
+}
+
+.hor .pv-panel-item {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.6rem;
+  border-radius: 10px;
+  background: var(--hor-chip);
+}
+
+.hor .pv-panel-jump {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+  text-align: left;
+  background: none;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.hor .pv-panel-jump:disabled {
+  cursor: default;
+}
+
+.hor .pv-panel-quote {
+  font-size: 0.8125rem;
+  color: var(--hor-ink-2);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+.hor .pv-panel-resolution {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--hor-ink-3);
+}
+
+.hor .pv-panel-empty {
+  margin-top: 0.4rem;
+  font-size: 0.8125rem;
+  color: var(--hor-ink-3);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hor .pv-badge,
+  .hor .pv-emoji {
+    transition: none !important;
+  }
+
+  .hor .pv-badge:hover,
+  .hor .pv-emoji:hover {
+    transform: none;
+  }
+}

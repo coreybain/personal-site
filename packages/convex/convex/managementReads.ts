@@ -5,13 +5,16 @@ import type { Doc, TableNames } from './_generated/dataModel';
 import { requireManagement } from './lib/managementAuth';
 
 export const READ_OPERATIONS = [
-  'get_management_status', 'list_posts', 'get_post', 'list_projects', 'get_project',
+  'get_management_status', 'list_posts', 'get_post', 'list_post_feedback', 'list_projects', 'get_project',
   'list_labs', 'get_lab', 'get_resume', 'list_experience', 'get_experience', 'get_site_settings',
   'list_fun_entries', 'get_fun_entry', 'list_inbox', 'get_inbox_message',
 ] as const;
 export const POST_WRITE_OPERATIONS = [
   'create_post_draft', 'update_post_draft', 'publish_post', 'unpublish_post', 'discard_post_draft',
+  'schedule_post', 'unschedule_post', 'resolve_post_feedback',
 ] as const;
+/** Handled by `previewAccess.manage`, outside receipts: a code must exist only in its one response. */
+export const PREVIEW_OPERATIONS = ['create_preview_code', 'revoke_preview_sessions'] as const;
 export const PROJECT_WRITE_OPERATIONS = [
   'create_project_draft', 'update_project_draft', 'publish_project', 'unpublish_project', 'discard_project_draft',
 ] as const;
@@ -56,7 +59,7 @@ async function detail<T extends ReadableTable>(ctx: QueryCtx, table: T, input: u
 /** Large Markdown bodies and private message text are detail reads, never list payloads. */
 function summary(row: Record<string, unknown>) {
   const keys = ['_id', '_creationTime', 'slug', 'title', 'company', 'name', 'type', 'status',
-    'published', 'publishedAt', 'featured', 'sortOrder', 'occurredAt', 'createdAt', 'startDate', 'endDate'];
+    'published', 'publishedAt', 'scheduledFor', 'scheduleFailure', 'featured', 'sortOrder', 'occurredAt', 'createdAt', 'startDate', 'endDate'];
   return { ...Object.fromEntries(keys.filter((key) => row[key] !== undefined).map((key) => [key, row[key]])), revision: row.revision ?? 0 };
 }
 
@@ -80,12 +83,32 @@ export async function readManagement(ctx: QueryCtx, args: {
     case 'get_management_status':
       readInput(args.input, []);
       return { environment: actor.environment, token: { name: actor.name, scopes: actor.scopes },
-        supportedOperations: [...READ_OPERATIONS, ...WRITE_OPERATIONS] };
+        supportedOperations: [...READ_OPERATIONS, ...WRITE_OPERATIONS, ...PREVIEW_OPERATIONS] };
     case 'list_posts': return await list(ctx, 'posts', args.input);
     case 'get_post': {
       const post = await detail(ctx, 'posts', args.input, 'postId');
       const draft = post ? await ctx.db.query('managementPostDrafts').withIndex('by_postId', (q) => q.eq('postId', post._id)).first() : null;
       return { post: post ? { ...post, revision: post.revision ?? 0 } : null, draft };
+    }
+    case 'list_post_feedback': {
+      const object = readInput(args.input, ['postId', 'status']);
+      const status = object.status ?? 'open';
+      if (status !== 'open' && status !== 'resolved' && status !== 'all') badInput('status must be open, resolved or all.');
+      const postId = object.postId === undefined ? null : typeof object.postId === 'string' ? ctx.db.normalizeId('posts', object.postId) : null;
+      if (object.postId !== undefined && !postId) badInput('Invalid postId.');
+      const rows = postId
+        ? await ctx.db.query('postFeedback').withIndex('by_postId', (q) => q.eq('postId', postId)).collect()
+        : status === 'all'
+          ? (await ctx.db.query('postFeedback').collect()).filter((row) => row.status !== 'archived')
+          : await ctx.db.query('postFeedback').withIndex('by_status', (q) => q.eq('status', status)).collect();
+      const items = rows
+        .filter((row) => row.status !== 'archived' && (status === 'all' || row.status === status))
+        .map((row) => ({
+          feedbackId: row._id, postId: row.postId, anchor: row.anchor, reaction: row.reaction, note: row.note,
+          status: row.status, resolution: row.resolution, createdAt: row.createdAt,
+          standing: row.reaction === 'love' && row.note === null,
+        }));
+      return { items, meaning: { love: 'Keep this; do not change it in later edits.', unclear: 'Reword or explain this.', dislike: 'Rewrite or remove this.' } };
     }
     case 'list_projects': return await list(ctx, 'projects', args.input);
     case 'get_project': {

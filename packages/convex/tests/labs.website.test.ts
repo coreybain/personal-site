@@ -16,6 +16,11 @@ const modules = {
   '../convex/labs.ts': () => import('../convex/labs'),
   '../convex/managementLabs.ts': () => import('../convex/managementLabs'),
   '../convex/knowledge.ts': () => import('../convex/knowledge'),
+  '../convex/siteCache.ts': () => import('../convex/siteCache'),
+  '../convex/alerts.ts': () => import('../convex/alerts'),
+  '../convex/postSchedule.ts': () => import('../convex/postSchedule'),
+  '../convex/previewAccess.ts': () => import('../convex/previewAccess'),
+  '../convex/preview.ts': () => import('../convex/preview'),
   '../convex/snapshotBuild.ts': () => import('../convex/snapshotBuild'),
 };
 const owner = 'website-labs-test-owner';

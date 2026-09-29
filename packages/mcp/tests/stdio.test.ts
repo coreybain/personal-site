@@ -73,8 +73,11 @@ for (const runtime of ['bun', 'node'] as const) {
 
     test('initializes and advertises only the scoped explicit tools', async () => {
       const { tools } = await client.listTools();
-      expect(tools).toHaveLength(30);
-      expect(tools.map(tool => tool.name).sort()).toEqual(toolDefinitions.map(tool => tool.name).sort());
+      // Every gateway operation, plus the one local tool (upload_media).
+      expect(tools).toHaveLength(toolDefinitions.length + 1);
+      expect(tools.map(tool => tool.name).sort()).toEqual([...toolDefinitions.map(tool => tool.name), 'upload_media'].sort());
+      expect(tools.find(tool => tool.name === 'upload_media')?.annotations?.readOnlyHint).toBe(false);
+      expect(tools.find(tool => tool.name === 'list_post_feedback')?.annotations?.readOnlyHint).toBe(true);
       expect(tools.find(tool => tool.name === 'get_management_status')?.annotations?.readOnlyHint).toBe(true);
       expect(tools.find(tool => tool.name === 'publish_post')?.annotations?.readOnlyHint).toBe(false);
       expect(tools.find(tool => tool.name === 'discard_post_draft')?.annotations?.destructiveHint).toBe(true);

@@ -4,7 +4,7 @@ import { convexTest } from 'convex-test';
 import schema from '../convex/schema';
 import { managementSha256, type ManagementScope } from '../convex/lib/managementAuth';
 import { api } from '../convex/_generated/api';
-import { READ_OPERATIONS, WRITE_OPERATIONS } from '../convex/managementReads';
+import { READ_OPERATIONS, WRITE_OPERATIONS, PREVIEW_OPERATIONS } from '../convex/managementReads';
 import { toolDefinitions } from '../../mcp/src/tools';
 
 const modules = {
@@ -19,6 +19,11 @@ const modules = {
   '../convex/labs.ts': () => import('../convex/labs'),
   '../convex/posts.ts': () => import('../convex/posts'),
   '../convex/knowledge.ts': () => import('../convex/knowledge'),
+  '../convex/siteCache.ts': () => import('../convex/siteCache'),
+  '../convex/alerts.ts': () => import('../convex/alerts'),
+  '../convex/postSchedule.ts': () => import('../convex/postSchedule'),
+  '../convex/previewAccess.ts': () => import('../convex/previewAccess'),
+  '../convex/preview.ts': () => import('../convex/preview'),
 };
 const token = `mgmt_${'b'.repeat(64)}`;
 const owner = 'management-http-test-owner';
@@ -51,7 +56,7 @@ async function setup(scopes: ManagementScope[] = ['content:read', 'content:write
 
 describe('management HTTP with actual Convex dispatch', () => {
   it('advertises exactly the operations accepted by the gateway', () => {
-    assert.deepEqual(toolDefinitions.map((tool) => tool.name).sort(), [...READ_OPERATIONS, ...WRITE_OPERATIONS].sort());
+    assert.deepEqual(toolDefinitions.map((tool) => tool.name).sort(), [...READ_OPERATIONS, ...WRITE_OPERATIONS, ...PREVIEW_OPERATIONS].sort());
   });
 
   for (const kind of ['project', 'lab'] as const) {

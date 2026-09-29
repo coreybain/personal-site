@@ -30,7 +30,8 @@ if (existsSync(envPath)) {
   for (const line of readFileSync(envPath, 'utf8').split('\n')) {
     const match = /^\s*([A-Z0-9_]+)\s*=\s*(.*?)\s*$/.exec(line);
     if (!match) continue;
-    const [, key, raw] = match;
+    const key = match[1] ?? '';
+    const raw = match[2] ?? '';
     if (!(KEYS as readonly string[]).includes(key) || process.env[key] !== undefined) continue;
     process.env[key] = raw.replace(/^(['"])(.*)\1$/, '$2');
   }

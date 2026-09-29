@@ -275,6 +275,12 @@ export async function updatePost(ctx: MutationCtx, args: ExistingPostArgs & Post
   // sourceForIndex`, which excludes it deliberately.
   const INDEXED_FIELDS = ['slug', 'title', 'excerpt', 'body', 'tags'] as const;
 
+  // A live post's public page changed, so its cached copies must go now —
+  // cover images included, which the indexer ignores.
+  if (row.published && changed) {
+    await ctx.scheduler.runAfter(0, internal.siteCache.revalidatePosts, {});
+  }
+
   if (row.published && INDEXED_FIELDS.some((field) => field in patch)) {
     await ctx.scheduler.runAfter(0, internal.knowledge.indexSource, {
       sourceType: 'post',
@@ -290,7 +296,19 @@ export async function updatePost(ctx: MutationCtx, args: ExistingPostArgs & Post
   };
 }
 
-export async function publishPost(ctx: MutationCtx, args: ExistingPostArgs) {
+export async function publishPost(
+  ctx: MutationCtx,
+  args: ExistingPostArgs,
+  options: {
+    /**
+     * The date to stamp on a *first* publish. A scheduled publish passes its
+     * scheduled instant, so the post's public date is the time it was meant to
+     * go live rather than the minute the cron happened to run. Ignored when the
+     * post already has a date — dates never move.
+     */
+    publishedAt?: string;
+  } = {},
+) {
   const row = await ctx.db.get(args.postId);
   if (row === null) {
     invalid({
@@ -312,7 +330,7 @@ export async function publishPost(ctx: MutationCtx, args: ExistingPostArgs) {
   /* ---- flip, and stamp the date only the first time ---------------- */
 
   const firstPublish = row.publishedAt === null;
-  const publishedAt = row.publishedAt ?? nowIso();
+  const publishedAt = row.publishedAt ?? options.publishedAt ?? nowIso();
 
   const changed = !row.published || firstPublish;
   const revision = changed ? nextRevision(row.revision) : currentRevision(row.revision);
@@ -335,7 +353,14 @@ export async function publishPost(ctx: MutationCtx, args: ExistingPostArgs) {
       sourceType: 'post',
       sourceSlug: row.slug,
     });
+    await ctx.scheduler.runAfter(0, internal.siteCache.revalidatePosts, {});
   }
+
+  // Going live settles the post's editorial state, whichever path published
+  // it (MCP, the preview area or the scheduler): any schedule is spent, and the
+  // review feedback is archived — kept on record, hidden from the preview.
+  await clearSchedule(ctx, row);
+  await archiveFeedback(ctx, row._id);
 
   return {
     postId: row._id,
@@ -374,7 +399,12 @@ export async function unpublishPost(ctx: MutationCtx, args: ExistingPostArgs) {
       sourceSlug: row.slug,
       published: false,
     });
+    await ctx.scheduler.runAfter(0, internal.siteCache.revalidatePosts, {});
   }
+
+  // "Move back to draft" also cancels a pending schedule: a post taken down on
+  // purpose must not reappear by itself at some later minute.
+  await clearSchedule(ctx, row);
 
   return {
     postId: row._id,
@@ -397,7 +427,12 @@ export async function removePost(ctx: MutationCtx, args: ExistingPostArgs) {
   const staged = await ctx.db.query('managementPostDrafts')
     .withIndex('by_postId', (q) => q.eq('postId', row._id)).unique();
   if (staged) await ctx.db.delete(staged._id);
+  // Review feedback belongs to the post; with no post it can never be shown.
+  for (const item of await ctx.db.query('postFeedback').withIndex('by_postId', (q) => q.eq('postId', row._id)).collect()) {
+    await ctx.db.delete(item._id);
+  }
   await ctx.db.delete(row._id);
+  if (row.published) await ctx.scheduler.runAfter(0, internal.siteCache.revalidatePosts, {});
 
   // PHASE 4 — knowledge indexing (ADR 015). A deleted post leaves orphaned
   // `knowledgeDocs` rows behind, which are the one kind of stale index entry
@@ -414,4 +449,29 @@ export async function removePost(ctx: MutationCtx, args: ExistingPostArgs) {
   // owns that decision; nothing here should assume the file is gone.
 
   return { postId: args.postId, deleted: true, revision };
+}
+
+/* ------------------------------------------------------------------ *
+ * Scheduling and feedback side effects of going live
+ * ------------------------------------------------------------------ */
+
+/** Spend any schedule on the row. Scheduling fields are metadata: no revision bump. */
+async function clearSchedule(ctx: MutationCtx, row: Doc<'posts'>): Promise<void> {
+  if (
+    (row.scheduledFor ?? null) === null &&
+    (row.scheduleFailure ?? null) === null &&
+    (row.scheduleAttempts ?? 0) === 0
+  ) {
+    return;
+  }
+  await ctx.db.patch(row._id, { scheduledFor: null, scheduleFailure: null, scheduleAttempts: 0 });
+}
+
+/** Archive every open or resolved feedback item on a post that has just gone live. */
+async function archiveFeedback(ctx: MutationCtx, postId: Id<'posts'>): Promise<void> {
+  const items = await ctx.db.query('postFeedback').withIndex('by_postId', (q) => q.eq('postId', postId)).collect();
+  const now = nowIso();
+  for (const item of items) {
+    if (item.status !== 'archived') await ctx.db.patch(item._id, { status: 'archived', updatedAt: now });
+  }
 }

@@ -10,6 +10,7 @@ import {
   publishPost, unpublishPost, updatePost, type PostContent,
 } from './lib/postOperations';
 import { assertExpectedRevision, currentRevision, nextRevision } from './lib/revision';
+import { schedulePost, unschedulePost } from './lib/postSchedule';
 import { invalid, nowIso } from './lib/validate';
 import { managementEnvironment } from './schema';
 
@@ -24,6 +25,9 @@ const managementPostRequest = v.union(
   v.object({ operation: v.literal('discard_post_draft'), input: v.object({ ...staged, ...writeKey }) }),
   v.object({ operation: v.literal('publish_post'), input: v.object({ ...staged, ...writeKey }) }),
   v.object({ operation: v.literal('unpublish_post'), input: v.object({ ...existing, ...writeKey }) }),
+  v.object({ operation: v.literal('schedule_post'), input: v.object({ ...staged, scheduledFor: v.string(), ...writeKey }) }),
+  v.object({ operation: v.literal('unschedule_post'), input: v.object({ postId: v.string(), ...writeKey }) }),
+  v.object({ operation: v.literal('resolve_post_feedback'), input: v.object({ feedbackId: v.string(), reply: v.string(), ...writeKey }) }),
 );
 export const managementPostWriteArgs = { ...auth, request: managementPostRequest };
 export type ManagementPostRequest = Infer<typeof managementPostRequest>;
@@ -79,6 +83,22 @@ function resultFor(row: Doc<'posts'>, draftRevision: number, changed: boolean): 
 
 /** Domain dispatcher, called only by the authorized transactional entry point below. */
 export async function applyManagementPostWrite(ctx: MutationCtx, args: ManagementPostWriteArgs) {
+  if (args.operation === 'resolve_post_feedback') {
+    return await resolveFeedback(ctx, args.input);
+  }
+
+  if (args.operation === 'unschedule_post') {
+    const postId = ctx.db.normalizeId('posts', args.input.postId);
+    const row = postId ? await ctx.db.get(postId) : null;
+    if (!row) invalid({ code: 'not-found', field: 'postId', message: 'That post no longer exists.' });
+    const result = await unschedulePost(ctx, row);
+    const revision = currentRevision(row.revision);
+    return {
+      result: { ...resultFor(row, 0, result.changed), scheduledFor: null },
+      audit: { entityType: 'post', entityId: row._id, oldRevision: revision, newRevision: revision, changedFields: result.changed ? ['scheduledFor'] : [] },
+    };
+  }
+
   if (args.operation === 'create_post_draft') {
     const created = await createPost(ctx, args.input);
     const row = (await ctx.db.get(created.postId))!;
@@ -140,6 +160,16 @@ export async function applyManagementPostWrite(ctx: MutationCtx, args: Managemen
     };
   }
 
+  if (args.operation === 'schedule_post') {
+    assertDraftRevision(draft, args.input.expectedDraftRevision);
+    assertDraftBase(draft, row);
+    const scheduled = await schedulePost(ctx, row, draft, args.input.scheduledFor);
+    return {
+      result: { ...resultFor(row, draft?.revision ?? 0, true), scheduledFor: scheduled.scheduledFor },
+      audit: { entityType: 'post', entityId: row._id, oldRevision: before, newRevision: before, changedFields: ['scheduledFor'] },
+    };
+  }
+
   if (args.operation === 'publish_post') {
     assertDraftRevision(draft, args.input.expectedDraftRevision);
     assertDraftBase(draft, row);
@@ -171,10 +201,17 @@ export async function applyManagementPostWrite(ctx: MutationCtx, args: Managemen
   };
 }
 
-export async function executeManagementPostWrite(ctx: MutationCtx, args: ManagementPostWriteArgs): Promise<PostWriteResult> {
-  const scope = args.operation === 'publish_post' || args.operation === 'unpublish_post' ? 'content:publish' : 'content:write';
+/** Post writes return a post summary; resolving feedback returns the feedback item's new state. */
+export type ManagementPostResult =
+  | PostWriteResult
+  | (PostWriteResult & { scheduledFor: string | null })
+  | { feedbackId: Id<'postFeedback'>; postId: Id<'posts'>; status: 'resolved'; changed: boolean };
+
+export async function executeManagementPostWrite(ctx: MutationCtx, args: ManagementPostWriteArgs): Promise<ManagementPostResult> {
+  const scope = ['publish_post', 'unpublish_post', 'schedule_post', 'unschedule_post'].includes(args.operation)
+    ? 'content:publish' : 'content:write';
   const actor = await requireManagement(ctx, args, scope);
-  const receipt = await beginManagementWrite<PostWriteResult>(ctx, actor, {
+  const receipt = await beginManagementWrite<ManagementPostResult>(ctx, actor, {
     idempotencyKey: args.input.idempotencyKey, operation: args.operation, input: args.input,
   });
   if (receipt.replayed) return receipt.result;
@@ -186,3 +223,30 @@ export const execute = internalMutation({
   args: managementPostWriteArgs,
   handler: (ctx, args) => executeManagementPostWrite(ctx, { ...args.request, token: args.token, environment: args.environment }),
 });
+
+/**
+ * The agent's answer to a piece of preview feedback: a 1–3 sentence account of
+ * what it changed. A ✅ with no note is a standing "keep this" instruction and
+ * is never resolved (docs/plans/preview-area.md).
+ */
+async function resolveFeedback(ctx: MutationCtx, input: { feedbackId: string; reply: string }) {
+  const feedbackId = ctx.db.normalizeId('postFeedback', input.feedbackId);
+  const item = feedbackId ? await ctx.db.get(feedbackId) : null;
+  if (!item || item.status === 'archived') {
+    invalid({ code: 'not-found', field: 'feedbackId', message: 'That feedback no longer exists or was archived when the post published.' });
+  }
+  if (item.reaction === 'love' && item.note === null) {
+    invalid({ code: 'conflict', field: 'feedbackId', message: 'A ✅ with no note is a standing "keep this" instruction; leave it open.' });
+  }
+  const reply = input.reply.trim();
+  const sentences = reply.split(/(?<=[.!?])\s+/).filter(Boolean).length;
+  if (!reply || reply.length > 600 || sentences > 3) {
+    invalid({ code: 'invalid-format', field: 'reply', message: 'Reply in one to three sentences (600 characters at most) saying what changed.' });
+  }
+  const now = nowIso();
+  await ctx.db.patch(item._id, { status: 'resolved', resolution: reply, resolvedAt: now, updatedAt: now });
+  return {
+    result: { feedbackId: item._id, postId: item.postId, status: 'resolved' as const, changed: true },
+    audit: { entityType: 'postFeedback', entityId: item._id, oldRevision: null, newRevision: null, changedFields: ['status', 'resolution'] },
+  };
+}

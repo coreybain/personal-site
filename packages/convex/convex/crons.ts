@@ -113,4 +113,18 @@ crons.hourly(
   {},
 );
 
+crons.interval(
+  'publish scheduled posts that are due',
+  { minutes: 1 },
+  internal.postSchedule.publishDue,
+  {},
+);
+
+crons.daily(
+  'sweep expired preview codes, sessions and failed attempts',
+  { hourUTC: 3, minuteUTC: 40 },
+  internal.previewAccess.pruneExpired,
+  {},
+);
+
 export default crons;

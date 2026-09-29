@@ -12,6 +12,11 @@ const modules = {
   '../convex/projects.ts': () => import('../convex/projects'),
   '../convex/managementProjects.ts': () => import('../convex/managementProjects'),
   '../convex/knowledge.ts': () => import('../convex/knowledge'),
+  '../convex/siteCache.ts': () => import('../convex/siteCache'),
+  '../convex/alerts.ts': () => import('../convex/alerts'),
+  '../convex/postSchedule.ts': () => import('../convex/postSchedule'),
+  '../convex/previewAccess.ts': () => import('../convex/previewAccess'),
+  '../convex/preview.ts': () => import('../convex/preview'),
 };
 const token = `mgmt_${'a'.repeat(64)}`;
 const owner = 'management-project-test-owner';

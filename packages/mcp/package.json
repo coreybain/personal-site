@@ -4,16 +4,21 @@
   "private": true,
   "type": "module",
   "description": "Local MCP adapter for the authenticated Home management gateway.",
-  "bin": { "home-management-mcp": "./dist/stdio.js" },
+  "bin": {
+    "home-management-mcp": "./dist/stdio.js"
+  },
   "scripts": {
     "start": "bun src/stdio.ts",
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "test": "bun run build && bun test tests"
   },
-  "engines": { "node": ">=20.3.0" },
+  "engines": {
+    "node": ">=20.3.0"
+  },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.30.0",
+    "@uploadfile/core": "0.2.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {

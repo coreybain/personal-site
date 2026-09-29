@@ -23,6 +23,8 @@
     "CONVEX_DEPLOYMENT",
     "CONVEX_DEPLOY_KEY",
     "UPLOADFILE_TOKEN",
+    // Shared with Convex (SITE_REVALIDATE_SECRET); authorises /api/revalidate.
+    "REVALIDATE_SECRET",
     // Ask Corey's answering half. `OPENAI_API_KEY` is the one provider key the
     // feature needs — the same credential the Convex deployment holds for
     // embeddings, read here by `/api/ask` at request time. Strict environment

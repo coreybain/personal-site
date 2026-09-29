@@ -2,13 +2,14 @@ import { ConvexError } from 'convex/values';
 import { httpAction } from './_generated/server';
 import type { ActionCtx } from './_generated/server';
 import { internal } from './_generated/api';
-import { READ_OPERATIONS, WRITE_OPERATIONS, PROJECT_WRITE_OPERATIONS, LAB_WRITE_OPERATIONS } from './managementReads';
+import { READ_OPERATIONS, WRITE_OPERATIONS, PROJECT_WRITE_OPERATIONS, LAB_WRITE_OPERATIONS, PREVIEW_OPERATIONS } from './managementReads';
 import { parseManagementPostRequest } from './managementPosts';
 import { parseManagementProjectRequest } from './managementProjects';
 import { parseManagementLabRequest } from './managementLabs';
 
 const MAX_REQUEST_BYTES = 512 * 1024;
-const operations = new Set<string>([...READ_OPERATIONS, ...WRITE_OPERATIONS]);
+const operations = new Set<string>([...READ_OPERATIONS, ...WRITE_OPERATIONS, ...PREVIEW_OPERATIONS]);
+const previewOperations = new Set<string>(PREVIEW_OPERATIONS);
 const writes = new Set<string>(WRITE_OPERATIONS);
 const projectWrites = new Set<string>(PROJECT_WRITE_OPERATIONS);
 const labWrites = new Set<string>(LAB_WRITE_OPERATIONS);
@@ -70,7 +71,12 @@ export async function handleManagementRequest(ctx: Pick<ActionCtx, 'runQuery' | 
 
   try {
     const args = { ...parsed, token: match[1] };
-    const result = projectWrites.has(parsed.operation)
+    const result = previewOperations.has(parsed.operation)
+      ? await ctx.runMutation(internal.previewAccess.manage, {
+        token: args.token, environment: args.environment,
+        operation: parsed.operation as (typeof PREVIEW_OPERATIONS)[number],
+      })
+      : projectWrites.has(parsed.operation)
       ? await ctx.runMutation(internal.managementProjects.execute, {
         token: args.token, environment: args.environment,
         request: parseManagementProjectRequest({ operation: args.operation, input: args.input }),

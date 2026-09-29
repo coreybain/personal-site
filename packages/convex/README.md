@@ -156,6 +156,9 @@ The web app reads Convex anonymously from the server; nothing on the site signs 
 | `NEXT_PUBLIC_CONVEX_URL`            | `apps/web/.env.local` + Vercel            | The browser client's endpoint. Public by design. |
 | `ADMIN_CLERK_USER_ID`               | **Convex dashboard**, per deployment      | The owner every management token belongs to, and the `--identity` subject for owner-only CLI calls. Management and admin access are denied when absent. |
 | `MANAGEMENT_ENVIRONMENT`            | **Convex dashboard**, per deployment      | `production` or `development`; must match the MCP server's environment or every management call is refused. |
+| `SITE_ORIGIN`                       | **Convex dashboard**, per deployment      | The public site's origin (`https://spiritdevs.com`), for cache revalidation and alert links. |
+| `SITE_REVALIDATE_SECRET`            | **Convex dashboard** — and the site's `REVALIDATE_SECRET` | Authorises `siteCache.revalidatePosts` → `/api/revalidate`. The same value in both places. |
+| `RESEND_API_KEY`                    | **Convex dashboard**, per deployment (optional) | Enables scheduled-publish emails (`alerts.ts`). `ALERT_FROM` and `ALERT_TO` override the defaults. |
 | `OPENAI_API_KEY`                    | **Convex dashboard**, per deployment — *and* root `.env` + Vercel | The only provider key Ask Corey needs, held by two runtimes. Convex's copy embeds (`knowledge.ts`, `ask.ts`); the web app's copy answers (`/api/ask`). Same key, two environments. See below. |
 | `ASK_MODEL`                         | root `.env` + Vercel (optional)           | Overrides the answering model id — an **OpenAI** id. Defaults to `gpt-5.6-luna`. |
 | `RATE_LIMIT_SALT`                   | root `.env` + Vercel                      | Salts the identifier digest in `apps/web/src/lib/requestIdentity.ts`. Never reaches Convex. |

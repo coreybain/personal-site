@@ -37,6 +37,15 @@ Both clients are configured in the repository and share one launcher:
 
 Both run `bun packages/mcp/src/local.ts` from the repository root. The launcher loads only `HOME_MANAGEMENT_URL`, `HOME_MANAGEMENT_ENVIRONMENT`, `HOME_MANAGEMENT_TOKEN` and `UPLOADFILE_TOKEN` from the git-ignored root `.env`, then starts `stdio.ts`. Neither committed file holds a secret. The live values are the `hip-dragon-50.convex.site` origin, `production`, and a token issued with `managementTokens:issueForMachine` (name "Local MCP (Claude Code + Codex)", expiring 2027-09-29).
 
+### Preview area, scheduling and media
+
+- `create_preview_code` issues a single-use, ten-minute code for `/preview`; `revoke_preview_sessions` signs every browser out.
+- `schedule_post` / `unschedule_post` set or cancel a publish time (ISO 8601 with an offset; the owner works in Sydney time). The latest pending version publishes at that time.
+- `list_post_feedback` reads the owner's anchored reactions and notes from the preview; `resolve_post_feedback` marks one done with a 1–3 sentence reply. A ✅ with no note is a standing "keep this" and is never resolved.
+- `upload_media` runs locally: it uploads an image file to Uploadfile and returns its URL, key, width and height.
+
+See `docs/plans/preview-area.md` for the full design.
+
 ## Connect Pathway or another stdio client
 
 Configure a **local stdio** server. Replace the paths and placeholders below in the client's private configuration; do not commit the populated file.
