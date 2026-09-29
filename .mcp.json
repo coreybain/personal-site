@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "home-management": {
+      "command": "bun",
+      "args": ["packages/mcp/src/local.ts"]
+    }
+  }
+}

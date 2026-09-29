@@ -1,0 +1,8 @@
+# Project-scoped Codex configuration. Loaded when this repository is trusted.
+# The same launcher as .mcp.json (Claude Code): it reads the git-ignored root
+# .env, so no secret lives in this file. See packages/mcp/README.md.
+
+[mcp_servers.home-management]
+command = "bun"
+args = ["packages/mcp/src/local.ts"]
+startup_timeout_sec = 30

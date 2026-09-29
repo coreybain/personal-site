@@ -22,11 +22,20 @@ The official [`@modelcontextprotocol/sdk`](https://ts.sdk.modelcontextprotocol.i
 
 Deploy the matching management backend before connecting. The Convex deployment must have:
 
-- `ADMIN_CLERK_USER_ID` set to the existing single administrator.
+- `ADMIN_CLERK_USER_ID` set to the owner identifier management tokens belong to.
 - `MANAGEMENT_ENVIRONMENT` set explicitly to `development` or `production`.
 - A matching, unexpired management credential with the required scopes. Existing ingest tokens and Convex deploy keys are not MCP credentials.
 
 Credential issuance and revocation belong to the owner-authorized management-token workflow (`managementTokens:issue`, `managementTokens:revoke`) or the deployment-authorized bootstrap operations (`managementTokens:issueForMachine`, `managementTokens:revokeForMachine`). See the [backend setup instructions](../convex/README.md) for bootstrap details. An MCP credential cannot mint or revoke credentials. The bearer secret is returned only at issuance; store it in the local MCP client's private configuration, never the repository or a tool argument. Losing the secret requires issuing another one.
+
+## Connect Claude Code and Codex (this repository)
+
+Both clients are configured in the repository and share one launcher:
+
+- Claude Code reads `.mcp.json`; approve `home-management` the first time `claude` starts in this folder.
+- Codex reads `.codex/config.toml` when the project is trusted.
+
+Both run `bun packages/mcp/src/local.ts` from the repository root. The launcher loads only `HOME_MANAGEMENT_URL`, `HOME_MANAGEMENT_ENVIRONMENT`, `HOME_MANAGEMENT_TOKEN` and `UPLOADFILE_TOKEN` from the git-ignored root `.env`, then starts `stdio.ts`. Neither committed file holds a secret. The live values are the `hip-dragon-50.convex.site` origin, `production`, and a token issued with `managementTokens:issueForMachine` (name "Local MCP (Claude Code + Codex)", expiring 2027-09-29).
 
 ## Connect Pathway or another stdio client
 
