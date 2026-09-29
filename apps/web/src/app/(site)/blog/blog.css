@@ -251,6 +251,11 @@
   box-shadow: var(--hor-rule-glow);
 }
 
+/* The /blog index keeps the fade and drops the rule. */
+.hor .blog-seam-bare::before {
+  display: none;
+}
+
 /* ================================================================== *
  * Cards — sky zone
  * ================================================================== */

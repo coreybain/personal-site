@@ -136,9 +136,10 @@ export default async function BlogPage() {
       {blog.count > 0 ? (
         <>
           {/* A seam, not a horizon: the posts are one list shown two ways,
-              so there is no instrument deck to cross into — the same
-              device, and the same reasoning, as a post's own page. */}
-          <div className="blog-seam" aria-hidden="true" />
+              so there is no instrument deck to cross into. Bare — the fade
+              without the rule — because the toggle below already marks
+              where the posts start. */}
+          <div className="blog-seam blog-seam-bare" aria-hidden="true" />
 
           <section className="hor-sky">
             <div className="hor-shell">
