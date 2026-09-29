@@ -28,7 +28,7 @@ export function Capabilities({
         index="05"
         eyebrow="Capabilities"
         title="What I bring on the first day."
-        lede="Listed in the order they tend to matter on a new platform — the architecture first, the leadership last, and everything in between load-bearing."
+        lede="Listed in the order they tend to matter on a new platform: architecture first, leadership last."
         aside={
           topLanguage ? (
             <span className="hor-pill">

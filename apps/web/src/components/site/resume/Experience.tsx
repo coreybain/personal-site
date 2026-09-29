@@ -70,9 +70,11 @@ export function Experience({
                   </span>
                 </div>
 
-                <p className="hor-body mt-3.5 max-w-[62ch] text-pretty">
-                  {role.summary}
-                </p>
+                {role.summary ? (
+                  <p className="hor-body mt-3.5 max-w-[62ch] text-pretty">
+                    {role.summary}
+                  </p>
+                ) : null}
 
                 <ul className="res-hl" role="list">
                   {role.highlights.map((highlight) => (

@@ -52,7 +52,7 @@ import { featuredSelections, identity, navVisibility } from './schema';
 /** Committed public fallback, mirrored from apps/web/src/lib/snapshot.ts. */
 const FALLBACK_IDENTITY = {
   name: 'Corey Baines',
-  role: 'Principal Engineer',
+  role: 'Principal Engineer, Web and Mobile Platform Architecture',
   company: 'Corporate Interactive',
   location: 'Sydney, Australia',
   availability: 'Open to Principal Engineer roles',

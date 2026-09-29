@@ -94,7 +94,6 @@ export default async function ResumePage() {
           <ResumeHeader
             identity={identity}
             summary={resumeDocument.summary}
-            companyCount={derived.companyCount}
             yearsShipping={derived.yearsShipping}
             computedAt={computedAt}
           />

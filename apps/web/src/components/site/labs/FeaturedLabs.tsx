@@ -60,19 +60,6 @@ const FEATURED_SPECS: FeaturedSpec[] = [
     stack: ["TypeScript", "Electron", "SwiftUI"],
   },
   {
-    slug: "partybooth",
-    image: "/images/labs/partybooth-sign-in.svg",
-    imageAlt:
-      "PartyBooth host sign-in screen with email code authentication and a link for guests joining an event.",
-    capture: "Production web app / host sign in · 1280 × 720",
-    liveUrl: "https://www.partybooth.dev/",
-    liveLabel: "partybooth.dev",
-    eyebrow: "Private beta · web + native capture",
-    writeup:
-      "An end-to-end private party media loop: guests join by QR code, capture from web or the native app, hosts moderate submissions, and approved photos and clips flow into a live slideshow. I built the product across its organiser surface, mobile capture client, real-time backend and private upload pipeline.",
-    stack: ["Next.js", "Expo", "Convex", "Better Auth"],
-  },
-  {
     slug: "boca",
     image: "/images/labs/boca-home.png",
     imageAlt:
@@ -86,6 +73,19 @@ const FEATURED_SPECS: FeaturedSpec[] = [
     stack: ["Next.js", "Convex", "TypeScript", "Better Auth"],
   },
   {
+    slug: "shotlog",
+    image: "/images/labs/shotlog-home.png",
+    imageAlt:
+      "Shotlog homepage with the headline 'Show the bug. Keep the context.', an npm install command and an interactive demo below.",
+    capture: "Product site / home · 1280 × 960",
+    liveUrl: "https://www.shotlog.dev/",
+    liveLabel: "shotlog.dev",
+    eyebrow: "Open source · npm package",
+    writeup:
+      "An open-source React library for in-app support reports. Users describe the problem and mark up a screenshot in a full-screen editor, and the report arrives with recent console errors and failed network requests attached. The host app's own backend delivers it by email, Slack or signed webhook, with authorisation, rate limits and schema validation on the server.",
+    stack: ["React", "TypeScript", "Effect"],
+  },
+  {
     slug: "home",
     image: "/images/labs/coreybaines-home.png",
     imageAlt:
@@ -97,6 +97,19 @@ const FEATURED_SPECS: FeaturedSpec[] = [
     writeup:
       "A personal site built from one typed live-data contract. It turns Git activity, agent usage, project case studies, side-project data and publishing into a measured portfolio with browser and native administration behind it.",
     stack: ["Next.js", "TypeScript", "Bun", "Turborepo"],
+  },
+  {
+    slug: "partybooth",
+    image: "/images/labs/partybooth-sign-in.svg",
+    imageAlt:
+      "PartyBooth host sign-in screen with email code authentication and a link for guests joining an event.",
+    capture: "Production web app / host sign in · 1280 × 720",
+    liveUrl: "https://www.partybooth.dev/",
+    liveLabel: "partybooth.dev",
+    eyebrow: "Private beta · web + native capture",
+    writeup:
+      "An end-to-end private party media loop: guests join by QR code, capture from web or the native app, hosts moderate submissions, and approved photos and clips flow into a live slideshow. I built the product across its organiser surface, mobile capture client, real-time backend and private upload pipeline.",
+    stack: ["Next.js", "Expo", "Convex", "Better Auth"],
   },
 ];
 

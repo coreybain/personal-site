@@ -770,7 +770,7 @@ export const snapshot = {
 
   identity: {
     name: 'Corey Baines',
-    role: 'Principal Engineer',
+    role: 'Principal Engineer, Web and Mobile Platform Architecture',
     company: 'Corporate Interactive',
     location: 'Sydney, Australia',
     availability: 'Open to Principal Engineer roles',
@@ -1153,14 +1153,20 @@ Visual Editor taught me to see a page builder as a constraint and serialisation 
       }
     ],
     "embedGitStats": true,
-    "summary": "Principal Engineer at Corporate Interactive, working across its product portfolio: QuoteCloud, TravelDocs, ZeroRisk, SoldOnline and Visual Editor. My responsibilities include architecture, implementation, code review, migrations, production debugging and helping other engineers take ownership of systems. I also build independent web, mobile and desktop products through SpiritDevs, including Pathway, an open-source workspace for coding agents.",
+    "summary": "Principal Engineer at Corporate Interactive, where I lead platform architecture across web, iOS and Android for QuoteCloud, TravelDocs, ZeroRisk, SoldOnline and Visual Editor. My focus is keeping every channel on the same domain model, business rules and API contracts, so a feature doesn't ship on one platform and go missing on another. I still write, review and debug production code. I also build independent web, mobile and desktop products through SpiritDevs, including Pathway, an open-source workspace for coding agents.",
     "capabilities": [
-      "Platform architecture, migrations and production debugging",
-      "TypeScript, React and Next.js",
-      "Convex, Drizzle and real-time collaboration with Ably",
-      "Document editors, pricing tools and shared web/PDF rendering",
-      "Native apps, offline persistence and synchronisation",
-      "WebSocket systems, integrations and AWS delivery",
+      "Web and mobile platform architecture: one domain model, shared contracts, presentation suited to each channel",
+      "Server-owned business rules and permissions that web, iOS and Android all render from",
+      "Monorepos, shared packages and typed contracts across web, native apps and integrations",
+      "Sync engines, multi-user mode and concurrent editing",
+      "Incremental legacy migration: Java Spring to Node, React and Next.js, and Objective-C to Swift",
+      "Cloud migrations from on-premises to AWS and Azure",
+      "Architecture decision records, standards and shared tooling that make the right path the easy one",
+      "Payments and partner integrations with Xero, Salesforce and Zapier",
+      "TypeScript, React, Next.js, Swift, Convex and Drizzle",
+      "Native iOS and Android apps with offline persistence",
+      "Real-time systems over WebSockets and Ably",
+      "Document editors and shared web/PDF rendering",
       "Agent-assisted engineering workflows",
       "Code review, technical leadership and mentoring"
     ],
@@ -1168,14 +1174,18 @@ Visual Editor taught me to see a page builder as a constraint and serialisation 
       {
         "company": "Corporate Interactive",
         "title": "Principal Engineer",
-        "summary": "Principal Engineer at Corporate Interactive, working across its product portfolio: QuoteCloud, TravelDocs, ZeroRisk, SoldOnline and Visual Editor. My responsibilities include architecture, implementation, code review, migrations, production debugging and helping other engineers take ownership of systems.",
+        "summary": "I lead platform architecture across Corporate Interactive's products: QuoteCloud, TravelDocs, ZeroRisk, SoldOnline and Visual Editor. Most of that work is keeping web, iOS and Android on shared contracts and server-owned business rules while customers move off the older systems we are replacing. I still write, review and debug the code that ships.",
         "highlights": [
-          "QuoteCloud: document and block-editor architecture, pricing and spreadsheet tools, document layout, embedded PDFs, session recovery and shared rendering across the editor, recipient viewer and PDF output. I work on platform migrations, real-time collaboration and integrations including Zapier and Salesforce, using TypeScript, Next.js, React, Convex, Drizzle and Ably.",
-          "TravelDocs: itinerary services and native apps connected to Sabre and QuoteCloud, with work on offline persistence, synchronisation, notifications, widgets, Live Activities and Apple Watch experiences.",
+          "Product unification: re-architected QuoteCloud, TravelDocs and ZeroRisk into monorepos spanning web, Android and iOS. In QuoteCloud, the web app, the native iOS app and the Zapier and Salesforce integrations all build against the same type and function packages.",
+          "Sync engine: designed the approach for multi-user mode and concurrent editing. The same engine updates client-side libraries automatically and carries function calls between clients and the backend, so web and native apps call the same server functions instead of each keeping its own REST client.",
+          "Channel parity: moved permission and state decisions to the server. QuoteCloud works out what a user can do with a document once, every client renders from that result, and the server still validates each change.",
+          "Legacy migration: moved QuoteCloud customers off the Java platform one company at a time, with a cutover per company and a login handoff that carries users from the old app into the new one without a second sign-in.",
+          "QuoteCloud: document and block-editor architecture, pricing and spreadsheet tools, embedded PDFs, session recovery and shared rendering across the editor, recipient viewer and PDF output. Integrations include Salesforce, Zapier and a two-way, idempotent Xero payment sync in which QuoteCloud stays the system of record for issued invoices.",
+          "TravelDocs: itinerary services and native iOS and Android apps connected to Sabre and QuoteCloud, covering offline persistence, synchronisation, silent push, widgets, Live Activities and Apple Watch. I also replaced share links that exposed booking reference and surname with tokenised web handoff links.",
           "ZeroRisk: location and notification behaviour, SOS and check-in flows, tenant-aware permissions, operator maps and the newer web and Expo platform.",
           "SoldOnline: live auction interfaces, WebSocket connections, buyer registration, offers, role-based visibility, administration, payments and AWS delivery.",
           "Visual Editor: responsive page composition, editor interactions, content and asset tooling, caching, custom HTML isolation and the modern Next.js application.",
-          "I define contracts between packages, review and integrate other engineers' work, and plan compatible changes for products customers already use. I also introduced agent-assisted delivery across the engineering team and mentor engineers as they take on broader technical responsibility."
+          "I write architecture decisions up as ADRs (more than 40 for QuoteCloud), define contracts between packages, review and integrate other engineers' work, and plan compatible changes for products customers already use. I also introduced agent-assisted delivery across the engineering team and mentor engineers as they take on broader technical responsibility."
         ],
         "start": "2023",
         "end": "Present"
@@ -1183,9 +1193,11 @@ Visual Editor taught me to see a page builder as a constraint and serialisation 
       {
         "company": "Corporate Interactive",
         "title": "Senior Software Engineer",
-        "summary": "Built and shipped the first versions of the document and compliance platforms, moving from feature development into system ownership.",
+        "summary": "Moved Corporate Interactive's products from Java Spring to Node and React, starting with QuoteCloud and continuing into Visual Editor and Telstra's TBZ Pro.",
         "highlights": [
-          "Shipped the first production release of the quoting platform, rebuilt the PDF rendering pipeline and established testing and release processes."
+          "QuoteCloud: migrated the platform from Java to Node and React, the company's first production use of either.",
+          "Visual Editor: began a rewrite of the visual page composer, moving it from Java Spring and traditional JavaScript libraries to an early version of Next.js.",
+          "TBZ Pro (Telstra): moved the quotation and document creation software from Java Spring on Azure to a React front end built with Vite and an Express backend that uses WebSockets."
         ],
         "start": "2020",
         "end": "2023"
@@ -1193,8 +1205,13 @@ Visual Editor taught me to see a page builder as a constraint and serialisation 
       {
         "company": "Corporate Interactive",
         "title": "Software Engineer",
-        "summary": "Joined Corporate Interactive as a Software Engineer before progressing to Senior Software Engineer.",
-        "highlights": [],
+        "summary": "Joined Corporate Interactive working mostly in Java, with some Objective-C and Swift on the native apps.",
+        "highlights": [
+          "ZeroRisk: migrated the iOS app from Objective-C to Swift and moved the platform from on-premises servers to Azure.",
+          "QuoteCloud: continued building the platform from an early admin-dashboard concept into a production SaaS product where customers manage their own company and assets.",
+          "Built the PDF generation behind QuoteCloud's detailed, high-quality customer documents.",
+          "Infrastructure: moved services from on-premises servers to AWS, with some workloads on Azure."
+        ],
         "start": "2017",
         "end": "2020"
       },

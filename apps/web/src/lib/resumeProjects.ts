@@ -15,16 +15,20 @@ export const resumeProjects = [
     url: "https://github.com/SpiritDevs/pathway",
   },
   {
-    name: "Boca",
+    name: "Uploadfile",
     description:
-      "A catalogue and quoting product built for a hardware retailer in Niterói, Brazil.",
-    url: "https://spiritdevs.com/labs",
+      "A developer file upload and hosting service I'm building. Files go to regional S3 storage and out through a CloudFront CDN, with signed uploads and access checks at the edge. Accounts, tenant permissions, quotas and usage sit on a Convex sync engine, and billing is its own system with Stripe handling card payments.",
+    url: "https://www.uploadfile.dev",
   },
 ] as const;
 
 export const moreProjectsUrl = "https://spiritdevs.com/labs";
 
-/** Project details now have their own section; keep the role focused on scope. */
+/**
+ * Project details now have their own section, so the SpiritDevs role shows only
+ * its title and a pointer to the smaller projects. The stored summary stays
+ * (the schema requires one); an empty string here tells the page and PDF to skip it.
+ */
 export function resumeWithProjectSection(resume: ResumeDocument): ResumeDocument {
   return {
     ...resume,
@@ -32,6 +36,7 @@ export function resumeWithProjectSection(resume: ResumeDocument): ResumeDocument
       role.company === "SpiritDevs"
         ? {
             ...role,
+            summary: "",
             highlights: [
               "Additional projects include PartyBooth, a private event photo and video platform, and Pintlog, a Swift app for logging beers and where I tried them.",
             ],

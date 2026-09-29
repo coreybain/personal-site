@@ -38,14 +38,12 @@ function delay(ms: number): CSSProperties {
 export function ResumeHeader({
   identity,
   summary,
-  companyCount,
   yearsShipping,
   computedAt,
 }: {
   identity: Identity;
   /** `resumeDocument.summary` — the one paragraph the document opens with. */
   summary: string;
-  companyCount: number;
   yearsShipping: number;
   computedAt: string;
 }) {
@@ -88,8 +86,7 @@ export function ResumeHeader({
             <span className="hor-body">{identity.location}</span>
             <span className="hor-vrule" aria-hidden="true" />
             <span className="hor-body">
-              {yearsShipping} years of work experience · {companyCount}{" "}
-              {companyCount === 1 ? "employer" : "employers"}
+              {yearsShipping} years of work experience
             </span>
           </div>
         </div>
@@ -145,13 +142,6 @@ export function ResumeHeader({
             Download PDF
           </a>
         </div>
-
-        <p className="hor-micro res-actions-note res-noprint">
-          The PDF is generated from this page&rsquo;s data rather than
-          maintained beside it — the same document, set for A4. Your
-          browser&rsquo;s print dialog also renders this page clean, without the
-          navigation or the telemetry chrome.
-        </p>
 
         <p className="hor-micro res-print-only">
           coreybaines.com/resume · {identity.email} · github.com/

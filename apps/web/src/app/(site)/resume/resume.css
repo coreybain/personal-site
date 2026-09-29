@@ -102,11 +102,6 @@
   opacity: 1;
 }
 
-.hor .res-doc .res-actions-note {
-  margin-top: 0.9rem;
-  max-width: 46ch;
-}
-
 /* ---- the contact card ------------------------------------------------- */
 
 .hor .res-doc .res-vcard {
