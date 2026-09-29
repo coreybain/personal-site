@@ -3,7 +3,7 @@
 //  Home
 //
 //  Sends one selected image to the site's authenticated server-side
-//  UploadThing adapter. The default Clerk token belongs to the web origin;
+//  Uploadfile adapter. The default Clerk token belongs to the web origin;
 //  Convex mutations continue to use the separate `convex` JWT template.
 //
 

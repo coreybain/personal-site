@@ -67,8 +67,8 @@ export const dynamicParams = true;
  * assumes what that pass will do beyond the two things Next guarantees:
  * `openGraph` from this segment replaces the parent's `openGraph` wholesale
  * rather than merging into it, and a relative image URL is resolved against
- * whatever `metadataBase` ends up being. The cover URL is absolute (UploadThing,
- * ADR 010), so it is correct either way.
+ * whatever `metadataBase` ends up being. The cover URL is absolute (Uploadfile,
+ * ADR 020), so it is correct either way.
  *
  * `type: "article"` with `publishedTime` emits `article:published_time`, which
  * is what makes a post look like a post rather than a page to anything that

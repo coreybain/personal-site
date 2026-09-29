@@ -81,6 +81,8 @@ const CONTRABAND: { marker: string; what: string; allowedOn?: string[] }[] = [
   { marker: '__clerk', what: 'Clerk' },
   { marker: 'ProseMirror', what: 'Tiptap / ProseMirror' },
   { marker: 'uploadthing', what: 'UploadThing' },
+  { marker: '@uploadfile', what: 'the Uploadfile SDK' },
+  { marker: 'UFApi', what: 'the Uploadfile SDK' },
 
   // ── The AI SDK, allowed on no route at all ───────────────────────────────
   //

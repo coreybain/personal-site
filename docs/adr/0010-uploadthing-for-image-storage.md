@@ -1,7 +1,7 @@
 # ADR 0010 — UploadThing for image storage
 
 - **Date:** 2026-07-30
-- **Status:** Accepted
+- **Status:** Superseded by ADR 0020 (2026-09-29)
 
 ## Context
 

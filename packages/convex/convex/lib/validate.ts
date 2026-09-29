@@ -181,7 +181,7 @@ export function assertEmail(value: string, field = 'email'): void {
 /**
  * Assert a string is an absolute `http(s)` URL. Mirrors `UrlSchema` (`z.url()`).
  *
- * Every URL in this model is either a CDN asset (UploadThing, ADR 010) or an
+ * Every URL in this model is either a CDN asset (Uploadfile, ADR 020) or an
  * outbound link rendered as an anchor, so the scheme allowlist is doing real
  * work: it is what stops a `javascript:` payload reaching an `href` on the
  * public site. `URL` is available in the Convex runtime.

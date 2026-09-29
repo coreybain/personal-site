@@ -408,9 +408,9 @@ export async function removePost(ctx: MutationCtx, args: ExistingPostArgs) {
     sourceSlug: row.slug,
   });
 
-  // The UploadThing copy of `coverImage` is a separate concern (ADR 010): the
+  // The Uploadfile copy of `coverImage` is a separate concern (ADR 020): the
   // CDN object outlives the row, and reaping it needs `storageKey` and an
-  // action that can call UploadThing's delete API. Phase 2's UploadThing work
+  // action that can call Uploadfile's delete API. Phase 2's Uploadfile work
   // owns that decision; nothing here should assume the file is gone.
 
   return { postId: args.postId, deleted: true, revision };

@@ -216,11 +216,11 @@ export const BUDGETS: Budget[] = [
 /**
  * Routes that are never measured, with the reason.
  *
- * `/admin/*` is Clerk-gated, dynamic, and deliberately heavy — it carries the
- * Convex React client, Tiptap and UploadThing, none of which may appear in a
- * public chunk. It is excluded because it is not a public surface, **not**
- * because its weight does not matter; the invariant that matters for admin is
- * "none of this reaches a public route", and that is asserted separately in
- * `budget.ts` (see `CONTRABAND`).
+ * `/admin/*` was the browser admin — Clerk-gated, dynamic, and deliberately
+ * heavy. It has been removed (content is managed through the MCP server); the
+ * prefix stays ignored so a stray build artefact can never count against a
+ * public budget. The invariant that mattered for it — "none of the admin's
+ * libraries reach a public route" — is still asserted in `budget.ts` (see
+ * `CONTRABAND`).
  */
 export const IGNORED_PREFIXES = ['/admin', '/api', '/_global-error'];

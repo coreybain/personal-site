@@ -118,7 +118,7 @@ const machineLabel = v.string();
 /**
  * An uploaded image or video. Mirrors `MediaAssetSchema`.
  *
- * URLs are UploadThing CDN URLs (ADR 010) — the iOS client uploads via
+ * URLs are Uploadfile URLs (ADR 020) — the iOS client uploads via
  * presigned URL and stores the result here, so Convex never holds the bytes.
  */
 /** Where a Lab's public evidence lives. See the `labs` table. */
@@ -133,7 +133,7 @@ export const mediaAsset = v.object({
   height: v.optional(v.number()),
   caption: v.optional(v.string()),
   /**
-   * UploadThing file key. Kept so a delete can reach the CDN copy and not just
+   * Uploadfile file key. Kept so a delete can reach the CDN copy and not just
    * the row, and so iOS can request a presigned re-upload of an existing asset.
    */
   storageKey: v.optional(v.string()),

@@ -5,7 +5,7 @@ import type { PostCover as PostCoverAsset } from "@/lib/snapshot";
  *
  * ── Why a plain `<img>` and not `next/image` ───────────────────────────────
  *
- * Covers are UploadThing CDN URLs (ADR 010), and `next/image` refuses a remote
+ * Covers are Uploadfile URLs (ADR 020), and `next/image` refuses a remote
  * host that is not listed in `images.remotePatterns`. Adding that entry is a
  * change to the *public site's* build configuration made on behalf of one
  * feature, and it is the SEO/config agent's call rather than this one's — the

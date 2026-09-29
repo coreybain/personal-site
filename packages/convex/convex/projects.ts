@@ -43,9 +43,9 @@
  *
  * ── What is NOT here ──────────────────────────────────────────────────────
  *
- *   • UploadThing deletion. `remove` drops the row and orphans the CDN copies
- *     its `media[].storageKey`s point at (ADR 010). A mutation cannot `fetch`,
- *     so reaching UploadThing has to be a scheduled action; until it exists,
+ *   • Uploadfile deletion. `remove` drops the row and orphans the CDN copies
+ *     its `media[].storageKey`s point at (ADR 020). A mutation cannot `fetch`,
+ *     so reaching Uploadfile has to be a scheduled action; until it exists,
  *     orphaned files cost storage and leak nothing.
  */
 
@@ -440,7 +440,7 @@ export const setSortOrder = mutation({
  * reversible way to take something off the site.
  *
  * One loose end this deliberately leaves, noted in the file header: the
- * UploadThing files behind `media[].storageKey` are orphaned.
+ * Uploadfile files behind `media[].storageKey` are orphaned.
  * `siteSettings.featured.projectSlugs` may also still name the deleted slug,
  * which readers already treat as "not featured yet" — see `siteSettings.upsert`.
  * The `knowledgeDocs` rows are pruned by the hook below.

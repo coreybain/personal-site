@@ -75,7 +75,7 @@ import { randomBytes } from "node:crypto";
 import { checkBotId } from "botid/server";
 import { fetchMutation } from "convex/nextjs";
 import { ConvexError } from "convex/values";
-import { UTApi } from "uploadthing/server";
+import { UFApi } from "@uploadfile/core/server";
 
 import { api } from "@home/convex/api";
 
@@ -258,7 +258,7 @@ export async function submitContactMessage(
   const attachmentError = attachmentRefusal(attachments);
   if (attachmentError !== null) return attachmentError;
 
-  if (attachments.length > 0 && !process.env.UPLOADTHING_TOKEN) {
+  if (attachments.length > 0 && !process.env.UPLOADFILE_TOKEN) {
     return refuse(
       "attachments",
       "Attachments are unavailable on this deployment. Remove them to send the message.",
@@ -299,7 +299,7 @@ export async function submitContactMessage(
     messageStored = true;
 
     if (attachmentSecret !== undefined) {
-      const uploadApi = new UTApi({ token: process.env.UPLOADTHING_TOKEN! });
+      const uploadApi = new UFApi({ token: process.env.UPLOADFILE_TOKEN! });
       const results = await uploadApi.uploadFiles(attachments);
       const successful = results.flatMap((result) =>
         result.data === null ? [] : [result.data],

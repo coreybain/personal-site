@@ -28,7 +28,7 @@
  *   dateModified    deliberately absent. The row has no `updatedAt` the public
  *                   read layer can see, and inventing one from `computedAt`
  *                   would claim every post was edited whenever the cron ran.
- *   image           the cover, absolute already (UploadThing, ADR 010).
+ *   image           the cover, absolute already (Uploadfile, ADR 020).
  *   timeRequired    the reading estimate the index prints, in ISO 8601 duration
  *                   form. The page and the graph quote the same number because
  *                   both call `readingMinutes()`.

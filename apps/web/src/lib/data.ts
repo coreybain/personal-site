@@ -660,7 +660,7 @@ function mapFunEntry(row: FunRow, computedAt: string): FunLogEntry {
  * mapper in this file, `Post` was written *for* this row rather than inherited
  * from the mock, because there is no mock (see the type's docblock and ADR 018).
  * `coverImage` therefore survives — the blog is the one place in the build where
- * an UploadThing asset reaches the public site — and `body` survives as the
+ * an Uploadfile asset reaches the public site — and `body` survives as the
  * markdown it is stored as.
  *
  * `publishedAt` is the one repair. It is `string | null` on the row and `string`

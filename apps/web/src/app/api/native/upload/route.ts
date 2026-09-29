@@ -1,5 +1,5 @@
 import { auth } from "@clerk/nextjs/server";
-import { UTApi } from "uploadthing/server";
+import { UFApi } from "@uploadfile/core/server";
 
 import {
   handleNativeImageUpload,
@@ -10,16 +10,16 @@ import {
   isConfiguredAdminClerkUser,
 } from "@/lib/adminAuthorization";
 
-/** UTApi is a server SDK and this handler must never be moved to Edge. */
+/** UFApi is a server SDK and this handler must never be moved to Edge. */
 export const runtime = "nodejs";
 
 const clerkConfigured = Boolean(
   process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY && process.env.CLERK_SECRET_KEY,
 );
 
-const uploadthingToken = process.env.UPLOADTHING_TOKEN;
-const uploadApi = uploadthingToken
-  ? new UTApi({ token: uploadthingToken })
+const uploadfileToken = process.env.UPLOADFILE_TOKEN;
+const uploadApi = uploadfileToken
+  ? new UFApi({ token: uploadfileToken })
   : null;
 
 async function authenticate(): Promise<string | null> {
@@ -31,17 +31,17 @@ async function upload(file: File): Promise<NativeUploadedImage> {
   if (!uploadApi) {
     // The contract checks this before calling `upload`; retaining the guard
     // keeps the adapter total if it is ever reused independently.
-    throw new Error("UploadThing is not configured.");
+    throw new Error("Uploadfile is not configured.");
   }
 
   const result = await uploadApi.uploadFiles(file);
 
   if (result.error) {
-    console.error("Native UploadThing upload failed.", {
+    console.error("Native Uploadfile upload failed.", {
       code: result.error.code,
       message: result.error.message,
     });
-    throw new Error("UploadThing rejected the image.");
+    throw new Error("Uploadfile rejected the image.");
   }
 
   return {
@@ -64,7 +64,7 @@ export async function POST(request: Request): Promise<Response> {
   return handleNativeImageUpload(request, {
     clerkConfigured,
     adminConfigured: configuredAdminClerkUserId() !== null,
-    uploadthingConfigured: Boolean(uploadApi),
+    storageConfigured: Boolean(uploadApi),
     authenticate,
     authorize: isConfiguredAdminClerkUser,
     upload,

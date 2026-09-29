@@ -8,7 +8,7 @@ import {
 } from "./contract";
 
 const uploadedFile = {
-  url: "https://example.ufs.sh/f/native-image",
+  url: "https://www.uploadfile.dev/f/example-app/native-image",
   storageKey: "native-image",
   name: "photo.jpg",
   size: 3,
@@ -21,7 +21,7 @@ function dependencies(
   return {
     clerkConfigured: true,
     adminConfigured: true,
-    uploadthingConfigured: true,
+    storageConfigured: true,
     authenticate: async () => "user_123",
     authorize: (userId) => userId === "user_123",
     upload: async () => uploadedFile,
@@ -96,18 +96,18 @@ describe("native image upload contract", () => {
     assert.equal(authenticateCalled, false);
   });
 
-  it("returns a stable 503 when UploadThing is not configured", async () => {
+  it("returns a stable 503 when file storage is not configured", async () => {
     const response = await handleNativeImageUpload(
       multipartRequest([
         ["file", new File(["jpg"], "photo.jpg", { type: "image/jpeg" })],
       ]),
-      dependencies({ uploadthingConfigured: false }),
+      dependencies({ storageConfigured: false }),
     );
 
     assert.equal(response.status, 503);
     assert.deepEqual(await response.json(), {
       error: "uploads-not-configured",
-      message: "UploadThing is not configured on this deployment.",
+      message: "File storage is not configured on this deployment.",
     });
   });
 
@@ -286,7 +286,7 @@ describe("native image upload contract", () => {
     assert.equal(response.status, 502);
     assert.deepEqual(await response.json(), {
       error: "upload-failed",
-      message: "UploadThing could not store the image.",
+      message: "File storage could not store the image.",
     });
   });
 });

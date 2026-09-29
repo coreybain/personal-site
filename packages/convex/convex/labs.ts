@@ -375,8 +375,8 @@ export const setSortOrder = mutation({
  * irreversible, so the admin UI must confirm — `unpublish` is the reversible way
  * to take something off the site.
  *
- * Leaves the same loose end `projects.remove` documents: the UploadThing file
- * behind `coverImage.storageKey` is orphaned (a mutation cannot `fetch`; ADR 010
+ * Leaves the same loose end `projects.remove` documents: the Uploadfile file
+ * behind `coverImage.storageKey` is orphaned (a mutation cannot `fetch`; ADR 020
  * cleanup has to be a scheduled action). `siteSettings.featured.labSlugs` may
  * still name it — which readers already treat as "not featured yet". The
  * `knowledgeDocs` rows are no longer a loose end; see the hook below.

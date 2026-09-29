@@ -264,7 +264,7 @@ export type ResumeDocument = {
 };
 
 /**
- * An image on a post, as UploadThing stores it (ADR 010).
+ * An image on a post, as Uploadfile stores it (ADR 020).
  *
  * `width`/`height` are optional on the Convex row and therefore optional here,
  * but every renderer should treat their absence as the exceptional case: the

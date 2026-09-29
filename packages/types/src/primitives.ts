@@ -85,8 +85,8 @@ export const MediaKindSchema = z.enum(['image', 'video']);
 export type MediaKind = z.infer<typeof MediaKindSchema>;
 
 /**
- * One uploaded asset. Images arrive via UploadThing (ADR 010), so `storageKey`
- * is UploadThing's file key — kept so a delete can reach the CDN copy, not just
+ * One uploaded asset. Images arrive via Uploadfile (ADR 020), so `storageKey`
+ * is Uploadfile's file key — kept so a delete can reach the CDN copy, not just
  * the row.
  *
  * `width`/`height` are optional in the schema but should be populated on every
@@ -101,7 +101,7 @@ export const MediaAssetSchema = z.object({
   width: CountSchema.optional(),
   height: CountSchema.optional(),
   caption: z.string().optional(),
-  /** UploadThing file key, for deletion and presigned re-upload from iOS. */
+  /** Uploadfile file key, for deletion and presigned re-upload from iOS. */
   storageKey: z.string().optional(),
   /**
    * Whether this asset has been through the client-sanitisation pass (ADR 009 —

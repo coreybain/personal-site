@@ -27,7 +27,7 @@
     "CLERK_SECRET_KEY",
     "CONVEX_DEPLOYMENT",
     "CONVEX_DEPLOY_KEY",
-    "UPLOADTHING_TOKEN",
+    "UPLOADFILE_TOKEN",
     // Ask Corey's answering half. `OPENAI_API_KEY` is the one provider key the
     // feature needs — the same credential the Convex deployment holds for
     // embeddings, read here by `/api/ask` at request time. Strict environment

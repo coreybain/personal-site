@@ -18,6 +18,7 @@
     "@home/pdf": "workspace:*",
     "@home/types": "workspace:*",
     "@home/ui": "workspace:*",
+    "@uploadfile/core": "0.2.0",
     "ai": "^7.0.44",
     "botid": "1.5.11",
     "convex": "^1.42.3",
@@ -34,8 +35,7 @@
     "remark-rehype": "^11.1.2",
     "server-only": "0.0.1",
     "unified": "^11.0.5",
-    "unist-util-visit": "^5.1.0",
-    "uploadthing": "^7.7.4"
+    "unist-util-visit": "^5.1.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

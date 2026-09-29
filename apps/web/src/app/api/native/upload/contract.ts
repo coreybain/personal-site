@@ -1,7 +1,7 @@
 /**
  * Stable request/response contract for the native image-upload endpoint.
  *
- * This module deliberately has no Clerk or UploadThing imports. Keeping the
+ * This module deliberately has no Clerk or Uploadfile imports. Keeping the
  * protocol and validation in a small Web-API-only function lets the route be
  * tested without credentials, a network call, or framework module mocks.
  */
@@ -21,7 +21,7 @@ export type NativeUploadedImage = {
 export type NativeImageUploadDependencies = {
   clerkConfigured: boolean;
   adminConfigured: boolean;
-  uploadthingConfigured: boolean;
+  storageConfigured: boolean;
   authenticate: () => Promise<string | null>;
   authorize: (userId: string) => boolean;
   upload: (file: File) => Promise<NativeUploadedImage>;
@@ -153,10 +153,10 @@ export async function handleNativeImageUpload(
     );
   }
 
-  if (!dependencies.uploadthingConfigured) {
+  if (!dependencies.storageConfigured) {
     return errorResponse(
       "uploads-not-configured",
-      "UploadThing is not configured on this deployment.",
+      "File storage is not configured on this deployment.",
       503,
     );
   }
@@ -246,7 +246,7 @@ export async function handleNativeImageUpload(
   } catch {
     return errorResponse(
       "upload-failed",
-      "UploadThing could not store the image.",
+      "File storage could not store the image.",
       502,
     );
   }

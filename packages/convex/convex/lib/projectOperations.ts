@@ -261,7 +261,7 @@ function assertProjectFields(fields: Partial<ProjectFields>): void {
 /**
  * THE ADR 009 GATE. Throw unless every asset in `media` is sanitised.
  *
- * The error names each offending asset — index, alt text, and the UploadThing
+ * The error names each offending asset — index, alt text, and the Uploadfile
  * key or URL — because the admin UI's job on failure is to say *which*
  * screenshot still needs work, and "publish failed" without that is a puzzle.
  *

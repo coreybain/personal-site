@@ -692,9 +692,9 @@ export const remove = mutation({
 
     // Snapshot refresh is transactional with the source delete; see `create`.
     //
-    // UploadThing (ADR 010) is separate: the CDN object outlives the row, and
+    // Uploadfile (ADR 020) is separate: the CDN object outlives the row, and
     // reaping it needs `photo.storageKey` and an action that can call
-    // UploadThing's delete API. Phase 2's UploadThing work owns that decision;
+    // Uploadfile's delete API. Phase 2's Uploadfile work owns that decision;
     // nothing here should assume the file is gone.
 
     return { entryId: args.entryId, deleted: true, revision };
