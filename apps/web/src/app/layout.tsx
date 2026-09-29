@@ -25,9 +25,8 @@ const geistMono = Geist_Mono({
  * `generateMetadata` is supported in the root layout exactly as it is anywhere
  * else, and it is a function here because the name and the role are data now,
  * not copy. What it must not be is expensive: metadata for the root layout is
- * resolved on every route in the app, `/admin` included, and that route group is
- * `force-dynamic` — so a six-query assembly here would tax every authenticated
- * navigation for a `<title>` the admin layout overrides on the next line.
+ * resolved on every route in the app — so a six-query assembly here would tax
+ * every page for a `<title>` a nested layout may override on the next line.
  *
  * `getSettingsIdentity()` is the narrow reader written for this call site: one
  * `siteSettings.get`, memoised, which on any `(site)` route is **zero** extra
@@ -46,12 +45,10 @@ const geistMono = Geist_Mono({
  *
  * What it deliberately does **not** own is the title *template*. That lives in
  * `(site)/layout.tsx`, because a template applies to every descendant segment
- * and this layout's descendants include `/admin` ("Admin — coreybaines.com"),
- * which already sets a complete title of its own. A `%s — Corey Baines`
- * template here would render it as
- * "Admin — coreybaines.com — Corey Baines". Scoping the template to the `(site)`
- * group is what makes it a rule about the public site rather than a rule about
- * the repository.
+ * of this layout, and a route outside the public site (the browser admin used
+ * to be one) sets a complete title of its own. Scoping the template to the
+ * `(site)` group is what makes it a rule about the public site rather than a
+ * rule about the repository.
  *
  * The `title` below is therefore a plain default with no template: the fallback
  * for any route that never sets one (the global 404, chiefly). Every real page
@@ -107,7 +104,7 @@ export async function generateMetadata(): Promise<Metadata> {
      * snippet — the site is image-led and the descriptions quote live figures,
      * so a 160-character truncation is throwing away the argument.
      *
-     * `/admin` and `/api` remain excluded from crawling. See `@/lib/seo`.
+     * `/api` remains excluded from crawling. See `@/lib/seo`.
      */
     robots: IS_INDEXABLE
       ? {
@@ -190,17 +187,11 @@ function handleFrom(profileUrl: string): string | null {
  * arrangement of the gate lets dead-code elimination remove the imports.
  *
  * The homepage JS budget is < 100 KB gzip and phase 3 enforces it in CI from the
- * first page, so the provider is mounted where it is actually used instead: the
- * `/admin` layout, once phase 2 creates it (ADR 006 — "the public site does not
- * depend on it; a Clerk outage cannot take the site down, only editing"). Two
- * notes for whoever writes that layout:
- *
- *   - Mount it *inside* `<body>`, never around `<html>`. Clerk v7 (Core 3)
- *     requires it, and a provider around `<html>` is incompatible with Next's
- *     cache components.
- *   - Nothing on the public site may import it. If a public page ever needs live
- *     Convex data, use a Convex client without Clerk rather than dragging the
- *     auth SDK back into the shared chunk.
+ * first page, so the provider moved to the browser admin's layout, the only
+ * place that used it. The browser admin has since been removed — content is
+ * managed through the MCP server — and the provider went with it. If a public
+ * page ever needs live Convex data, use a Convex client without Clerk rather
+ * than dragging the auth SDK back into the shared chunk.
  *
  * The `generateMetadata` above is the one place this layout now touches the
  * read layer, and it does so through `@/lib/data` — a `server-only` module — so

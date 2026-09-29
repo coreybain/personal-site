@@ -21,9 +21,9 @@ import {
  * has just been told not to fetch is a mixed signal that some crawlers resolve
  * in favour of the sitemap.
  *
- * After cutover it opens up, minus the two prefixes in `CRAWLER_DISALLOW` —
- * `/admin` and `/api` — which stay closed permanently. See
- * that constant for why each one is on the list.
+ * After cutover it opens up, minus the prefixes in `CRAWLER_DISALLOW` —
+ * currently just `/api` — which stay closed permanently. See that constant for
+ * why each one is on the list.
  *
  * The one exception is the link-preview crawlers in `PREVIEW_CRAWLERS`. They
  * get their own group, which robots.txt applies to them *instead of* the `*`

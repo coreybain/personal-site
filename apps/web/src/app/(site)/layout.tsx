@@ -150,10 +150,9 @@ function starterQuestions(
  * ── The title template lives here, not in the root layout ──────────────────
  *
  * `title.template` applies to every **descendant** segment, and the root
- * layout's descendants are not only this group: `/admin` sets
- * "Admin — coreybaines.com". A template at the root would render that as
- * "Admin — coreybaines.com — Corey Baines". Declared here it is scoped to the
- * public site, which is the thing the suffix is actually a statement about.
+ * layout's descendants need not all be this group. Declared here it is scoped
+ * to the public site, which is the thing the suffix is actually a statement
+ * about.
  *
  * The contract this creates for every page under `(site)`: **set a bare title.**
  * `title: "Work"`, not `title: "Work — Corey Baines"` — the suffix is added
@@ -233,8 +232,8 @@ export async function generateMetadata(): Promise<Metadata> {
  *
  * `/ask` is gone. The feature is a launcher fixed to the bottom-right of every
  * page in this group, which is why it is mounted here — the same reasoning that
- * puts the pill and the footer here, and the reason it does **not** appear on
- * `/admin`: that route renders under the root layout, not this one.
+ * puts the pill and the footer here: every public page gets it, and a route
+ * outside this group does not.
  *
  * The two props it takes are server-derived and cost nothing extra: the
  * starters come from `projects`, which this layout already has, and

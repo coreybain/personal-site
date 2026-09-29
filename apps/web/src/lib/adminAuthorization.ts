@@ -1,8 +1,9 @@
 /**
  * Server-side allowlist for the site's single human administrator.
  *
- * Clerk proves who a caller is. This value decides whether that identity is
- * allowed to operate the admin surface. Keeping those two decisions separate
+ * Clerk proves who a caller is. This value decides whether that identity may
+ * use the one remaining Clerk-authenticated route, the iOS image upload
+ * (`/api/native/upload`). The browser admin that also used it is gone. Keeping those two decisions separate
  * means an accidentally enabled public sign-up cannot grant site-wide write
  * access.
  */

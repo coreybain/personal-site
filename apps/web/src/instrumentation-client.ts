@@ -19,8 +19,6 @@ const protectedRoutes = [
   { path: "/resume", method: "POST" },
   { path: "/work", method: "POST" },
   { path: "/work/*", method: "POST" },
-  { path: "/admin/sign-in", method: "POST" },
-  { path: "/admin/sign-in/*", method: "POST" },
 ];
 
 try {

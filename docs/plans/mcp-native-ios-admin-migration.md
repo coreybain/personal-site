@@ -51,6 +51,24 @@ tools. Then run
 the deployment/client acceptance exercise before starting the native shell and
 remaining iOS parity work. Existing browser administration stays available.
 
+## Browser admin removed — 29 September 2026
+
+Corey chose to remove the browser admin ahead of the native app: everything
+goes through the MCP server. Deleted: `apps/web/src/app/admin` (every screen
+and `/admin/sign-in`), `components/admin`, the admin-only Clerk/Convex browser
+provider in `components/auth`, the admin UploadThing route `/api/uploadthing`,
+the Tiptap and `@uploadthing/react` dependencies, and the sign-in entries in
+BotID's protected routes. `/admin` is no longer in robots.txt.
+
+Kept, because they are not the browser interface: every Convex function
+(including the Clerk-gated ones the iOS app calls), `/api/native/upload` and the
+narrowed Clerk proxy that populates its identity, and `lib/adminAuthorization`.
+
+Gaps this leaves until MCP tools exist for them: Fun, experience, résumé and
+settings edits; inbox status; ingest-token issuing (use
+`ingestTokens:issueForMachine` via the Convex CLI); and media upload (upload
+with UploadThing's server SDK, then reference the URL in a draft).
+
 ## Outcome and agreed sequence
 
 The public website becomes a publishing surface with no browser admin, sign-in screen or browser editing session. Corey manages the same Convex content through an MCP server and a native SwiftUI iOS app. Build and validate the MCP first, complete the native app second, and remove the browser admin last.

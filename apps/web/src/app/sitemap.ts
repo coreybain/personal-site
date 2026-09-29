@@ -8,7 +8,7 @@ import { absoluteUrl } from "@/lib/seo";
  *
  * ── What is deliberately absent ────────────────────────────────────────────
  *
- *   /admin, /api      Gated, and not pages.
+ *   /api              Not pages.
  *   /blog             Only while it has nothing in it — see below.
  *   /ask              Not absent — **gone**. Ask Corey is a launcher in the
  *                     `(site)` layout now, not a route, and there is no URL

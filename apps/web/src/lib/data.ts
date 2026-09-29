@@ -876,15 +876,14 @@ export async function getIdentity(): Promise<Identity> {
  * `getIdentity()` above is the one to reach for inside `(site)`: it is a field
  * of the assembly the page is already paying for, so it is free there. This one
  * is for the **root layout's `generateMetadata`**, which is a different problem
- * — it runs on *every* route in the app, including `/admin`, which is
- * `force-dynamic` and re-rendered on every navigation. Hanging the assembler off
- * it would put six Convex reads behind every admin page load in exchange for a
- * `<title>` the admin layout overrides anyway.
+ * — it runs on *every* route in the app, including ones outside `(site)` that
+ * never assemble a Snapshot. Hanging the assembler off it would put six Convex
+ * reads behind those routes in exchange for a `<title>`.
  *
  * So this reads the one document that actually holds the answer. On a `(site)`
  * route it is **zero** extra queries — `readSettings()` is `cache()`d and the
  * assembler has already started it in the same request, so both awaits resolve
- * the same promise. On `/admin` it is one.
+ * the same promise. Anywhere else it is one.
  *
  * ── Required source-of-truth row ───────────────────────────────────────────
  *

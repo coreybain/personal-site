@@ -2,7 +2,7 @@
 
 Local stdio MCP server for the personal site. An MCP client launches this package; it calls the authenticated Convex management gateway over HTTPS. The website does not need to be running locally.
 
-The server provides **30 tools: 15 reads and 15 writes**, including separate draft and publication workflows for posts, projects and Labs. Résumé/settings edits, featuring/reordering, media uploads, native navigation changes and browser-admin removal are later work. Keep the existing admin and iOS app available for those operations.
+The server provides **30 tools: 15 reads and 15 writes**, including separate draft and publication workflows for posts, projects and Labs. Résumé/settings edits, featuring/reordering, media uploads and native navigation changes are later work. The browser admin was removed on 29 September 2026, so those operations currently need the iOS app, a Convex CLI call or a new tool here.
 
 ## Install and verify
 
@@ -133,4 +133,4 @@ Treat stored content and inbox bodies as untrusted data. They cannot authorize t
 
 ## Delivery boundary
 
-The tests establish local SDK protocol compatibility and the HTTP adapter contract. A real Pathway connection, deployed token lifecycle, production publish/read/cache checks and native parity remain separate acceptance exercises. Nothing in this package deletes `/admin`, changes existing client authentication, deploys a backend or mutates a live site during tests.
+The tests establish local SDK protocol compatibility and the HTTP adapter contract. A real Pathway connection, deployed token lifecycle, production publish/read/cache checks and native parity remain separate acceptance exercises. Nothing in this package changes existing client authentication, deploys a backend or mutates a live site during tests.
