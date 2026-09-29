@@ -174,10 +174,10 @@ function Header({
     <View style={styles.header}>
       <View style={styles.headerMain}>
         <Text style={styles.name}>{identity.name}</Text>
-        <Text style={styles.role}>
-          {identity.role} · {identity.company}
+        <Text style={styles.role}>{identity.role}</Text>
+        <Text style={styles.location}>
+          {identity.company} · {identity.location}
         </Text>
-        <Text style={styles.location}>{identity.location}</Text>
         {availabilityVisible ? (
           <Text style={styles.availability}>{identity.availability}</Text>
         ) : null}
@@ -328,7 +328,7 @@ function Role({
         minPresenceAhead={46}
       >
         <View style={styles.roleHead}>
-          <View>
+          <View style={styles.rowMain}>
             <Text style={styles.roleTitle}>{role.title}</Text>
             <Text style={styles.roleOrg}>{role.company}</Text>
           </View>
@@ -337,12 +337,17 @@ function Role({
           </Text>
         </View>
 
-        <Text style={styles.roleSummary}>{role.summary}</Text>
+        {role.summary ? (
+          <Text style={styles.roleSummary}>{role.summary}</Text>
+        ) : null}
       </View>
 
       {role.highlights.map((highlight, i) => (
+        // `wrap={false}`: a bullet that splits leaves its square on one page
+        // and its text on the next. A highlight is a few lines, so it moves whole.
         <View
           key={highlight}
+          wrap={false}
           style={
             i === 0
               ? [styles.highlightRow, styles.highlightRowFirst]
@@ -537,7 +542,7 @@ export function ResumePdf({
                 style={styles.eduRow}
                 wrap={false}
               >
-                <View>
+                <View style={styles.rowMain}>
                   <Text style={styles.eduInstitution}>{entry.institution}</Text>
                   <Text style={styles.eduCredential}>{entry.credential}</Text>
                 </View>

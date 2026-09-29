@@ -57,8 +57,8 @@ import type { GitStats, Identity, ResumeDocument } from '@home/types';
  *
  *   name          the display line, 26pt
  *   role          the line under it
- *   company       joined to `role` with a middot ("Principal Engineer ·
- *                 Corporate Interactive"), because on a one-page document the
+ *   company       printed with the location on the line under `role`
+ *                 ("Corporate Interactive · Sydney, Australia"), because the
  *                 current employer belongs in the header rather than being
  *                 discoverable only from the first experience entry
  *   location      hiring managers filter on it before they read anything else

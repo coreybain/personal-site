@@ -195,6 +195,10 @@ export const styles = StyleSheet.create({
   headerMain: {
     flexGrow: 1,
     flexShrink: 1,
+    /* Zero basis so the column takes the space left beside the contact block.
+       With `auto`, a long role line measures at its full width and draws
+       under the contact rows instead of wrapping. */
+    flexBasis: 0,
     paddingRight: 24,
   },
 
@@ -205,7 +209,7 @@ export const styles = StyleSheet.create({
    * can happen to this page.
    */
   headerAside: {
-    width: 176,
+    width: 182,
     flexGrow: 0,
     flexShrink: 0,
   },
@@ -218,7 +222,7 @@ export const styles = StyleSheet.create({
     color: INK.ink,
   },
 
-  /** "Principal Engineer · Corporate Interactive". */
+  /** "Principal Engineer". The company sits on the line below with the location. */
   role: {
     marginTop: 6,
     fontSize: 11,
@@ -251,7 +255,7 @@ export const styles = StyleSheet.create({
   },
 
   contactLabel: {
-    width: 42,
+    width: 48,
     flexGrow: 0,
     flexShrink: 0,
     fontFamily: FONT_FAMILY.mono,
@@ -391,6 +395,13 @@ export const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: FONT_WEIGHT.medium,
     color: INK.ink3,
+  },
+
+  /** The left column of a role or education row: shrinks so the dates stay inside the margin. */
+  rowMain: {
+    flexGrow: 1,
+    flexShrink: 1,
+    flexBasis: 0,
   },
 
   roleDates: {
