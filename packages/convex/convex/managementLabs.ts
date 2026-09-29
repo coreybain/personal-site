@@ -65,7 +65,14 @@ function assertDraftBase(draft: Doc<'managementLabDrafts'> | null, row: Doc<'lab
 }
 
 export function labContent(row: LabContent): LabContent {
-  return { slug: row.slug, title: row.title, summary: row.summary, repoFullName: row.repoFullName, language: row.language, coverImage: row.coverImage, links: row.links };
+  // Optional keys are copied only when present, so a website Lab's draft never
+  // gains `repoFullName: undefined` (a different stored document from no key).
+  return {
+    slug: row.slug, title: row.title, summary: row.summary,
+    ...(row.kind === undefined ? {} : { kind: row.kind }),
+    ...(row.repoFullName === undefined ? {} : { repoFullName: row.repoFullName }),
+    language: row.language, coverImage: row.coverImage, links: row.links,
+  };
 }
 
 function resultFor(row: Doc<'labs'>, draftRevision: number, changed: boolean): LabWriteResult {

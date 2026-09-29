@@ -504,8 +504,9 @@ export const sourceForIndex = internalQuery({
             doc.summary,
             // ADR 014: Labs are a curated allowlist of public repos, and this
             // name is already a link on /labs. It is indexed because "which repo
-            // is Boca?" is a question a reader actually asks.
-            `Repository: ${doc.repoFullName}`,
+            // is Boca?" is a question a reader actually asks. A website Lab has
+            // no repository (ADR 008), so it contributes no such line.
+            ...(doc.repoFullName === undefined ? [] : [`Repository: ${doc.repoFullName}`]),
             `Language: ${doc.language}`,
           ]),
         };

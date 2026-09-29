@@ -6,7 +6,7 @@ import type { DataModel, Doc, Id } from '../_generated/dataModel';
 import type { MutationCtx } from '../_generated/server';
 import { assertExpectedRevision, currentRevision, nextRevision } from './revision';
 import { assertRange, assertSlugUnique, assertText, assertUrl, invalid } from './validate';
-import { mediaAsset } from '../schema';
+import { labKind, mediaAsset } from '../schema';
 
 /* ------------------------------------------------------------------ *
  * Validators the schema does not export
@@ -15,12 +15,23 @@ import { mediaAsset } from '../schema';
  * It is mirrored here field for field.
  * ------------------------------------------------------------------ */
 
-/** Mirrors `labs.links` / `LabLinksSchema`. `repo` is required — see the header. */
+/**
+ * Mirrors `labs.links` / `LabLinksSchema`. `repo` is required on a repository
+ * Lab and forbidden on a website Lab, which needs `live` instead — see
+ * `assertLabShape`.
+ */
 export const labLinks = v.object({
-  repo: v.string(),
+  repo: v.optional(v.string()),
   live: v.optional(v.string()),
   docs: v.optional(v.string()),
 });
+
+export type LabKind = Infer<typeof labKind>;
+
+/** Legacy rows predate `kind` and are all repository Labs. */
+export function labKindOf(row: { kind?: LabKind }): LabKind {
+  return row.kind ?? 'repository';
+}
 
 /* ------------------------------------------------------------------ *
  * Bounds and formats — hand-mirrored from `LabSchema` in @home/types
@@ -186,7 +197,7 @@ function assertLabFields(fields: Partial<LabFields>): void {
   }
 
   if (fields.links !== undefined) {
-    assertUrl(fields.links.repo, 'links.repo');
+    if (fields.links.repo !== undefined) assertUrl(fields.links.repo, 'links.repo');
     if (fields.links.live !== undefined) assertUrl(fields.links.live, 'links.live');
     if (fields.links.docs !== undefined) assertUrl(fields.links.docs, 'links.docs');
   }
@@ -273,6 +284,66 @@ function assertRepoLinkAgrees(repoFullName: string, repoUrl: string): void {
 }
 
 /**
+ * Assert a Lab's effective fields match its kind.
+ *
+ * A repository Lab needs `repoFullName` and `links.repo`, and they must agree.
+ * A website Lab is how a private-source product is published (ADR 008): it
+ * must carry neither, because `labs.list` is public and returns whole rows, so
+ * a stored identifier would be a published one. It needs `links.live` instead,
+ * since that is the only link its card has.
+ *
+ * Returns the repository name for a repository Lab so callers can run the
+ * uniqueness probe, and `null` for a website Lab.
+ */
+function assertLabShape(
+  kind: LabKind,
+  repoFullName: string | undefined,
+  links: LabFields['links'],
+): string | null {
+  if (kind === 'website') {
+    if (repoFullName !== undefined) {
+      invalid({
+        code: 'invalid-format',
+        field: 'repoFullName',
+        message: 'A website Lab has no repository. Remove repoFullName, or create a repository Lab instead.',
+      });
+    }
+    if (links.repo !== undefined) {
+      invalid({
+        code: 'invalid-format',
+        field: 'links.repo',
+        message: 'A website Lab has no repository link. Remove links.repo, or create a repository Lab instead.',
+      });
+    }
+    if (links.live === undefined) {
+      invalid({
+        code: 'invalid-format',
+        field: 'links.live',
+        message: 'A website Lab needs links.live: its public website is the only link the card has.',
+      });
+    }
+    return null;
+  }
+
+  if (repoFullName === undefined) {
+    invalid({
+      code: 'invalid-format',
+      field: 'repoFullName',
+      message: "A repository Lab needs repoFullName in GitHub 'owner/name' form.",
+    });
+  }
+  if (links.repo === undefined) {
+    invalid({
+      code: 'invalid-format',
+      field: 'links.repo',
+      message: 'A repository Lab needs links.repo.',
+    });
+  }
+  assertRepoLinkAgrees(repoFullName, links.repo);
+  return repoFullName;
+}
+
+/**
  * Assert no other Lab already claims this `repoFullName`.
  *
  * The Lab-shaped equivalent of `assertSlugUnique` (which only knows about
@@ -303,14 +374,19 @@ async function assertRepoUnique(
   }
 }
 
-/** Editorial values only: generated stats and curation never enter an agent draft. */
+/**
+ * Editorial values only: generated stats and curation never enter an agent draft.
+ * `kind` is chosen at creation and cannot be patched; a patch that names a
+ * different kind is rejected rather than converting the Lab.
+ */
 export const labEditorialFields = {
-  slug: v.string(), title: v.string(), summary: v.string(), repoFullName: v.string(),
-  language: v.string(), coverImage: mediaAsset, links: labLinks,
+  slug: v.string(), title: v.string(), summary: v.string(), kind: v.optional(labKind),
+  repoFullName: v.optional(v.string()), language: v.string(), coverImage: mediaAsset,
+  links: labLinks,
 };
 export const labEditorialPatchFields = {
   slug: v.optional(v.string()), title: v.optional(v.string()), summary: v.optional(v.string()),
-  repoFullName: v.optional(v.string()), language: v.optional(v.string()),
+  kind: v.optional(labKind), repoFullName: v.optional(v.string()), language: v.optional(v.string()),
   coverImage: v.optional(mediaAsset), links: v.optional(labLinks),
 };
 export const labCreateFields = {
@@ -338,6 +414,15 @@ export async function prepareLabPatch(
     patch.slug = args.slug;
   }
 
+  const kind = labKindOf(row);
+  if (args.kind !== undefined && args.kind !== kind) {
+    invalid({
+      code: 'invalid-format',
+      field: 'kind',
+      message: `This Lab is a ${kind} Lab. The kind is fixed at creation; create a new Lab to change it.`,
+    });
+  }
+
   if (args.title !== undefined) patch.title = args.title.trim();
   if (args.summary !== undefined) patch.summary = args.summary.trim();
   if (args.repoFullName !== undefined) patch.repoFullName = args.repoFullName.trim();
@@ -352,9 +437,12 @@ export async function prepareLabPatch(
   // Cross-field checks run against the *effective* row — the patched value
   // where one was given, the stored value otherwise. Editing only `links` must
   // still be checked against the `repoFullName` that will be there afterwards.
-  const repoFullName = patch.repoFullName ?? row.repoFullName;
-  assertRepoLinkAgrees(repoFullName, (patch.links ?? row.links).repo);
-  if (patch.repoFullName !== undefined) {
+  const repoFullName = assertLabShape(
+    kind,
+    patch.repoFullName ?? row.repoFullName,
+    patch.links ?? row.links,
+  );
+  if (patch.repoFullName !== undefined && repoFullName !== null) {
     await assertRepoUnique(ctx.db, repoFullName, row._id);
   }
 
@@ -364,7 +452,8 @@ export async function prepareLabPatch(
 export async function createLab(ctx: MutationCtx, args: LabCreateInput) {
   await assertSlugUnique(ctx.db, 'labs', args.slug);
 
-  const repoFullName = args.repoFullName.trim();
+  const kind = args.kind ?? 'repository';
+  const repoFullName = args.repoFullName?.trim();
   const last = await ctx.db
     .query('labs')
     .withIndex('by_sortOrder')
@@ -380,23 +469,31 @@ export async function createLab(ctx: MutationCtx, args: LabCreateInput) {
     slug: args.slug,
     title: args.title.trim(),
     summary: args.summary.trim(),
-    repoFullName,
     language: args.language.trim(),
     coverImage: args.coverImage,
     links: args.links,
+  };
 
+  // Assigned rather than spread so a website Lab's document has no repository
+  // or stats keys at all — not keys holding `undefined` or zeroes.
+  if (kind === 'website') {
+    fields.kind = 'website';
+  } else {
+    if (repoFullName !== undefined) fields.repoFullName = repoFullName;
     // Zeros with no `syncedAt` — see the `liveStats` note above.
-    liveStats: {
+    fields.liveStats = {
       stars: 0,
       forks: 0,
       commitsYear: 0,
       lastPushDaysAgo: 0,
-    },
-  };
+    };
+  }
 
   assertLabFields(fields);
-  assertRepoLinkAgrees(fields.repoFullName, fields.links.repo);
-  await assertRepoUnique(ctx.db, fields.repoFullName);
+  // Checked against what was *submitted*, not what was kept: a website Lab
+  // given a repository must be refused, not have it silently dropped.
+  const checkedRepo = assertLabShape(kind, repoFullName, fields.links);
+  if (checkedRepo !== null) await assertRepoUnique(ctx.db, checkedRepo);
 
   const labId = await ctx.db.insert('labs', fields);
 

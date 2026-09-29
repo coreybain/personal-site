@@ -135,6 +135,7 @@ import type {
   Project,
   ResumeDocument,
   Snapshot,
+  WebsiteLab,
 } from "@/lib/snapshot";
 
 /* ------------------------------------------------------------------ *
@@ -542,8 +543,10 @@ function mapProject(row: ProjectRow): Project {
  * telemetry and fails rather than exposing its stale stored presentation value.
  */
 function mapLab(row: LabRow, computedAt: string): Lab {
+  const repoFullName = requireValue(row.repoFullName, `labs.${row.slug}.repoFullName`);
+  const liveStats = requireValue(row.liveStats, `labs.${row.slug}.liveStats`);
   const lastPushedAt = requireValue(
-    row.liveStats.lastPushedAt,
+    liveStats.lastPushedAt,
     `labs.${row.slug}.liveStats.lastPushedAt`,
   );
 
@@ -551,17 +554,17 @@ function mapLab(row: LabRow, computedAt: string): Lab {
     slug: row.slug,
     title: row.title,
     summary: row.summary,
-    repoFullName: row.repoFullName,
+    repoFullName,
     language: row.language,
     liveStats: {
-      stars: row.liveStats.stars,
-      forks: row.liveStats.forks,
-      commitsYear: row.liveStats.commitsYear,
+      stars: liveStats.stars,
+      forks: liveStats.forks,
+      commitsYear: liveStats.commitsYear,
       lastPushDaysAgo: daysAgo(lastPushedAt, computedAt),
       lastPushedAt,
-      ...(row.liveStats.syncedAt === undefined
+      ...(liveStats.syncedAt === undefined
         ? {}
-        : { syncedAt: row.liveStats.syncedAt }),
+        : { syncedAt: liveStats.syncedAt }),
     },
     featured: row.featured,
   };
@@ -576,6 +579,34 @@ function mapLab(row: LabRow, computedAt: string): Lab {
     };
   }
 
+  return lab;
+}
+
+/** A website-only Lab (ADR 008): private source, published under its product name. */
+function isWebsiteLabRow(row: LabRow): boolean {
+  return row.kind === "website";
+}
+
+/**
+ * `websiteLabs[n]` — a Lab whose source is private, published by product name
+ * with its website as the only link.
+ *
+ * Copied field by field, not spread, so this public projection can never carry
+ * a repository identifier or GitHub figure even if a malformed row held one:
+ * the backend refuses those on a website Lab, and this is the second lock.
+ */
+function mapWebsiteLab(row: LabRow): WebsiteLab {
+  const lab: WebsiteLab = {
+    slug: row.slug,
+    title: row.title,
+    summary: row.summary,
+    language: row.language,
+    links: { live: requireValue(row.links.live, `labs.${row.slug}.links.live`) },
+    featured: row.featured,
+  };
+  if (row.coverImage.kind === "image") {
+    lab.coverImage = { url: row.coverImage.url, alt: row.coverImage.alt };
+  }
   return lab;
 }
 
@@ -810,7 +841,10 @@ export const getSiteData = cache(async (): Promise<Snapshot> => {
     aiUsage: mapAiUsage(snapshotRow.aiUsage),
     healthStats: mapHealthStats(snapshotRow.healthStats),
     projects: projectRows.map(mapProject),
-    labs: labRows.map((row) => mapLab(row, computedAt)),
+    labs: labRows
+      .filter((row) => !isWebsiteLabRow(row))
+      .map((row) => mapLab(row, computedAt)),
+    websiteLabs: labRows.filter(isWebsiteLabRow).map(mapWebsiteLab),
     resumeDocument: mapResume(resumeRow),
     funEntries: funLog.filter(isFunEntry),
     funLog,

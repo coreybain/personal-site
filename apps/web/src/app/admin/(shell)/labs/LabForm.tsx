@@ -19,6 +19,7 @@ import {
   ImageUpload,
   NumberField,
   SaveButton,
+  SelectField,
   SlugField,
   StatusBadge,
   TextAreaField,
@@ -90,18 +91,27 @@ import {
  * The draft
  * ------------------------------------------------------------------ */
 
+/** Where a Lab's public evidence lives. Fixed once the Lab is created. */
+type LabKind = "repository" | "website";
+
+const LAB_KIND_OPTIONS = [
+  { value: "repository", label: "Public repository" },
+  { value: "website", label: "Website only (private source)" },
+] as const;
+
 export type LabDraft = {
   slug: string;
   title: string;
   summary: string;
-  /** `owner/name`, GitHub's spelling. The cron's lookup key. */
+  kind: LabKind;
+  /** `owner/name`, GitHub's spelling. The cron's lookup key. Repository Labs only. */
   repoFullName: string;
   language: string;
   /** Required by the schema — `null` only while a new Lab is being filled in. */
   coverImage: MediaAsset | null;
-  /** `links.repo`. Required. */
+  /** `links.repo`. Required on a repository Lab, never sent for a website Lab. */
   repo: string;
-  /** `links.live`, `""` = absent. */
+  /** `links.live`, `""` = absent. Required on a website Lab. */
   live: string;
   /** `links.docs`, `""` = absent. */
   docs: string;
@@ -115,6 +125,7 @@ function blankDraft(): LabDraft {
     slug: "",
     title: "",
     summary: "",
+    kind: "repository",
     repoFullName: "",
     language: "",
     coverImage: null,
@@ -132,10 +143,11 @@ function draftFromRow(row: Doc<"labs">): LabDraft {
     slug: row.slug,
     title: row.title,
     summary: row.summary,
-    repoFullName: row.repoFullName,
+    kind: row.kind ?? "repository",
+    repoFullName: row.repoFullName ?? "",
     language: row.language,
     coverImage: row.coverImage,
-    repo: row.links.repo,
+    repo: row.links.repo ?? "",
     live: row.links.live ?? "",
     docs: row.links.docs ?? "",
     featured: row.featured,
@@ -220,11 +232,18 @@ export function LabForm({
       return;
     }
 
+    const isWebsite = draft.kind === "website";
+
+    /* A website Lab sends no repository fields at all: the backend refuses them,
+       and `labs.list` is public, so storing one would publish it (ADR 008). */
     const links = {
-      repo: draft.repo.trim(),
+      ...(isWebsite ? {} : { repo: draft.repo.trim() }),
       ...(draft.live.trim().length > 0 ? { live: draft.live.trim() } : {}),
       ...(draft.docs.trim().length > 0 ? { docs: draft.docs.trim() } : {}),
     };
+    const source = isWebsite
+      ? { kind: "website" as const }
+      : { repoFullName: draft.repoFullName };
 
     if (row === null) {
       /* No `published` and no `liveStats`: a Lab is created as a draft, and the
@@ -234,7 +253,7 @@ export function LabForm({
         slug: draft.slug,
         title: draft.title,
         summary: draft.summary,
-        repoFullName: draft.repoFullName,
+        ...source,
         language: draft.language,
         coverImage: cover,
         links,
@@ -256,7 +275,7 @@ export function LabForm({
       slug: draft.slug,
       title: draft.title,
       summary: draft.summary,
-      repoFullName: draft.repoFullName,
+      ...(isWebsite ? {} : { repoFullName: draft.repoFullName }),
       language: draft.language,
       coverImage: cover,
       links,
@@ -302,6 +321,9 @@ export function LabForm({
         info={
           <>
             <strong>Summary</strong> is the card copy and the meta description.{" "}
+            <strong>Source</strong> is fixed at creation: a public repository,
+            or a website-only Lab for a product whose source is private, which
+            stores no repository and shows no GitHub stats (ADR 008).{" "}
             <strong>Repo</strong> is GitHub&rsquo;s own <code>owner/name</code>{" "}
             and is unique across Labs — it is the hourly cron&rsquo;s lookup
             key, so two rows naming one repo would both be refreshed from it.{" "}
@@ -345,30 +367,45 @@ export function LabForm({
             required
           />
 
+          <SelectField<LabKind>
+            label="Source"
+            value={draft.kind}
+            onValueChange={(kind) => patch({ kind })}
+            options={LAB_KIND_OPTIONS}
+            disabled={row !== null}
+            hint={
+              row === null
+                ? "Choose website only when the repository is private."
+                : "Fixed when the Lab was created."
+            }
+          />
+
           <FieldRow>
-            <TextField
-              label="Repo"
-              value={draft.repoFullName}
-              onValueChange={(repoFullName) =>
-                patch({
-                  repoFullName,
-                  /* Prefill the link while it is still the derived value or
-                     empty. Once it has been edited by hand it is left alone —
-                     a Lab may legitimately link a GitLab mirror. */
-                  ...(draft.repo === "" ||
-                  draft.repo === repoUrlFor(draft.repoFullName)
-                    ? { repo: repoUrlFor(repoFullName) }
-                    : {}),
-                })
-              }
-              placeholder="coreybaines/horizon"
-              maxLength={140}
-              required
-              /* Kept inline, short: the spelling has to match GitHub's exactly or
-                 the cron looks up the wrong repo, and the placeholder alone does
-                 not say that the case matters. */
-              hint="Exactly as GitHub spells it."
-            />
+            {draft.kind === "repository" ? (
+              <TextField
+                label="Repo"
+                value={draft.repoFullName}
+                onValueChange={(repoFullName) =>
+                  patch({
+                    repoFullName,
+                    /* Prefill the link while it is still the derived value or
+                       empty. Once it has been edited by hand it is left alone —
+                       a Lab may legitimately link a GitLab mirror. */
+                    ...(draft.repo === "" ||
+                    draft.repo === repoUrlFor(draft.repoFullName)
+                      ? { repo: repoUrlFor(repoFullName) }
+                      : {}),
+                  })
+                }
+                placeholder="coreybaines/horizon"
+                maxLength={140}
+                required
+                /* Kept inline, short: the spelling has to match GitHub's exactly or
+                   the cron looks up the wrong repo, and the placeholder alone does
+                   not say that the case matters. */
+                hint="Exactly as GitHub spells it."
+              />
+            ) : null}
             <TextField
               label="Language"
               value={draft.language}
@@ -387,7 +424,9 @@ export function LabForm({
         title="Links"
         info={
           <>
-            The repository URL is required — a Lab without a repo is a case study.
+            A website-only Lab has no repository URL and needs its live URL,
+            which is the only link its card shows. For a repository Lab the
+            repository URL is required — a Lab without a repo is a case study.
             It is prefilled from the repo field above and left alone once you edit
             it by hand, since a Lab may legitimately link a GitLab mirror; when it
             <em> is</em> a github.com URL the mutation asserts it names the same{" "}
@@ -398,14 +437,16 @@ export function LabForm({
         infoLabel="About the Lab's links"
       >
         <AdminForm>
-          <TextField
-            label="Repository URL"
-            value={draft.repo}
-            onValueChange={(repo) => patch({ repo })}
-            type="url"
-            placeholder="https://github.com/coreybaines/horizon"
-            required
-          />
+          {draft.kind === "repository" ? (
+            <TextField
+              label="Repository URL"
+              value={draft.repo}
+              onValueChange={(repo) => patch({ repo })}
+              type="url"
+              placeholder="https://github.com/coreybaines/horizon"
+              required
+            />
+          ) : null}
 
           <FieldRow>
             <TextField
@@ -414,7 +455,7 @@ export function LabForm({
               onValueChange={(live) => patch({ live })}
               type="url"
               placeholder="https://example.com"
-              optional
+              {...(draft.kind === "website" ? { required: true } : { optional: true })}
             />
             <TextField
               label="Docs URL"
@@ -532,7 +573,12 @@ export function LabForm({
         infoLabel="About the GitHub stats block"
       >
         <AdminForm>
-          {row === null ? (
+          {draft.kind === "website" ? (
+            <p className="adm-micro">
+              None. A website-only Lab has no public repository, so the cron
+              never looks it up and the site shows no GitHub figures for it.
+            </p>
+          ) : row === null || row.liveStats === undefined ? (
             <p className="adm-micro">
               Nothing to show yet — the block is written when the Lab is created.
             </p>

@@ -11,7 +11,9 @@
  *   - A **Case Study** (`projects`) is always attributed, always sanitised, and
  *     never repo-linked (ADR 008/009). `ProjectLinksSchema` therefore has no
  *     `repo` field at all.
- *   - A **Lab** (`labs`) is curated in by hand (ADR 014) and always repo-linked.
+ *   - A **Lab** (`labs`) is curated in by hand (ADR 014) and repo-linked,
+ *     except a `kind: 'website'` Lab: a private-source product published under
+ *     its product name with only its public website linked (ADR 008).
  *     `repo` is required there.
  */
 
@@ -129,8 +131,12 @@ export type Project = z.infer<typeof ProjectSchema>;
  * ------------------------------------------------------------------ */
 
 export const LabLinksSchema = z.object({
-  /** `https://github.com/owner/name`. Required — a Lab without a repo is a Case Study. */
-  repo: UrlSchema,
+  /**
+   * `https://github.com/owner/name`. Required on a repository Lab and never
+   * present on a website Lab (convex/lib/labOperations.ts enforces both).
+   */
+  repo: UrlSchema.optional(),
+  /** Required on a website Lab: its public website is the card's only link. */
   live: UrlSchema.optional(),
   docs: UrlSchema.optional(),
 });
@@ -181,15 +187,22 @@ export const LabSchema = z.object({
   slug: SlugSchema,
   title: NonEmptyStringSchema,
   summary: NonEmptyStringSchema,
-  /** `owner/name`, exactly as GitHub spells it. The cron's lookup key. */
+  /**
+   * `'website'` marks a private-source product Lab; absent or `'repository'`
+   * is a public repo. A website Lab has no `repoFullName`, no `links.repo` and
+   * no `liveStats`, and must have `links.live`.
+   */
+  kind: z.enum(['repository', 'website']).optional(),
+  /** `owner/name`, exactly as GitHub spells it. The cron's lookup key. Repository Labs only. */
   repoFullName: NonEmptyStringSchema.regex(
     /^[\w.-]+\/[\w.-]+$/,
     'Expected GitHub `owner/name`',
-  ),
+  ).optional(),
   /** GitHub's primary-language label for the repo, e.g. `'TypeScript'`. */
   language: NonEmptyStringSchema,
   links: LabLinksSchema,
-  liveStats: LabLiveStatsSchema,
+  /** Repository Labs only: a website Lab has no public repository to measure. */
+  liveStats: LabLiveStatsSchema.optional(),
   coverImage: MediaAssetSchema,
 });
 export type Lab = z.infer<typeof LabSchema>;

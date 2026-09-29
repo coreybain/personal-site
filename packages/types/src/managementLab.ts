@@ -8,7 +8,7 @@ export const ManagementLabDraftSchema = z.strictObject({
   baseRevision: CountSchema,
   revision: CountSchema,
   ...LabSchema.pick({
-    slug: true, title: true, summary: true, repoFullName: true,
+    slug: true, title: true, summary: true, kind: true, repoFullName: true,
     language: true, coverImage: true, links: true,
   }).shape,
   updatedAt: IsoDateTimeSchema,

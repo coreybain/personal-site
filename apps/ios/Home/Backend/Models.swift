@@ -222,6 +222,8 @@ nonisolated struct ProjectDraft: Identifiable, Hashable, Sendable {
 // MARK: - Labs
 
 nonisolated struct LabLinks: Codable, Hashable, Sendable {
+    /// Empty for a website-only Lab, which has no repository (ADR 008). An
+    /// empty value is never encoded, so the backend never receives one.
     var repo: String
     var live: String?
     var docs: String?
@@ -231,6 +233,33 @@ nonisolated struct LabLinks: Codable, Hashable, Sendable {
         self.live = live
         self.docs = docs
     }
+
+    private enum CodingKeys: String, CodingKey {
+        case repo, live, docs
+    }
+
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        repo = try values.decodeIfPresent(String.self, forKey: .repo) ?? ""
+        live = try values.decodeIfPresent(String.self, forKey: .live)
+        docs = try values.decodeIfPresent(String.self, forKey: .docs)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var values = encoder.container(keyedBy: CodingKeys.self)
+        if !repo.isEmpty { try values.encode(repo, forKey: .repo) }
+        try values.encodeIfPresent(live, forKey: .live)
+        try values.encodeIfPresent(docs, forKey: .docs)
+    }
+}
+
+/// Where a Lab's public evidence lives. Fixed when the Lab is created.
+nonisolated enum LabKind: String, Codable, Hashable, Sendable, CaseIterable {
+    /// A public GitHub repository, synced for stars and commits.
+    case repository
+    /// A product whose source is private: no repository, no GitHub stats,
+    /// and its public website as the only link (ADR 008).
+    case website
 }
 
 nonisolated struct LabLiveStats: Codable, Hashable, Sendable {
@@ -268,18 +297,23 @@ nonisolated struct LabRecord: Codable, Hashable, Identifiable, Sendable {
     var slug: String
     var title: String
     var summary: String
-    var repoFullName: String
+    /// Absent on legacy rows, which are all repository Labs.
+    var kind: LabKind?
+    /// Absent on a website-only Lab.
+    var repoFullName: String?
     var language: String
     var coverImage: MediaAsset
     var links: LabLinks
-    var liveStats: LabLiveStats
+    /// Absent on a website-only Lab, which has no repository to measure.
+    var liveStats: LabLiveStats?
 
     var status: PublicationStatus { published ? .published : .draft }
+    var labKind: LabKind { kind ?? .repository }
 
     private enum CodingKeys: String, CodingKey {
         case id = "_id"
         case creationTime = "_creationTime"
-        case revision, published, featured, sortOrder, slug, title, summary, repoFullName
+        case revision, published, featured, sortOrder, slug, title, summary, kind, repoFullName
         case language, coverImage, links, liveStats
     }
 }
@@ -291,11 +325,13 @@ nonisolated struct LabDraft: Identifiable, Hashable, Sendable {
     var slug = ""
     var title = ""
     var summary = ""
+    var kind = LabKind.repository
     var repoFullName = ""
     var language = ""
     var coverImage = MediaAsset()
     var links = LabLinks()
-    var liveStats = LabLiveStats()
+    /// `nil` until the GitHub sync has written a block, and always for a website Lab.
+    var liveStats: LabLiveStats?
     var featured = false
     var sortOrder: Double = 0
 
@@ -308,7 +344,8 @@ nonisolated struct LabDraft: Identifiable, Hashable, Sendable {
         slug = record.slug
         title = record.title
         summary = record.summary
-        repoFullName = record.repoFullName
+        kind = record.labKind
+        repoFullName = record.repoFullName ?? ""
         language = record.language
         coverImage = record.coverImage
         links = record.links
@@ -322,8 +359,8 @@ nonisolated struct LabDraft: Identifiable, Hashable, Sendable {
     func hasSameEditorialContent(as other: LabDraft) -> Bool {
         var left = self
         var right = other
-        left.liveStats = LabLiveStats()
-        right.liveStats = LabLiveStats()
+        left.liveStats = nil
+        right.liveStats = nil
         return left == right
     }
 }

@@ -644,17 +644,25 @@ final class HomeAppModel {
 
     func saveLab(_ draft: LabDraft) async -> MutationResult {
         await mutate {
-            let fields: [String: ConvexEncodable?] = [
+            var fields: [String: ConvexEncodable?] = [
                 "slug": draft.slug,
                 "title": draft.title,
                 "summary": draft.summary,
-                "repoFullName": draft.repoFullName,
                 "language": draft.language,
                 "coverImage": ConvexJSON(draft.coverImage),
                 "links": ConvexJSON(draft.links),
                 "featured": draft.featured,
                 "sortOrder": draft.sortOrder,
             ]
+            // A website-only Lab sends no repository fields at all: the backend
+            // refuses them, and a stored one would be publicly readable (ADR 008).
+            // The kind is fixed at creation, so it is only sent on create.
+            switch draft.kind {
+            case .repository:
+                fields["repoFullName"] = draft.repoFullName
+            case .website:
+                if draft.recordID == nil { fields["kind"] = LabKind.website.rawValue }
+            }
 
             if let labID = draft.recordID {
                 var args = fields

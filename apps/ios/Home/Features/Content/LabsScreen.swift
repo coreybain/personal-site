@@ -239,7 +239,7 @@ private struct LabRow: View {
                     .foregroundStyle(.secondary)
             }
 
-            Text(lab.repoFullName)
+            Text(lab.repoFullName ?? "Website only")
                 .font(HorizonStyle.monoCaption)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
@@ -247,8 +247,10 @@ private struct LabRow: View {
             HStack {
                 ContentStatusLabel(isPublished: lab.published, isFeatured: lab.featured)
                 Spacer()
-                Label(lab.liveStats.stars.formatted(), systemImage: "star")
-                Label(lab.liveStats.forks.formatted(), systemImage: "arrow.triangle.branch")
+                if let stats = lab.liveStats {
+                    Label(stats.stars.formatted(), systemImage: "star")
+                    Label(stats.forks.formatted(), systemImage: "arrow.triangle.branch")
+                }
             }
             .font(.caption)
             .foregroundStyle(.secondary)
@@ -299,9 +301,22 @@ struct LabEditorView: View {
                         .autocorrectionDisabled()
                     TextField("Summary", text: $draft.summary, axis: .vertical)
                         .lineLimit(3...10)
-                    TextField("Repository (owner/name)", text: $draft.repoFullName)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
+                    if draft.recordID == nil {
+                        Picker("Source", selection: $draft.kind) {
+                            Text("Public repository").tag(LabKind.repository)
+                            Text("Website only").tag(LabKind.website)
+                        }
+                    } else {
+                        LabeledContent(
+                            "Source",
+                            value: draft.kind == .website ? "Website only" : "Public repository"
+                        )
+                    }
+                    if draft.kind == .repository {
+                        TextField("Repository (owner/name)", text: $draft.repoFullName)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                    }
                     TextField("Language", text: $draft.language)
                 }
 
@@ -315,10 +330,12 @@ struct LabEditorView: View {
                 }
 
                 Section("Links") {
-                    TextField("Repository URL", text: $draft.links.repo)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        .keyboardType(.URL)
+                    if draft.kind == .repository {
+                        TextField("Repository URL", text: $draft.links.repo)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                            .keyboardType(.URL)
+                    }
                     TextField("Live URL", text: $draft.links.live.contentOrEmpty)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
@@ -329,35 +346,37 @@ struct LabEditorView: View {
                         .keyboardType(.URL)
                 }
 
-                Section {
-                    Label("Managed by GitHub sync", systemImage: "arrow.trianglehead.2.clockwise.rotate.90")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                if let stats = draft.liveStats {
+                    Section {
+                        Label("Managed by GitHub sync", systemImage: "arrow.trianglehead.2.clockwise.rotate.90")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
 
-                    LabeledContent("Stars", value: draft.liveStats.stars.formatted())
-                    LabeledContent("Forks", value: draft.liveStats.forks.formatted())
-                    LabeledContent(
-                        "Commits in trailing year",
-                        value: draft.liveStats.commitsYear.formatted()
-                    )
-                    LabeledContent(
-                        "Days since last push",
-                        value: draft.liveStats.lastPushDaysAgo.formatted()
-                    )
-                    LabeledContent(
-                        "Last pushed",
-                        value: draft.liveStats.lastPushedAt.map(BackendDate.abbreviatedDateTime)
-                            ?? "Unknown"
-                    )
-                    LabeledContent(
-                        "Last synced",
-                        value: draft.liveStats.syncedAt.map(BackendDate.abbreviatedDateTime)
-                            ?? "Not yet"
-                    )
-                } header: {
-                    Text("Live stats")
-                } footer: {
-                    Text("Read-only. The scheduled GitHub sync updates these values.")
+                        LabeledContent("Stars", value: stats.stars.formatted())
+                        LabeledContent("Forks", value: stats.forks.formatted())
+                        LabeledContent(
+                            "Commits in trailing year",
+                            value: stats.commitsYear.formatted()
+                        )
+                        LabeledContent(
+                            "Days since last push",
+                            value: stats.lastPushDaysAgo.formatted()
+                        )
+                        LabeledContent(
+                            "Last pushed",
+                            value: stats.lastPushedAt.map(BackendDate.abbreviatedDateTime)
+                                ?? "Unknown"
+                        )
+                        LabeledContent(
+                            "Last synced",
+                            value: stats.syncedAt.map(BackendDate.abbreviatedDateTime)
+                                ?? "Not yet"
+                        )
+                    } header: {
+                        Text("Live stats")
+                    } footer: {
+                        Text("Read-only. The scheduled GitHub sync updates these values.")
+                    }
                 }
 
                 Section("Presentation") {
@@ -505,10 +524,14 @@ struct LabEditorView: View {
     private var operationInFlight: Bool { isWorking || activeUploads > 0 }
 
     private var canSave: Bool {
-        let required = [
-            draft.slug, draft.title, draft.summary, draft.repoFullName,
-            draft.language, draft.links.repo,
-        ]
+        // A website-only Lab has no repository fields; its live URL is the
+        // one link it must have.
+        let required = draft.kind == .website
+            ? [draft.slug, draft.title, draft.summary, draft.language, draft.links.live ?? ""]
+            : [
+                draft.slug, draft.title, draft.summary, draft.repoFullName,
+                draft.language, draft.links.repo,
+            ]
         return required.allSatisfy { !$0.contentIsBlank }
             && draft.coverImage.contentIsValid
             && draft.sortOrder.isFinite

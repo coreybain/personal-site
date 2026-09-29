@@ -69,12 +69,28 @@ const labFields = {
   slug,
   title: text(160),
   summary: text(400),
-  repoFullName: text(140).regex(/^[\w.-]+\/[\w.-]+$/).describe('GitHub owner/name used for repository statistics.'),
+  kind: z.enum(['repository', 'website']).optional()
+    .describe("Omit or use 'repository' for a public GitHub repo. Use 'website' only for a product whose source is private: it stores no repoFullName, links.repo or statistics and must link its public website in links.live. Fixed at creation."),
+  repoFullName: text(140).regex(/^[\w.-]+\/[\w.-]+$/).optional().describe('GitHub owner/name used for repository statistics. Required for a repository Lab; never send one for a website Lab.'),
   language: text(60),
   coverImage: portfolioMedia,
-  links: z.object({ repo: assetUrl, live: assetUrl.optional(), docs: assetUrl.optional() }).strict()
-    .describe('Complete replacement for links. Keep the required repo URL and every optional link to retain. GitHub URLs must agree with repoFullName.'),
+  links: z.object({ repo: assetUrl.optional(), live: assetUrl.optional(), docs: assetUrl.optional() }).strict()
+    .describe('Complete replacement for links. A repository Lab keeps its required repo URL, which must agree with repoFullName for GitHub. A website Lab has no repo URL and requires live. Include every optional link to retain.'),
 };
+/**
+ * A repository Lab names its repo twice (owner/name and URL); a website Lab is a
+ * private-source product and names it nowhere, linking its public site instead.
+ */
+const labCreateInput = z.object({ ...labFields, idempotencyKey }).strict().superRefine((value, ctx) => {
+  if (value.kind === 'website') {
+    if (value.repoFullName !== undefined) ctx.addIssue({ code: 'custom', path: ['repoFullName'], message: 'A website Lab has no repository; omit repoFullName.' });
+    if (value.links.repo !== undefined) ctx.addIssue({ code: 'custom', path: ['links', 'repo'], message: 'A website Lab has no repository link; omit links.repo.' });
+    if (value.links.live === undefined) ctx.addIssue({ code: 'custom', path: ['links', 'live'], message: 'A website Lab needs links.live.' });
+    return;
+  }
+  if (value.repoFullName === undefined) ctx.addIssue({ code: 'custom', path: ['repoFullName'], message: 'A repository Lab needs repoFullName.' });
+  if (value.links.repo === undefined) ctx.addIssue({ code: 'custom', path: ['links', 'repo'], message: 'A repository Lab needs links.repo.' });
+});
 const page = {
   limit: z.number().int().min(1).max(50).optional().describe('Page size, maximum 50.'),
   cursor: z.string().max(4096).nullable().optional().describe('Opaque continueCursor from the previous page; omit for the first page.'),
@@ -108,7 +124,7 @@ export const toolDefinitions = [
   { name: 'publish_project', description: 'LIVE CHANGE: publish the exact reviewed project draft and schedule knowledge updates. Requires content:publish. Every media asset must have sanitised:true; verify the actual asset is suitable for public display before marking it sanitised.', inputSchema: z.object({ projectId: id, expectedRevision: revision, expectedDraftRevision: revision, idempotencyKey }).strict(), effect: 'publish' },
   { name: 'unpublish_project', description: 'LIVE CHANGE: hide the project from public reads and update knowledge visibility. Requires content:publish. Preserves content and staged changes; cached pages and snapshots may take time to refresh.', inputSchema: z.object({ projectId: id, expectedRevision: revision, idempotencyKey }).strict(), effect: 'publish' },
   { name: 'discard_project_draft', description: 'Permanently discard the exact staged project changes while preserving the base case study and current publication state. Requires content:write. Review both current revisions first, especially after changes from another client.', inputSchema: z.object({ projectId: id, expectedRevision: revision, expectedDraftRevision: revision, idempotencyKey }).strict(), effect: 'draft' },
-  { name: 'create_lab_draft', description: 'Create an unpublished personal-project Labs entry. Requires content:write. Cover media must already be uploaded. Repository statistics remain backend-managed; creates at the end of the collection without changing featured selections.', inputSchema: z.object({ ...labFields, idempotencyKey }).strict(), effect: 'draft' },
+  { name: 'create_lab_draft', description: "Create an unpublished personal-project Labs entry. Requires content:write. Cover media must already be uploaded. A repository Lab needs repoFullName and links.repo; a kind 'website' Lab (private source) needs links.live and must omit both. Repository statistics remain backend-managed; creates at the end of the collection without changing featured selections.", inputSchema: labCreateInput, effect: 'draft' },
   { name: 'update_lab_draft', description: 'Save Labs editorial changes without changing the published entry. Requires content:write. Omitted fields are preserved; coverImage and links replace whole objects. Repository statistics, featured status and ordering are not writable through this tool. Read both revisions before editing.', inputSchema: z.object({ labId: id, expectedRevision: revision, expectedDraftRevision: revision, patch: z.object(labFields).partial().strict().refine(value => Object.keys(value).length > 0, 'Provide at least one changed field.'), idempotencyKey }).strict(), effect: 'draft' },
   { name: 'publish_lab', description: 'LIVE CHANGE: publish the exact reviewed Labs draft and schedule knowledge updates. Requires content:publish. The backend checks repository uniqueness and link agreement; current cron-managed statistics are preserved.', inputSchema: z.object({ labId: id, expectedRevision: revision, expectedDraftRevision: revision, idempotencyKey }).strict(), effect: 'publish' },
   { name: 'unpublish_lab', description: 'LIVE CHANGE: hide a Labs entry from public reads and update knowledge visibility. Requires content:publish. Preserves editorial content, staged changes and repository statistics; cached pages and snapshots may take time to refresh.', inputSchema: z.object({ labId: id, expectedRevision: revision, idempotencyKey }).strict(), effect: 'publish' },

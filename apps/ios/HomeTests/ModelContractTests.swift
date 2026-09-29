@@ -316,6 +316,25 @@ struct ModelContractTests {
         #expect(Set([first, second]).count == 1)
     }
 
+    @Test func websiteOnlyLabDecodesWithoutRepositoryFieldsAndEncodesNone() throws {
+        let lab = try decode(
+            LabRecord.self,
+            #"{"_id":"lab_2","_creationTime":1,"revision":1,"published":true,"featured":true,"sortOrder":1,"slug":"product","title":"Product","summary":"Summary","kind":"website","language":"TypeScript","coverImage":{"kind":"image","url":"https://cdn.example/product.png","alt":"Product"},"links":{"live":"https://product.example"}}"#
+        )
+        #expect(lab.labKind == .website)
+        #expect(lab.repoFullName == nil)
+        #expect(lab.liveStats == nil)
+
+        let draft = LabDraft(record: lab)
+        #expect(draft.kind == .website)
+        #expect(draft.links.repo.isEmpty)
+
+        let encoded = try JSONEncoder().encode(draft.links)
+        let object = try #require(try JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+        #expect(object["repo"] == nil)
+        #expect(object["live"] as? String == "https://product.example")
+    }
+
     @Test func recordBackedDraftsHaveStableIdentityAndEquality() throws {
         let project = try decode(
             ProjectRecord.self,

@@ -121,6 +121,9 @@ const machineLabel = v.string();
  * URLs are UploadThing CDN URLs (ADR 010) — the iOS client uploads via
  * presigned URL and stores the result here, so Convex never holds the bytes.
  */
+/** Where a Lab's public evidence lives. See the `labs` table. */
+export const labKind = v.union(v.literal("repository"), v.literal("website"));
+
 export const mediaAsset = v.object({
   kind: v.union(v.literal("image"), v.literal("video")),
   url: v.string(),
@@ -712,8 +715,13 @@ export default defineSchema({
   /**
    * Labs — personal side projects. Mirrors `LabSchema`.
    *
-   * Curated in by hand (ADR 014), always repo-linked, and augmented with live
-   * GitHub numbers. `coverImage` is required on purpose: Labs and Fun Entries
+   * Curated in by hand (ADR 014) and, by default, repo-linked and augmented
+   * with live GitHub numbers. A `kind: 'website'` Lab is the exception: a
+   * product whose source is private (ADR 008), published under its product
+   * name with its public website as the only link. It stores no
+   * `repoFullName`, no `links.repo` and no `liveStats`, so no public read can
+   * carry a repository identifier or GitHub figure for it, and the git cron
+   * never asks GitHub about it. `coverImage` is required on purpose: Labs and Fun Entries
    * are the site's main source of imagery outside the case studies.
    */
   labs: defineTable({
@@ -727,22 +735,33 @@ export default defineSchema({
     slug,
     title: v.string(),
     summary: v.string(),
-    /** `owner/name`, exactly as GitHub spells it. The cron's join key. */
-    repoFullName: v.string(),
-    /** GitHub's primary-language label for the repo. */
+    /**
+     * `'website'` for a private-source product Lab; absent (the legacy rows) or
+     * `'repository'` for a public repo. Fixed at creation.
+     */
+    kind: v.optional(labKind),
+    /**
+     * `owner/name`, exactly as GitHub spells it. The cron's join key. Required
+     * for a repository Lab and absent for a website Lab — lib/labOperations.ts
+     * enforces both halves.
+     */
+    repoFullName: v.optional(v.string()),
+    /** GitHub's primary-language label for the repo, or the product's main language. */
     language: v.string(),
     coverImage: mediaAsset,
     links: v.object({
-      /** Required — a Lab without a repo is a Case Study. */
-      repo: v.string(),
+      /** Required on a repository Lab; never present on a website Lab. */
+      repo: v.optional(v.string()),
+      /** Required on a website Lab: it is the only link the card has. */
       live: v.optional(v.string()),
       docs: v.optional(v.string()),
     }),
     /**
      * The slice the hourly cron overwrites from the GitHub API. Everything else
-     * on the row is hand-written and must survive the refresh.
+     * on the row is hand-written and must survive the refresh. Absent on a
+     * website Lab, which has no public repository to measure.
      */
-    liveStats: v.object({
+    liveStats: v.optional(v.object({
       stars: v.number(),
       forks: v.number(),
       /** Commits in the trailing 12 months. */
@@ -757,7 +776,7 @@ export default defineSchema({
       lastPushedAt: v.optional(isoDateTime),
       /** When the cron last refreshed this block. */
       syncedAt: v.optional(isoDateTime),
-    }),
+    })),
   })
     .index("by_slug", ["slug"])
     // The cron resolves rows to refresh by repo, not by slug.
@@ -805,10 +824,11 @@ export default defineSchema({
     slug,
     title: v.string(),
     summary: v.string(),
-    repoFullName: v.string(),
+    kind: v.optional(labKind),
+    repoFullName: v.optional(v.string()),
     language: v.string(),
     coverImage: mediaAsset,
-    links: v.object({ repo: v.string(), live: v.optional(v.string()), docs: v.optional(v.string()) }),
+    links: v.object({ repo: v.optional(v.string()), live: v.optional(v.string()), docs: v.optional(v.string()) }),
     updatedAt: isoDateTime,
   }).index("by_labId", ["labId"]),
 

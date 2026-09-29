@@ -4,7 +4,7 @@ import type { CSSProperties } from "react";
 import { DeckHead } from "@/components/site/Panel";
 import type { LabsDerived } from "@/lib/derive";
 import { activePhrase, band, cadence, repoUrl } from "@/lib/derive";
-import type { Lab } from "@/lib/snapshot";
+import type { Lab, WebsiteLab } from "@/lib/snapshot";
 
 /**
  * Featured builds with product captures or public repository previews.
@@ -26,6 +26,13 @@ import type { Lab } from "@/lib/snapshot";
  * is dropped, and the section disappears entirely when none survive. The list
  * order is this spec's order, not the wall's recency order, because these are
  * curated write-ups rather than a ranking.
+ *
+ * ── Website-only Labs ──────────────────────────────────────────────────────
+ *
+ * A spec can also join a `WebsiteLab`: a product whose source is private
+ * (ADR 008). Its plate has the same capture and write-up but no telemetry and
+ * no repository link — the readouts say the source is private, and the only
+ * outbound link is the Lab's own public website from Convex.
  */
 
 /** The editorial half of a plate: everything the `Lab` contract has no field for. */
@@ -43,7 +50,9 @@ type FeaturedSpec = {
 };
 
 /** A spec joined to the lab it describes. */
-type FeaturedBuild = FeaturedSpec & { lab: Lab };
+type FeaturedBuild =
+  | (FeaturedSpec & { source: "repository"; lab: Lab })
+  | (FeaturedSpec & { source: "website"; lab: WebsiteLab });
 
 const FEATURED_SPECS: FeaturedSpec[] = [
   {
@@ -58,6 +67,19 @@ const FEATURED_SPECS: FeaturedSpec[] = [
     writeup:
       "An open-source workspace for running coding agents across desktop, web and iOS. Bring your Claude Code, Codex, Cursor, Grok Build or OpenCode subscriptions and manage work on your machine or remotely.",
     stack: ["TypeScript", "Electron", "SwiftUI"],
+  },
+  {
+    slug: "uploadfile",
+    image: "/images/labs/uploadfile-home.png",
+    imageAlt:
+      "Uploadfile homepage with the headline 'Uploads, without the plumbing.' above a command palette for creating applications, API keys, uploads and private links.",
+    capture: "Product site / home · 1280 × 960",
+    liveUrl: "https://www.uploadfile.dev/",
+    liveLabel: "uploadfile.dev",
+    eyebrow: "In development · file hosting platform",
+    writeup:
+      "A developer file upload and hosting service I am building end to end. Files go to regional S3 storage and out through a CloudFront CDN, with signed uploads and access checks at the edge. Accounts, tenant permissions, quotas and usage run on a Convex sync engine, billing is its own system with Stripe handling card payments, and UploadThing-compatible SDKs let existing apps switch over.",
+    stack: ["Next.js", "Convex", "AWS", "Stripe"],
   },
   {
     slug: "boca",
@@ -148,7 +170,7 @@ function FeaturedBuildPlate({
         <span className="hor-label">Capture · {String(index + 1).padStart(2, "0")}</span>
         <a
           className="hor-link labs-feature-link"
-          href={build.liveUrl}
+          href={build.source === "website" ? build.lab.links.live : build.liveUrl}
           target="_blank"
           rel="noreferrer noopener"
         >
@@ -191,50 +213,103 @@ function FeaturedBuildPlate({
             </ul>
           </div>
 
-          <div className="labs-feature-readouts">
-            <div className="labs-feature-readout">
-              <span className="hor-label flex items-center gap-2">
-                <i
-                  className={`labs-seed labs-band-${band(lab.liveStats.lastPushDaysAgo)}`}
-                  aria-hidden="true"
-                />
-                Last push
-              </span>
-              <div className="hor-readout-sm mt-2">
-                {lab.liveStats.lastPushDaysAgo === 0
-                  ? "Today"
-                  : `${lab.liveStats.lastPushDaysAgo}d`}
-              </div>
-              <p className="hor-micro mt-1">{activePhrase(lab.liveStats.lastPushDaysAgo)}</p>
-            </div>
-
-            <div className="labs-feature-readout">
-              <span className="hor-label">Cadence</span>
-              <div className="hor-readout-sm mt-2">{cadence(lab).toFixed(1)}</div>
-              <p className="hor-micro mt-1">commits a week</p>
-            </div>
-          </div>
-
-          <a
-            className="hor-link labs-feature-repo"
-            href={repoUrl(lab)}
-            target="_blank"
-            rel="noreferrer noopener"
-          >
-            View the repository
-            <ArrowOut />
-            <span className="sr-only"> (opens in a new tab)</span>
-          </a>
+          {build.source === "website" ? (
+            <WebsiteReadouts lab={build.lab} />
+          ) : (
+            <RepositoryReadouts lab={build.lab} />
+          )}
         </div>
       </div>
     </article>
   );
 }
 
-export function FeaturedLabs({ labs }: Pick<LabsDerived, "labs">) {
-  const builds: FeaturedBuild[] = FEATURED_SPECS.flatMap((spec) => {
+/** Last push and cadence, from the hourly GitHub sync. Public repositories only. */
+function RepositoryReadouts({ lab }: { lab: Lab }) {
+  return (
+    <>
+      <div className="labs-feature-readouts">
+        <div className="labs-feature-readout">
+          <span className="hor-label flex items-center gap-2">
+            <i
+              className={`labs-seed labs-band-${band(lab.liveStats.lastPushDaysAgo)}`}
+              aria-hidden="true"
+            />
+            Last push
+          </span>
+          <div className="hor-readout-sm mt-2">
+            {lab.liveStats.lastPushDaysAgo === 0
+              ? "Today"
+              : `${lab.liveStats.lastPushDaysAgo}d`}
+          </div>
+          <p className="hor-micro mt-1">{activePhrase(lab.liveStats.lastPushDaysAgo)}</p>
+        </div>
+
+        <div className="labs-feature-readout">
+          <span className="hor-label">Cadence</span>
+          <div className="hor-readout-sm mt-2">{cadence(lab).toFixed(1)}</div>
+          <p className="hor-micro mt-1">commits a week</p>
+        </div>
+      </div>
+
+      <a
+        className="hor-link labs-feature-repo"
+        href={repoUrl(lab)}
+        target="_blank"
+        rel="noreferrer noopener"
+      >
+        View the repository
+        <ArrowOut />
+        <span className="sr-only"> (opens in a new tab)</span>
+      </a>
+    </>
+  );
+}
+
+/**
+ * A private-source product has no repository to measure or link (ADR 008), so
+ * the readouts state that plainly and the only link is its public website.
+ */
+function WebsiteReadouts({ lab }: { lab: WebsiteLab }) {
+  return (
+    <>
+      <div className="labs-feature-readouts">
+        <div className="labs-feature-readout">
+          <span className="hor-label">Source</span>
+          <div className="hor-readout-sm mt-2">Private</div>
+          <p className="hor-micro mt-1">no public repository</p>
+        </div>
+
+        <div className="labs-feature-readout">
+          <span className="hor-label">Language</span>
+          <div className="hor-readout-sm mt-2">{lab.language}</div>
+          <p className="hor-micro mt-1">main codebase</p>
+        </div>
+      </div>
+
+      <a
+        className="hor-link labs-feature-repo"
+        href={lab.links.live}
+        target="_blank"
+        rel="noreferrer noopener"
+      >
+        Visit the website
+        <ArrowOut />
+        <span className="sr-only"> (opens in a new tab)</span>
+      </a>
+    </>
+  );
+}
+
+export function FeaturedLabs({
+  labs,
+  websiteLabs = [],
+}: Pick<LabsDerived, "labs"> & { websiteLabs?: readonly WebsiteLab[] }) {
+  const builds: FeaturedBuild[] = FEATURED_SPECS.flatMap((spec): FeaturedBuild[] => {
     const lab = labs.find((candidate) => candidate.slug === spec.slug);
-    return lab ? [{ ...spec, lab }] : [];
+    if (lab) return [{ ...spec, source: "repository", lab }];
+    const website = websiteLabs.find((candidate) => candidate.slug === spec.slug);
+    return website ? [{ ...spec, source: "website", lab: website }] : [];
   });
 
   if (builds.length === 0) return null;

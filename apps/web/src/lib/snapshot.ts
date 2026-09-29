@@ -214,6 +214,25 @@ export type Lab = {
   featured: boolean;
 };
 
+/**
+ * A Lab published under its product name alone (ADR 008). Its source is
+ * private, so it carries no repository, no GitHub figures and no telemetry: it
+ * appears only as a featured build that links its public website, and it never
+ * reaches the recency chart, the repository wall or the homepage dashboard,
+ * which are all measurements of public repositories.
+ */
+export type WebsiteLab = {
+  slug: string;
+  title: string;
+  summary: string;
+  /** The product's main language, for the stack label. */
+  language: string;
+  /** The public website. Required: it is the card's only link. */
+  links: { live: string };
+  coverImage?: { url: string; alt: string };
+  featured: boolean;
+};
+
 export type ResumeRole = {
   company: string;
   title: string;
@@ -1125,6 +1144,9 @@ Visual Editor taught me to see a page builder as a constraint and serialisation 
       featured: false,
     },
   ] as Lab[],
+
+  /** Website-only Labs (private source). The live list comes from Convex. */
+  websiteLabs: [] as WebsiteLab[],
 
   /**
    * Resume seed aligned with LinkedIn and Corey's corrections on 14 September

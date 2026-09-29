@@ -246,12 +246,19 @@ export const curatedLabRepos = internalQuery({
   handler: async (ctx): Promise<CuratedLabRepo[]> => {
     const rows = await ctx.db.query('labs').withIndex('by_sortOrder').collect();
 
-    return rows.map((row) => ({
-      slug: row.slug,
-      title: row.title,
-      repoFullName: row.repoFullName,
-      isPublic: row.published,
-    }));
+    // A website Lab has no repository (its source is private, ADR 008), so it
+    // is never looked up on GitHub and never joins the attribution allowlist:
+    // its commits stay in the neutral bucket like any other private work.
+    return rows.flatMap((row) =>
+      row.repoFullName === undefined
+        ? []
+        : [{
+            slug: row.slug,
+            title: row.title,
+            repoFullName: row.repoFullName,
+            isPublic: row.published,
+          }],
+    );
   },
 });
 
@@ -627,7 +634,9 @@ async function applyLabStats(
       .query('labs')
       .withIndex('by_slug', (q) => q.eq('slug', stat.slug))
       .first();
-    if (lab === null) continue;
+    // Only repository Labs are fetched, so a row without stats here is one that
+    // changed kind between the query and this write. Leave it alone.
+    if (lab === null || lab.liveStats === undefined) continue;
 
     // An empty string means GitHub reported no push timestamp at all (a repo
     // created and never pushed to). Keep whatever the row already had rather
@@ -636,7 +645,7 @@ async function applyLabStats(
     const lastPushedAt =
       stat.lastPushedAt.length > 0 ? stat.lastPushedAt : lab.liveStats.lastPushedAt;
 
-    const liveStats: Doc<'labs'>['liveStats'] = {
+    const liveStats: LabLiveStats = {
       stars: stat.stars,
       forks: stat.forks,
       commitsYear: stat.commitsYear,
@@ -665,12 +674,13 @@ async function applyLabStats(
   return written;
 }
 
-type LabStatsForComparison = Omit<Doc<'labs'>['liveStats'], 'syncedAt'>;
+type LabLiveStats = NonNullable<Doc<'labs'>['liveStats']>;
+type LabStatsForComparison = Omit<LabLiveStats, 'syncedAt'>;
 
 /** Ignore the observation timestamp; a check that found the same facts is no-op. */
 export function labStatsMateriallyEqual(
-  current: Doc<'labs'>['liveStats'],
-  next: Doc<'labs'>['liveStats'],
+  current: LabLiveStats,
+  next: LabLiveStats,
 ): boolean {
   const left: LabStatsForComparison = {
     stars: current.stars,

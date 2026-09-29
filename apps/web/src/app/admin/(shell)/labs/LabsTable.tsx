@@ -59,7 +59,8 @@ function sortRows(rows: readonly Doc<"labs">[], mode: SortMode): Doc<"labs">[] {
     case "stars":
       return copy.sort(
         (a, b) =>
-          b.liveStats.stars - a.liveStats.stars || a.sortOrder - b.sortOrder,
+          (b.liveStats?.stars ?? -1) - (a.liveStats?.stars ?? -1) ||
+          a.sortOrder - b.sortOrder,
       );
     case "order":
       return copy;
@@ -179,7 +180,8 @@ export function LabsTable() {
               {row.title}
             </Link>
             <p className="adm-micro">
-              <span className="adm-mono">{row.repoFullName}</span> · {row.language}
+              <span className="adm-mono">{row.repoFullName ?? "Website only"}</span> ·{" "}
+              {row.language}
             </p>
           </td>
 
@@ -188,17 +190,25 @@ export function LabsTable() {
           </td>
 
           <td>
-            <span className="adm-micro">
-              ★ {row.liveStats.stars} · {row.liveStats.commitsYear} commits
-            </span>
-            <p className="adm-micro">
-              {/* An absent `syncedAt` is the cron's "has not run yet" signal, and
-                  saying so is the whole value of this column: on the public card a
-                  never-synced Lab is indistinguishable from an unpopular one. */}
-              {row.liveStats.syncedAt
-                ? `synced ${formatInstant(row.liveStats.syncedAt)}`
-                : "never synced — cron pending"}
-            </p>
+            {row.liveStats === undefined ? (
+              /* A website-only Lab has no public repository, so there is
+                 nothing for the cron to read (ADR 008). */
+              <span className="adm-micro">No GitHub stats (website only)</span>
+            ) : (
+              <>
+                <span className="adm-micro">
+                  ★ {row.liveStats.stars} · {row.liveStats.commitsYear} commits
+                </span>
+                <p className="adm-micro">
+                  {/* An absent `syncedAt` is the cron's "has not run yet" signal, and
+                      saying so is the whole value of this column: on the public card a
+                      never-synced Lab is indistinguishable from an unpopular one. */}
+                  {row.liveStats.syncedAt
+                    ? `synced ${formatInstant(row.liveStats.syncedAt)}`
+                    : "never synced — cron pending"}
+                </p>
+              </>
+            )}
           </td>
 
           <td data-align="right" data-numeric="true">
