@@ -314,6 +314,290 @@
 }
 
 /* ================================================================== *
+ * The rail — contents and sharing beside the post
+ *
+ * One column below 1080px, with the rail above the text. From 1080px
+ * the rail takes a fixed right-hand column and sticks under the nav
+ * pill, while the text keeps its own 68ch measure in the left column.
+ * ================================================================== */
+
+.hor .blog-layout {
+  display: grid;
+  gap: 2.25rem;
+}
+
+.hor .blog-aside {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+
+@media (min-width: 1080px) {
+  .hor .blog-layout {
+    grid-template-columns: minmax(0, 1fr) 232px;
+    column-gap: clamp(3rem, 6vw, 5.5rem);
+    align-items: start;
+  }
+
+  .hor .blog-article {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .hor .blog-aside {
+    grid-column: 2;
+    grid-row: 1;
+    position: sticky;
+    top: 104px;
+    gap: 0;
+    max-height: calc(100dvh - 136px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    /* Room for focus rings, which would otherwise clip at the scroll edge. */
+    padding: 4px;
+    margin: -4px;
+  }
+}
+
+.hor .blog-aside-label {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--hor-ink-3);
+}
+
+/* ---- contents ---------------------------------------------------- */
+
+.hor .blog-toc-label {
+  margin-bottom: 0.9rem;
+}
+
+.hor .blog-toc-list {
+  position: relative;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.hor .blog-toc-link {
+  display: block;
+  padding: 0.3rem 0 0.3rem 1.15rem;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  letter-spacing: -0.01em;
+  color: var(--hor-ink-3);
+  text-decoration: none;
+  text-wrap: pretty;
+  transition: color 250ms var(--hor-ease);
+}
+
+.hor .blog-toc-link[data-depth="3"] {
+  padding-left: 1.8rem;
+}
+
+.hor .blog-toc-link:hover,
+.hor .blog-toc-link[data-active="true"] {
+  color: var(--hor-ink);
+}
+
+.hor .blog-toc-rail {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}
+
+.hor svg.blog-toc-rail path {
+  stroke: var(--hor-line-strong);
+  stroke-width: 1;
+}
+
+/* The accent segment: a bar sliding behind a mask cut to the rail's own path,
+   so it takes every step the hairline takes. */
+.hor .blog-toc-rail-active {
+  mask-repeat: no-repeat;
+  mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-size: 100% 100%;
+}
+
+.hor .blog-toc-thumb {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: var(--toc-top);
+  height: var(--toc-height);
+  background: var(--hor-accent);
+  transition:
+    top 520ms var(--hor-ease),
+    height 520ms var(--hor-ease);
+}
+
+/* Wide: always open, the toggle is not needed. */
+@media (min-width: 1080px) {
+  .hor .blog-toc-toggle {
+    display: none;
+  }
+}
+
+/* Narrow: a folded panel above the post. */
+@media (max-width: 1079.98px) {
+  .hor .blog-toc {
+    border: 1px solid var(--hor-line);
+    border-radius: 14px;
+    background: var(--hor-sky-card);
+  }
+
+  .hor .blog-toc-label {
+    display: none;
+  }
+
+  .hor .blog-toc-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    width: 100%;
+    padding: 0.85rem 1rem;
+    border-radius: 14px;
+    text-align: left;
+    cursor: pointer;
+    transition: color 200ms var(--hor-ease);
+  }
+
+  .hor .blog-toc-toggle:hover {
+    color: var(--hor-ink);
+  }
+
+  .hor .blog-toc-count {
+    color: var(--hor-ink-4);
+    letter-spacing: 0;
+  }
+
+  .hor .blog-toc-toggle svg {
+    margin-left: auto;
+    transition: transform 300ms var(--hor-ease);
+  }
+
+  .hor .blog-toc[data-open="true"] .blog-toc-toggle svg {
+    transform: rotate(180deg);
+  }
+
+  .hor .blog-toc-body {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 360ms var(--hor-ease);
+  }
+
+  .hor .blog-toc[data-open="true"] .blog-toc-body {
+    grid-template-rows: 1fr;
+  }
+
+  .hor .blog-toc-body > .blog-toc-list {
+    min-height: 0;
+    overflow: hidden;
+    margin-inline: 1rem;
+  }
+
+  .hor .blog-toc[data-open="true"] .blog-toc-list {
+    margin-bottom: 0.9rem;
+  }
+
+  /* Folded links are not tabbable. */
+  .hor .blog-toc[data-open="false"] .blog-toc-list {
+    visibility: hidden;
+    transition: visibility 0s 360ms;
+  }
+}
+
+/* ---- sharing ----------------------------------------------------- */
+
+@media (min-width: 1080px) {
+  .hor .blog-toc + .blog-share {
+    margin-top: 1.75rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--hor-line-soft);
+  }
+}
+
+.hor .blog-share .blog-aside-label {
+  margin-bottom: 0.75rem;
+}
+
+.hor .blog-share-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.hor .blog-share-targets {
+  display: flex;
+  gap: 0.375rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.hor .blog-share-copy,
+.hor .blog-share-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 34px;
+  border-radius: 10px;
+  /* `--hor-line`, not the card edge: the edge token is white in the light
+     theme, which leaves a button this small with no visible boundary. */
+  border: 1px solid var(--hor-line);
+  background: var(--hor-sky-card);
+  color: var(--hor-ink-2);
+  cursor: pointer;
+  transition:
+    color 200ms var(--hor-ease),
+    background-color 200ms var(--hor-ease),
+    border-color 200ms var(--hor-ease),
+    transform 400ms var(--hor-spring);
+}
+
+.hor .blog-share-copy {
+  gap: 0.45rem;
+  padding-inline: 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+/* Wide enough for "Link copied", so the swap cannot nudge the icons. */
+.hor .blog-share-copy span {
+  min-width: 5.6em;
+  text-align: left;
+}
+
+.hor .blog-share-btn {
+  width: 34px;
+}
+
+.hor .blog-share-copy:hover,
+.hor .blog-share-btn:hover {
+  color: var(--hor-ink);
+  background: var(--hor-sky-card-hover);
+  border-color: var(--hor-line-strong);
+  transform: translateY(-1px);
+}
+
+.hor .blog-share-copy[data-state="copied"] {
+  color: var(--hor-accent);
+}
+
+/* On the wide rail the targets sit on their own line under "Copy link". */
+@media (min-width: 1080px) {
+  .hor .blog-share-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+/* ================================================================== *
  * The post body — element selectors, contained
  *
  * Everything below styles HTML produced by @/lib/markdown. Nothing
@@ -341,6 +625,8 @@
   position: relative;
   color: var(--hor-ink);
   text-wrap: balance;
+  /* Clear the fixed nav pill when jumped to from the contents. */
+  scroll-margin-top: 104px;
 }
 
 .hor .blog-prose h2 {
@@ -681,5 +967,18 @@
 
   .hor .blog-prose .blog-anchor {
     transition: none !important;
+  }
+
+  .hor .blog-toc-thumb,
+  .hor .blog-toc-body,
+  .hor .blog-toc-toggle svg,
+  .hor .blog-share-copy,
+  .hor .blog-share-btn {
+    transition: none !important;
+  }
+
+  .hor .blog-share-copy:hover,
+  .hor .blog-share-btn:hover {
+    transform: none;
   }
 }

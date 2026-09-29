@@ -99,7 +99,7 @@
 
 import "server-only";
 
-import type { Element, Root } from "hast";
+import type { Element, ElementContent, Root } from "hast";
 import rehypeAutolinkHeadings from "rehype-autolink-headings";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import rehypeSlug from "rehype-slug";
@@ -296,4 +296,73 @@ export async function renderMarkdown(markdown: string): Promise<string> {
 
   const file = await processor.process(markdown);
   return String(file);
+}
+
+/* ------------------------------------------------------------------ *
+ * The outline
+ * ------------------------------------------------------------------ */
+
+/** One heading in a post's table of contents. */
+export type TocEntry = {
+  /** The `rehype-slug` id, so `#${id}` is the heading's own deep link. */
+  id: string;
+  text: string;
+  depth: 2 | 3;
+};
+
+/**
+ * A heading's readable text, without the `#` anchor `rehype-autolink-headings`
+ * appended to it.
+ */
+function textOf(node: ElementContent): string {
+  if (node.type === "text") return node.value;
+  if (node.type !== "element") return "";
+
+  const className = node.properties?.className;
+  if (Array.isArray(className) && className.includes("blog-anchor")) return "";
+
+  return node.children.map(textOf).join("");
+}
+
+/**
+ * The `h2`/`h3` outline of an already-transformed tree, in document order.
+ *
+ * `h4` is left out on purpose: the rail beside a post has room for one level of
+ * indent, and a third level would turn a map of the argument into a list of
+ * every paragraph with a heading on it. The GFM `footnote-label` is chrome, not
+ * a section, for the same reason `isAnchorableHeading` skips it.
+ */
+function outlineOf(tree: Root): TocEntry[] {
+  const toc: TocEntry[] = [];
+
+  visit(tree, "element", (node: Element) => {
+    if (node.tagName !== "h2" && node.tagName !== "h3") return;
+
+    const id = node.properties?.id;
+    if (typeof id !== "string" || id === "footnote-label") return;
+
+    const text = node.children.map(textOf).join("").trim();
+    if (text.length === 0) return;
+
+    toc.push({ id, text, depth: node.tagName === "h2" ? 2 : 3 });
+  });
+
+  return toc;
+}
+
+/**
+ * A post body as HTML, plus the outline its table of contents is drawn from.
+ *
+ * The same frozen pipeline as `renderMarkdown`, split at the one seam unified
+ * exposes — `run` then `stringify` — so the outline is read off the finished
+ * tree rather than re-parsed from the markdown. The ids in `toc` are therefore
+ * the ids in `html` by construction, not by two slug implementations agreeing.
+ */
+export async function renderPost(
+  markdown: string,
+): Promise<{ html: string; toc: TocEntry[] }> {
+  if (markdown.trim().length === 0) return { html: "", toc: [] };
+
+  const tree = await processor.run(processor.parse(markdown));
+  return { html: processor.stringify(tree), toc: outlineOf(tree) };
 }

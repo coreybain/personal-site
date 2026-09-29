@@ -25,10 +25,12 @@
  *
  * ── Zero client JavaScript ─────────────────────────────────────────────────
  *
- * There is no `"use client"` in this directory and there must never be one. A
- * post is text: it needs no hydration, no interactivity and no runtime. The
- * entire unified pipeline stays on the server behind `@/lib/markdown`'s
- * `server-only` guard, and what reaches the browser is HTML and a stylesheet.
+ * This component must never be `"use client"`. A post body is text: it needs
+ * no hydration, no interactivity and no runtime. The entire unified pipeline
+ * stays on the server behind `@/lib/markdown`'s `server-only` guard, and what
+ * reaches the browser is HTML and a stylesheet. The contents and share rail
+ * beside it (`PostAside`) are the only client code on a post, and they read the
+ * body's headings from the DOM rather than taking the body as a prop.
  *
  * ── Why `<div>` and not `<article>` ────────────────────────────────────────
  *

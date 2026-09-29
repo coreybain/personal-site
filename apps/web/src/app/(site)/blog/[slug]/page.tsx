@@ -1,13 +1,15 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
+import { PostAside } from "@/components/site/blog/PostAside";
 import { PostHero } from "@/components/site/blog/PostHero";
 import { PostNav } from "@/components/site/blog/PostNav";
 import { Prose } from "@/components/site/blog/Prose";
 import { ArticleJsonLd } from "@/components/site/seo";
 import { getPosts, getSiteData } from "@/lib/data";
 import { deriveBlog } from "@/lib/derive";
-import { renderMarkdown } from "@/lib/markdown";
+import { renderPost } from "@/lib/markdown";
+import { SITE_URL } from "@/lib/seo";
 
 import "../blog.css";
 
@@ -189,7 +191,7 @@ export default async function PostPage({
 
   const post = posts[index];
   const { prev, next } = blog.neighbours(index);
-  const html = await renderMarkdown(post.body);
+  const { html, toc } = await renderPost(post.body);
 
   return (
     <main>
@@ -219,9 +221,19 @@ export default async function PostPage({
       {/* ── the post ──────────────────────────────────────────────── */}
       <section className="hor-sky">
         <div className="hor-shell">
-          <article className="pt-14 pb-12 sm:pt-16 sm:pb-14">
-            <Prose html={html} />
-          </article>
+          {/* The aside comes first in the source so it sits above the post on
+              narrow screens; blog.css moves it into a sticky right-hand column
+              on wide ones. */}
+          <div className="blog-layout pt-14 pb-12 sm:pt-16 sm:pb-14">
+            <PostAside
+              toc={toc}
+              url={`${SITE_URL}/blog/${post.slug}`}
+              title={post.title}
+            />
+            <article className="blog-article">
+              <Prose html={html} />
+            </article>
+          </div>
 
           <PostNav prev={prev} next={next} />
         </div>
