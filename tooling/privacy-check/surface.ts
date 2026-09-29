@@ -84,6 +84,10 @@ export type Surface = {
   breakdownFindings: string[];
   /** How many `byProject` names were audited, for the report header. */
   breakdownNamesAudited: number;
+  /** Titles of published website-only Labs: private source, public product (ADR 008). */
+  websiteLabs: string[];
+  /** Website-only Labs that carry a repository field or lack their website link. */
+  websiteLabFindings: string[];
 };
 
 /**
@@ -242,6 +246,35 @@ export async function readPublicSurface(base: string): Promise<Surface> {
     }
   }
 
+  /* ---- website-only Labs -------------------------------------------
+   *
+   * A `kind: 'website'` Lab is a product whose source is private, published
+   * under its product name with its public website as the only link. Its title
+   * is sanctioned like any published name above, which is correct: publishing
+   * it is the sanctioning act. What that must never extend to is a repository
+   * identifier, repo link or GitHub figure on the same row, so those are
+   * asserted structurally here, independently of the corpus. The messages name
+   * the field, never its value, which is by hypothesis private.
+   * ------------------------------------------------------------------ */
+
+  const websiteLabs: string[] = [];
+  const websiteLabFindings: string[] = [];
+  for (const row of Array.isArray(labs.value) ? labs.value : []) {
+    if (row === null || typeof row !== 'object') continue;
+    const lab = row as Record<string, unknown>;
+    if (lab.kind !== 'website') continue;
+
+    const title = typeof lab.title === 'string' ? lab.title : '(untitled)';
+    websiteLabs.push(title);
+    const links = (lab.links ?? {}) as Record<string, unknown>;
+    if ('repoFullName' in lab) websiteLabFindings.push(`${title}: website-only Lab carries repoFullName`);
+    if ('repo' in links) websiteLabFindings.push(`${title}: website-only Lab carries links.repo`);
+    if ('liveStats' in lab) websiteLabFindings.push(`${title}: website-only Lab carries GitHub liveStats`);
+    if (typeof links.live !== 'string') {
+      websiteLabFindings.push(`${title}: website-only Lab has no public website link`);
+    }
+  }
+
   /* ---- per-slug detail pages --------------------------------------- */
 
   for (const slug of slugsOf(projects.value)) {
@@ -311,5 +344,7 @@ export async function readPublicSurface(base: string): Promise<Surface> {
     publishedNames,
     breakdownFindings: breakdown.findings,
     breakdownNamesAudited: breakdown.namesAudited,
+    websiteLabs,
+    websiteLabFindings,
   };
 }

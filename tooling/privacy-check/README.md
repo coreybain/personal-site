@@ -115,12 +115,20 @@ Sanctioned hits are printed as `REVIEW` with a count, not hidden. The sanction
 list is read from the deployment at check time rather than hardcoded, so the
 tool cannot grant an exemption the site never actually published.
 
+A **website-only Lab** (`kind: 'website'`) is how a product whose source is
+private gets published: its product name and public website, and nothing else.
+Its title is sanctioned like any published name, and the run lists every such
+Lab on a `PRODUCT` line so the intentional exposure is always visible. The
+sanction never extends to the repository, so the check also asserts each one
+carries no `repoFullName`, no `links.repo` and no GitHub `liveStats`, and has
+its website link. A violation prints as `WEBSITE` and fails the run.
+
 ## What it does not prove
 
 A paraphrase ("the bowling-alley site"), a repo name inside a screenshot, or
-text baked into an OG image are all invisible to a text search. Ten names are
-skipped as too generic to test (`client`, `server`, `website`, …) and are listed
-with reasons in `repos.ts`.
+text baked into an OG image are all invisible to a text search. A handful of
+names are skipped as too generic to test (`client`, `server`, `website`,
+`status`, …) and are listed with reasons in `repos.ts`.
 
 This is a regression gate on the mechanical failure mode — a pipeline that
 starts emitting a name it used to suppress — which is the one that happens

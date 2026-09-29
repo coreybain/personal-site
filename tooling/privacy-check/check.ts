@@ -289,12 +289,30 @@ if (reviews.length > 0) {
   // dozens of times and printing each hit would bury the leaks below it.
   const byName = new Map<string, number>();
   for (const r of reviews) byName.set(r.name.value, (byName.get(r.name.value) ?? 0) + 1);
-  console.log(`REVIEW — ${byName.size} name(s) published as case studies (ADR 008 permits this):`);
+  console.log(`REVIEW — ${byName.size} name(s) published as case studies or Labs (ADR 008 permits this):`);
   for (const [value, count] of [...byName].sort()) {
     console.log(`  ${value}  ×${count}  — also a private repo name; published, so allowed`);
   }
   console.log('');
 }
+
+/**
+ * Website-only Labs: a private-source product published under its product name
+ * (ADR 008). Listed so the intentional exposure is visible in every run rather
+ * than hidden inside the REVIEW count, and failed if one carries a repository
+ * field — see the audit in surface.ts.
+ */
+if (surface.websiteLabs.length > 0) {
+  console.log(
+    `PRODUCT — ${surface.websiteLabs.length} website-only Lab(s) published by product name ` +
+      `with no repository fields: ${surface.websiteLabs.join(', ')}`,
+  );
+  console.log('');
+}
+for (const finding of surface.websiteLabFindings) {
+  console.log(`WEBSITE — ${finding}`);
+}
+if (surface.websiteLabFindings.length > 0) console.log('');
 
 for (const finding of surface.authFindings) {
   console.log(`AUTH   — ${finding}`);
@@ -315,7 +333,9 @@ for (const finding of surface.breakdownFindings) {
 }
 if (surface.breakdownFindings.length > 0) console.log('');
 
-if (leaks.length === 0 && surface.breakdownFindings.length === 0) {
+const structural = surface.breakdownFindings.length + surface.websiteLabFindings.length;
+
+if (leaks.length === 0 && structural === 0) {
   console.log(
     `PASS — no private repo identifier, name or directory in ${captures.length} ` +
       `public ${sweepTree ? 'responses and tracked files' : 'responses'}; ` +
@@ -325,7 +345,8 @@ if (leaks.length === 0 && surface.breakdownFindings.length === 0) {
 } else if (leaks.length === 0) {
   console.log(
     `FAIL — no corpus leak, but ${surface.breakdownFindings.length} unsanctioned heatmap ` +
-      'attribution name(s) above.',
+      `attribution name(s) and ${surface.websiteLabFindings.length} website-only Lab ` +
+      'finding(s) above.',
   );
 } else {
   console.log(`FAIL — ${leaks.length} leak(s):`);
@@ -340,7 +361,7 @@ if (leaks.length === 0 && surface.breakdownFindings.length === 0) {
 process.exit(
   leaks.length === 0 &&
     surface.authFindings.length === 0 &&
-    surface.breakdownFindings.length === 0
+    structural === 0
     ? 0
     : 1,
 );

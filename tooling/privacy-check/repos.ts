@@ -122,6 +122,13 @@ const TOO_GENERIC = new Set([
   // public by construction and appears in Corey's own contact email, so the
   // directory of the same name carries no private information to protect.
   'spiritdevs',
+  // Not a repository either: `~/GitHub/status` is a folder with no `.git` and
+  // no remote, holding local build artefacts, and no GitHub repo of that name
+  // exists under Corey's accounts. It entered the corpus only because every
+  // folder under ~/GitHub is read as a working copy. The word is also the
+  // `status` key in every Convex error envelope and a label on the site, which
+  // produced hundreds of hits that disclosed nothing.
+  'status',
 ]);
 
 /** `owner/name` for the repo a working copy points at, or `null` if it has no remote. */
