@@ -58,7 +58,7 @@ export function PostHero({
       </div>
 
       <h1
-        className="hor-display hor-rise mt-5 text-balance sm:mt-6"
+        className="hor-display blog-title hor-rise mt-5 text-balance sm:mt-6"
         style={delay(130)}
       >
         {post.title}

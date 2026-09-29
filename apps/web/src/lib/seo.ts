@@ -91,6 +91,32 @@ export const IS_INDEXABLE = process.env.NEXT_PUBLIC_SITE_INDEXABLE === "true";
 export const CRAWLER_DISALLOW = ["/admin", "/api"] as const;
 
 /**
+ * Crawlers that fetch a page only to draw its link preview, and are let in
+ * **before** cutover.
+ *
+ * A pasted link on X, LinkedIn or Bluesky is unfurled by that network's own
+ * crawler, and those crawlers honour robots.txt: behind the blanket
+ * `Disallow: /` they never read the Open Graph tags, and every shared post
+ * posts as a bare URL. None of them is a search engine, and the pages they
+ * fetch still carry `noindex` from the root layout, so opening the door to
+ * them does not make the site findable — which is the only thing ADR 018's
+ * gate exists to prevent.
+ *
+ * Applebot and Googlebot are deliberately absent: both also feed a search
+ * index. `CRAWLER_DISALLOW` still applies to everything listed here.
+ */
+export const PREVIEW_CRAWLERS = [
+  "Twitterbot",
+  "LinkedInBot",
+  "facebookexternalhit",
+  "Cardyb",
+  "Slackbot-LinkExpanding",
+  "Discordbot",
+  "TelegramBot",
+  "WhatsApp",
+] as const;
+
+/**
  * An absolute URL on the production origin.
  *
  * Used for the things Next will not resolve for us: JSON-LD `@id` and `url`

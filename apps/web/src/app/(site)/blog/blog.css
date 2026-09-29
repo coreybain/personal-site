@@ -142,6 +142,19 @@
  * ================================================================== */
 
 /*
+ * The post's title. `.hor-display` is sized for the two-to-four-word headlines
+ * the rest of the site uses; a post title is a sentence, and at that scale it
+ * ran to three lines on desktop and five on a phone. This keeps the display
+ * weight and tracking and drops the size to one that holds a sentence to two.
+ */
+.hor .hor-display.blog-title {
+  font-size: clamp(2.35rem, 5.4vw, 4.25rem);
+  line-height: 1;
+  letter-spacing: -0.04em;
+  max-width: 20ch;
+}
+
+/*
  * A horizon of its own, between the post's head and its body.
  *
  * A post has no telemetry: there is nothing to put below a real horizon,

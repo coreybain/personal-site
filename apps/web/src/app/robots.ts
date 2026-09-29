@@ -1,6 +1,11 @@
 import type { MetadataRoute } from "next";
 
-import { absoluteUrl, CRAWLER_DISALLOW, IS_INDEXABLE } from "@/lib/seo";
+import {
+  absoluteUrl,
+  CRAWLER_DISALLOW,
+  IS_INDEXABLE,
+  PREVIEW_CRAWLERS,
+} from "@/lib/seo";
 
 /**
  * /robots.txt — the ADR 018 index gate, at the door.
@@ -19,6 +24,12 @@ import { absoluteUrl, CRAWLER_DISALLOW, IS_INDEXABLE } from "@/lib/seo";
  * After cutover it opens up, minus the two prefixes in `CRAWLER_DISALLOW` —
  * `/admin` and `/api` — which stay closed permanently. See
  * that constant for why each one is on the list.
+ *
+ * The one exception is the link-preview crawlers in `PREVIEW_CRAWLERS`. They
+ * get their own group, which robots.txt applies to them *instead of* the `*`
+ * group, so a shared post unfurls into a card on X, LinkedIn and Bluesky while
+ * every search crawler is still turned away. See that constant for the list and
+ * why no search engine is on it.
  *
  * ── This is not the only lock ──────────────────────────────────────────────
  *
@@ -40,7 +51,14 @@ import { absoluteUrl, CRAWLER_DISALLOW, IS_INDEXABLE } from "@/lib/seo";
 export default function robots(): MetadataRoute.Robots {
   if (!IS_INDEXABLE) {
     return {
-      rules: { userAgent: "*", disallow: "/" },
+      rules: [
+        {
+          userAgent: [...PREVIEW_CRAWLERS],
+          allow: "/",
+          disallow: [...CRAWLER_DISALLOW],
+        },
+        { userAgent: "*", disallow: "/" },
+      ],
     };
   }
 
