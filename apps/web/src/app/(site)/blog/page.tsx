@@ -4,6 +4,7 @@ import { BlogCoda } from "@/components/site/blog/BlogCoda";
 import { BlogIntro } from "@/components/site/blog/BlogIntro";
 import { PostGrid } from "@/components/site/blog/PostGrid";
 import { PostIndex } from "@/components/site/blog/PostIndex";
+import { PostViews } from "@/components/site/blog/PostViews";
 import { Boundary } from "@/components/site/Boundary";
 import { num, stampTime } from "@/components/site/format";
 import { getPosts, getSiteData } from "@/lib/data";
@@ -98,12 +99,15 @@ export async function generateMetadata(): Promise<Metadata> {
  *
  * ── Zones ──────────────────────────────────────────────────────────────────
  *
- * The same three-zone grammar as every other index on the site: a calm sky
- * states what the section is, the page crosses the horizon into the deck for the
- * machined index, then surfaces again for the image-led cards. The deck is the
- * right home for the index precisely *because* it is where measurements live —
- * a list of dates and reading times is telemetry about the writing, and on an
- * empty blog it is the instrument that reads `00`.
+ * **With posts**, the page stays in the sky: the intro, a seam, then the posts
+ * shown one of two ways behind a Posts | Index switch (`<PostViews>`), cards
+ * by default. The index and the cards are the same list, and stacking them in
+ * separate zones made the reader scroll past it twice before reaching anything
+ * else.
+ *
+ * **Empty**, it keeps the three-zone grammar every other index uses: the page
+ * crosses the horizon into the deck, where the index is the instrument that
+ * reads `00`, then surfaces for `<BlogCoda>`.
  *
  * ── Reads ──────────────────────────────────────────────────────────────────
  *
@@ -129,28 +133,44 @@ export default async function BlogPage() {
         </div>
       </section>
 
-      <Boundary label={`Index · ${stampTime(computedAt)}`} />
+      {blog.count > 0 ? (
+        <>
+          {/* A seam, not a horizon: the posts are one list shown two ways,
+              so there is no instrument deck to cross into — the same
+              device, and the same reasoning, as a post's own page. */}
+          <div className="blog-seam" aria-hidden="true" />
 
-      {/* ── below the horizon: the index, or the zero ─────────────── */}
-      <div className="hor-deck-zone">
-        <div className="hor-deck-grid" aria-hidden="true" />
-        <div className="hor-shell pb-16 sm:pb-20">
-          <PostIndex posts={blog.posts} />
-        </div>
-      </div>
+          <section className="hor-sky">
+            <div className="hor-shell">
+              <PostViews
+                cards={<PostGrid posts={blog.posts} />}
+                index={<PostIndex posts={blog.posts} />}
+              />
+            </div>
+          </section>
+        </>
+      ) : (
+        <>
+          <Boundary label={`Index · ${stampTime(computedAt)}`} />
 
-      <Boundary direction="out" />
+          {/* ── below the horizon: the zero ───────────────────────── */}
+          <div className="hor-deck-zone">
+            <div className="hor-deck-grid" aria-hidden="true" />
+            <div className="hor-shell pb-16 sm:pb-20">
+              <PostIndex posts={blog.posts} />
+            </div>
+          </div>
 
-      {/* ── back above the horizon: the posts, or the way out ─────── */}
-      <section className="hor-sky">
-        <div className="hor-shell">
-          {blog.count > 0 ? (
-            <PostGrid posts={blog.posts} />
-          ) : (
-            <BlogCoda gitStats={gitStats} projectCount={projects.length} />
-          )}
-        </div>
-      </section>
+          <Boundary direction="out" />
+
+          {/* ── back above the horizon: the way out ───────────────── */}
+          <section className="hor-sky">
+            <div className="hor-shell">
+              <BlogCoda gitStats={gitStats} projectCount={projects.length} />
+            </div>
+          </section>
+        </>
+      )}
     </main>
   );
 }

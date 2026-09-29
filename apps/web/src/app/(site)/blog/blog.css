@@ -137,6 +137,69 @@
   }
 }
 
+/*
+ * Posts | Index — the switch above the published list.
+ *
+ * The `.hor-pill` material, split into two segments with a thumb that slides
+ * under whichever is pressed. The thumb is positioned from `data-view` rather
+ * than measured, so both segments share one fixed width and the label swap
+ * can never resize the control.
+ */
+.hor .blog-view-toggle {
+  position: relative;
+  display: inline-grid;
+  grid-template-columns: 1fr 1fr;
+  padding: 3px;
+  border-radius: 999px;
+  border: 1px solid var(--hor-line);
+  background: var(--hor-sky-card);
+  box-shadow: var(--hor-inset-top), var(--hor-shadow-sky);
+  backdrop-filter: blur(14px) saturate(150%);
+  -webkit-backdrop-filter: blur(14px) saturate(150%);
+}
+
+.hor .blog-view-thumb {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  left: 3px;
+  width: calc(50% - 3px);
+  border-radius: 999px;
+  background: var(--hor-chip);
+  border: 1px solid var(--hor-line-strong);
+  transition: transform 420ms var(--hor-spring);
+}
+
+.hor .blog-view-toggle[data-view="index"] .blog-view-thumb {
+  transform: translateX(100%);
+}
+
+.hor .blog-view-option {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-width: 5.75rem;
+  height: 29px;
+  padding-inline: 0.85rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--hor-ink-3);
+  cursor: pointer;
+  transition: color 200ms var(--hor-ease);
+}
+
+.hor .blog-view-option:hover,
+.hor .blog-view-option[aria-pressed="true"] {
+  color: var(--hor-ink);
+}
+
+.hor .blog-view-option[aria-pressed="true"] svg {
+  color: var(--hor-accent);
+}
+
 /* ================================================================== *
  * The post — /blog/[slug]
  * ================================================================== */
@@ -982,6 +1045,7 @@
     transition: none !important;
   }
 
+  .hor .blog-view-thumb,
   .hor .blog-toc-thumb,
   .hor .blog-toc-body,
   .hor .blog-toc-toggle svg,

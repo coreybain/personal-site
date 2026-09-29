@@ -65,42 +65,40 @@ export function PostIndex({ posts }: Pick<BlogDerived, "posts">) {
   }
 
   return (
-    <section className="pt-16 sm:pt-20">
-      <Panel
-        label="Index"
-        meta={`${pad2(posts.length)} published`}
-        padded={false}
-        delay={60}
-      >
-        {posts.map((post, index) => (
-          <Link
-            key={post.slug}
-            href={`/blog/${post.slug}`}
-            className="blog-row"
-            /* The row already reads "01 · Title · 4 min"; the tags are the one
-               part a screen reader would otherwise hear as a bare word list
-               with no relationship to it. */
-            aria-label={`${post.title} — published ${stamp(dayOf(post.publishedAt))}`}
-          >
-            <span className="hor-label" aria-hidden="true">
-              {pad2(index + 1)}
-            </span>
+    <Panel
+      label="Index"
+      meta={`${pad2(posts.length)} published`}
+      padded={false}
+      delay={60}
+    >
+      {posts.map((post, index) => (
+        <Link
+          key={post.slug}
+          href={`/blog/${post.slug}`}
+          className="blog-row"
+          /* The row already reads "01 · Title · 4 min"; the tags are the one
+             part a screen reader would otherwise hear as a bare word list
+             with no relationship to it. */
+          aria-label={`${post.title} — published ${stamp(dayOf(post.publishedAt))}`}
+        >
+          <span className="hor-label" aria-hidden="true">
+            {pad2(index + 1)}
+          </span>
 
-            <span className="blog-row-title">
-              <span className="hor-readout-sm block truncate">{post.title}</span>
-              {post.tags.length > 0 ? (
-                <span className="hor-micro mt-1 block truncate">
-                  {post.tags.join(" · ")}
-                </span>
-              ) : null}
-            </span>
+          <span className="blog-row-title">
+            <span className="hor-readout-sm block truncate">{post.title}</span>
+            {post.tags.length > 0 ? (
+              <span className="hor-micro mt-1 block truncate">
+                {post.tags.join(" · ")}
+              </span>
+            ) : null}
+          </span>
 
-            <span className="blog-row-meta hor-label whitespace-nowrap">
-              {stamp(dayOf(post.publishedAt))} · {readingMinutes(post)} min
-            </span>
-          </Link>
-        ))}
-      </Panel>
-    </section>
+          <span className="blog-row-meta hor-label whitespace-nowrap">
+            {stamp(dayOf(post.publishedAt))} · {readingMinutes(post)} min
+          </span>
+        </Link>
+      ))}
+    </Panel>
   );
 }

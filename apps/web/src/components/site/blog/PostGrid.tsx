@@ -2,9 +2,8 @@ import type { CSSProperties } from "react";
 import Link from "next/link";
 
 import { longDate } from "@/components/site/format";
-import { SkyHead } from "@/components/site/Panel";
 import type { BlogDerived } from "@/lib/derive";
-import { countWord, pad2, readingMinutes } from "@/lib/derive";
+import { pad2, readingMinutes } from "@/lib/derive";
 import type { Post } from "@/lib/snapshot";
 
 import { ArrowRight } from "./Glyphs";
@@ -148,35 +147,16 @@ export function PostGrid({ posts }: Pick<BlogDerived, "posts">) {
   if (!lead) return null;
 
   return (
-    <section className="pt-16 pb-16 sm:pt-20 sm:pb-20 lg:pt-24">
-      <SkyHead
-        index="02"
-        eyebrow="Posts"
-        title="Every note has a page."
-        lede="Long enough to be worth the argument, short enough to finish. Dates are first-publication dates and never move."
-        aside={
-          <span className="hor-pill">
-            <span
-              className="block h-[7px] w-[7px] rounded-full"
-              style={{ background: "var(--hor-accent)" }}
-              aria-hidden="true"
-            />
-            {countWord(posts.length)} {posts.length === 1 ? "post" : "posts"}
-          </span>
-        }
-      />
+    <div className="grid gap-4 sm:gap-5">
+      <LeadCard post={lead} />
 
-      <div className="grid gap-4 sm:gap-5">
-        <LeadCard post={lead} />
-
-        {rest.length > 0 ? (
-          <div className="grid gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3">
-            {rest.map((post, i) => (
-              <PostCard key={post.slug} post={post} index={i + 1} />
-            ))}
-          </div>
-        ) : null}
-      </div>
-    </section>
+      {rest.length > 0 ? (
+        <div className="grid gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3">
+          {rest.map((post, i) => (
+            <PostCard key={post.slug} post={post} index={i + 1} />
+          ))}
+        </div>
+      ) : null}
+    </div>
   );
 }
