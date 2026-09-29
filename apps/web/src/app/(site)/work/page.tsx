@@ -13,14 +13,6 @@ import { deriveWork } from "@/lib/derive";
 import "./work.css";
 
 /**
- * ISR, five minutes. The literal is written out rather than imported from
- * `REVALIDATE_SECONDS` because Next requires this value to be statically
- * analysable — see the ISR section of `@/lib/data`'s header for the reasoning
- * behind the number, and why an uncached Convex `fetch` still prerenders.
- */
-export const revalidate = 300;
-
-/**
  * `generateMetadata` rather than a `metadata` constant: the description quotes
  * live figures, and a module-scope object is built once per process.
  *

@@ -1,27 +1,31 @@
+import Image from "next/image";
+
 import type { PostCover as PostCoverAsset } from "@/lib/snapshot";
+
+/** What the browser should download at each breakpoint, per frame size. */
+const SIZES = {
+  // The post hero and the /blog lead card span the 1180px shell.
+  hero: "(min-width: 1180px) 1100px, 100vw",
+  // Grid tiles: three across on desktop, two on tablet, one on a phone.
+  tile: "(min-width: 1024px) 380px, (min-width: 640px) 50vw, 100vw",
+} as const;
 
 /**
  * A post's cover image, in the two sizes the blog uses.
  *
- * ── Why a plain `<img>` and not `next/image` ───────────────────────────────
+ * `next/image` with `fill`: covers are Uploadfile URLs (ADR 020), allowed in
+ * `images.remotePatterns`, so the optimiser serves a resized AVIF/WebP instead
+ * of the 1–2 MB source PNG. That matters most on /blog, where the lead card's
+ * cover is the LCP element.
  *
- * Covers are Uploadfile URLs (ADR 020), and `next/image` refuses a remote
- * host that is not listed in `images.remotePatterns`. Adding that entry is a
- * change to the *public site's* build configuration made on behalf of one
- * feature, and it is the SEO/config agent's call rather than this one's — the
- * admin's `ImageUpload` already reached the same conclusion and says so at the
- * same kind of `<img>`. Recorded as an open item; nothing in the markup below
- * has to change when it is taken, only the element.
+ * The CLS budget is held by the frame, not the image: `.blog-cover` declares a
+ * fixed `aspect-ratio` in blog.css and `fill` positions the image inside it with
+ * `object-fit: cover`, so the space is reserved before any byte lands. That is
+ * why `width`/`height` are not forwarded even when the row carries them.
  *
- * The CLS budget is held without the optimiser: the frame declares a fixed
- * `aspect-ratio` in blog.css and the image is `object-fit: cover` inside it, so
- * the space is reserved from the stylesheet before any byte of the image lands.
- * That is also why `width`/`height` are *not* forwarded even when the row
- * carries them — they would fight the ratio the layout is built on.
- *
- * `priority` maps to `fetchPriority="high"` + eager loading, and is set only by
- * the post page's hero, where the cover is the LCP element. Everything else —
- * every card in the index grid — is lazy.
+ * `priority` preloads the image with high fetch priority. It is set where the
+ * cover is the LCP element — the post page's hero and the /blog lead card.
+ * Everything else is lazy.
  */
 export function PostCover({
   cover,
@@ -35,16 +39,15 @@ export function PostCover({
 }) {
   return (
     <div className={`blog-cover blog-cover-${size}`}>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
+      <Image
         src={cover.url}
         // `alt` is required by `posts.create`/`update` (assertMedia), so this is
         // never the empty string by accident — a cover with no description
         // cannot be saved in the first place.
         alt={cover.alt}
-        loading={priority ? "eager" : "lazy"}
-        fetchPriority={priority ? "high" : "auto"}
-        decoding="async"
+        fill
+        sizes={SIZES[size]}
+        priority={priority}
       />
     </div>
   );

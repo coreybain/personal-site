@@ -16,13 +16,6 @@ import "../blog.css";
 type PostParams = { slug: string };
 
 /**
- * ISR, five minutes — the window every `(site)` page declares. Written as a
- * literal because Next requires the value to be statically analysable; see the
- * ISR section of `@/lib/data`'s header.
- */
-export const revalidate = 300;
-
-/**
  * The published posts, prerendered at build time.
  *
  * **Legitimately empty at launch.** This is the one `generateStaticParams` in
@@ -40,23 +33,6 @@ export async function generateStaticParams(): Promise<PostParams[]> {
 
   return posts.map((post) => ({ slug: post.slug }));
 }
-
-/**
- * Slugs not prerendered above render on demand, then cache for the same 300s as
- * everything else.
- *
- * `true`, for the reason `/work/[slug]` settled on `true`, only more so: with an
- * empty build-time list, `false` would 404 **every post ever written** until the
- * next deploy. A post published from the admin appears in the /blog index within
- * one revalidation window; the detail page has to agree with it.
- *
- * It costs nothing in correctness because the page below 404s on its own.
- * `getPostBySlug` searches the published list from an anonymous Convex client,
- * so a draft slug and a nonexistent slug are both `undefined` and both get
- * `notFound()` — a real 404, generated once and cached, not a rendered page.
- * That is the property the admin's editor screen describes to the author.
- */
-export const dynamicParams = true;
 
 /**
  * Per-post metadata: title, description and Open Graph, from the row.

@@ -11,18 +11,6 @@ import { getSiteData } from "@/lib/data";
 import { submitContactMessage } from "./actions";
 
 /**
- * ISR, five minutes — the literal, not an import. See the ISR section of
- * `@/lib/data`'s header. It matters more here than elsewhere: the availability
- * pill at the top of this page is the line `siteSettings.setAvailability`
- * changes in one tap, and five minutes is how long "I have accepted an offer"
- * can look untrue.
- *
- * The Server Action below is unaffected — a Server Action is a POST to the route
- * and is never served from the prerendered HTML.
- */
-export const revalidate = 300;
-
-/**
  * Which transport the composer gets, decided here on the server.
  *
  * The check is deliberately in the page rather than in the form: reading

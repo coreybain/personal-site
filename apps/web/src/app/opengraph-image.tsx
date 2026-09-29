@@ -1,58 +1,10 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
+import { cacheLife } from "next/cache";
 import { ImageResponse } from "next/og";
 
 import { getSiteData } from "@/lib/data";
-
-/**
- * The site's Open Graph card — the portrait, plus the three numbers, generated.
- *
- * ── Why generated rather than a flat JPEG ──────────────────────────────────
- *
- * A hand-made card would be a copy of the headline figures that no build step
- * can keep honest — and stale telemetry on the one image a link preview shows
- * is the failure this whole site was rebuilt to avoid. `next/og` is built into
- * Next (nothing to install), so the card is drawn from the same Snapshot the
- * homepage reads, in the same language: dark deck, one accent, uppercase
- * instrument labels, a horizon rule across the middle.
- *
- * The portrait is `src/assets/portrait.jpg` — the same file `<PersonalCard>`
- * renders, read off disk and inlined as a data URI. Inlined rather than linked
- * because satori resolves a remote `src` by *fetching* it, and at build time
- * there is no server running to fetch from. At 62 KB it is comfortably inside
- * `ImageResponse`'s 500 KB budget for the whole bundle.
- *
- * ── Placement: the root segment ────────────────────────────────────────────
- *
- * At `app/` rather than under `(site)`, so it is the default card for every
- * route in the app. Deeper segments still win: `/blog/[slug]` sets
- * `openGraph.images` to the post's cover, and a segment's `openGraph` replaces
- * the parent's wholesale rather than merging, so a post shares as its own cover
- * and everything else shares as this.
- *
- * No sibling `twitter-image`. `twitter: { card: "summary_large_image" }` in the
- * root layout with no `twitter:image` falls back to `og:image` at every consumer
- * that matters, and a second 1200×630 render per build to restate the same
- * bytes is not worth it.
- *
- * ── Fonts ──────────────────────────────────────────────────────────────────
- *
- * The card uses `ImageResponse`'s bundled default face. The site's real pair
- * (Inter and IBM Plex Mono) is loaded by `next/font/google` into `.next`, where
- * there is no stable path to hand satori, and fetching them over the network
- * during a build would make the build depend on Google being up. Weights are
- * therefore never specified — one face, sized and spaced to carry the
- * hierarchy — and letter-spacing does the work the mono face would otherwise do.
- *
- * ── Cost ───────────────────────────────────────────────────────────────────
- *
- * A Route Handler, cached, with the same 300s window as every page: the figures
- * cannot drift further from the site than any other surface. Rendering only
- * happens when the URL is actually requested, which for an OG card means once
- * per platform per revalidation, not once per visitor.
- */
-export const revalidate = 300;
 
 export const alt = "Corey Baines — Principal Engineer, Sydney";
 export const size = { width: 1200, height: 630 };
@@ -82,7 +34,27 @@ async function portraitDataUri(): Promise<string> {
   return `data:image/jpeg;base64,${bytes.toString("base64")}`;
 }
 
-export default async function OpenGraphImage() {
+/**
+ * The card is rendered inside a cached function and served as bytes.
+ *
+ * Under Cache Components, reading the portrait off disk and rasterising the
+ * card are slow work that would otherwise make this route render on every
+ * request. `'use cache'` with the site's five-minute profile keeps it what it
+ * was under ISR: generated once, refreshed at most every five minutes. The
+ * `ImageResponse` itself is not serialisable, so the cached value is its PNG
+ * bytes and the route wraps them in a fresh `Response`.
+ */
+export default async function OpenGraphImage(): Promise<Response> {
+  const png = await renderCard();
+  return new Response(png, {
+    headers: { "content-type": contentType, "content-length": String(png.byteLength) },
+  });
+}
+
+async function renderCard(): Promise<Uint8Array<ArrayBuffer>> {
+  "use cache";
+  cacheLife("site");
+
   const [{ identity, gitStats, aiUsage, projects }, portrait] =
     await Promise.all([getSiteData(), portraitDataUri()]);
 
@@ -92,7 +64,7 @@ export default async function OpenGraphImage() {
     ["Agent sessions", aiUsage.totalSessions.toLocaleString("en-AU")],
   ];
 
-  return new ImageResponse(
+  const image = new ImageResponse(
     (
       <div
         style={{
@@ -218,4 +190,6 @@ export default async function OpenGraphImage() {
     ),
     size,
   );
+
+  return new Uint8Array(await image.arrayBuffer());
 }

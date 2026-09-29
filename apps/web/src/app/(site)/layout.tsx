@@ -43,21 +43,6 @@ const horMono = IBM_Plex_Mono({
   variable: "--font-hor-mono",
 });
 
-/**
- * ISR for every route under `(site)`.
- *
- * Next takes the **lowest** `revalidate` across a route's layout and its page,
- * so this one declaration already floors the whole group at five minutes — the
- * per-page literals are there so a page reads as self-describing, not because
- * the layout's is optional. The literal is repeated rather than imported from
- * `REVALIDATE_SECONDS` because the value has to be statically analysable; see
- * the header of `@/lib/data` for the full argument, and for why 300.
- *
- * Still valid in Next 16: `revalidate` is only removed under Cache Components,
- * which `next.config.ts` does not enable.
- */
-export const revalidate = 300;
-
 /* ------------------------------------------------------------------ *
  * Ask Corey — the two values the widget needs from the server
  * ------------------------------------------------------------------ */

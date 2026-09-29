@@ -29,14 +29,6 @@ import "./labs.css";
  */
 
 /**
- * ISR, five minutes — the same window every `(site)` page declares. Written as a
- * literal because Next requires this value to be statically analysable; see the
- * ISR section of `@/lib/data`'s header for why 300 and why an uncached Convex
- * `fetch` still prerenders.
- */
-export const revalidate = 300;
-
-/**
  * `generateMetadata` rather than a `metadata` constant: the description quotes
  * the freshest push, and a module-scope object is built once per process.
  *

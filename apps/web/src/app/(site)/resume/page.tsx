@@ -16,12 +16,6 @@ import { personalProjectsMeta, resumeWithProjectSection } from "@/lib/resumeProj
 import "./resume.css";
 
 /**
- * ISR, five minutes — the literal, not an import. See the ISR section of
- * `@/lib/data`'s header for the reasoning behind the number.
- */
-export const revalidate = 300;
-
-/**
  * The description quotes live telemetry, so it is generated per render rather
  * than frozen in a module-scope `metadata` const. Shares the page's queries:
  * `getSiteData()` is `cache()`d, so this is not a second read.

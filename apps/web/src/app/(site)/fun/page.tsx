@@ -11,13 +11,6 @@ import { deriveFun } from "@/lib/derive";
 import "./fun.css";
 
 /**
- * ISR, five minutes. Written as a literal because Next requires this value to be
- * statically analysable — see the ISR section of `@/lib/data`'s header for why
- * 300 and not something else.
- */
-export const revalidate = 300;
-
-/**
  * `generateMetadata`, not a `metadata` object.
  *
  * The description quotes the tally, and the tally is now fetched rather than

@@ -17,13 +17,6 @@ import "../work.css";
 type CaseParams = { slug: string };
 
 /**
- * ISR, five minutes — the same window every `(site)` page declares. See the ISR
- * section of `@/lib/data`'s header; the literal is required to be statically
- * analysable, so it is written out rather than imported.
- */
-export const revalidate = 300;
-
-/**
  * The published platforms, prerendered at build time.
  *
  * An empty live collection produces no build-time params, which is honest: no
@@ -39,27 +32,6 @@ export async function generateStaticParams(): Promise<CaseParams[]> {
 
   return projects.map((project) => ({ slug: project.slug }));
 }
-
-/**
- * Slugs not prerendered above are rendered on demand, then cached for the same
- * 300s window as everything else.
- *
- * This used to be `false`, which was correct while `projects` was a frozen mock
- * — the build-time list *was* the complete list, so "not prerendered" really did
- * mean "not a case study". With `projects.list` live that stopped being true: a
- * case study published from the admin appears in the /work grid on the grid's
- * next revalidation (≤300s), but `false` would 404 its detail page until the
- * next deploy. The grid and the detail route would disagree about the same
- * legitimately authored content, which is the one failure a reader would read as
- * the site being broken.
- *
- * `true` costs nothing in correctness because the page below already 404s on its
- * own: `deriveWork(projects).projectIndex(slug)` returns -1 for anything
- * `getSiteData()` did not return, and `projects.list` never returns a draft. So
- * a draft slug and a nonexistent slug both still get `notFound()` — a real 404,
- * generated once and cached, not a rendered page.
- */
-export const dynamicParams = true;
 
 /**
  * Per-case metadata.

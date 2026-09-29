@@ -105,15 +105,6 @@ import { requestIdentifierHash } from "@/lib/requestIdentity";
  */
 
 /**
- * Node, not edge.
- *
- * `@/lib/requestIdentity` hashes with `node:crypto`. Declared rather than left
- * to the default so the constraint is stated where someone would otherwise
- * casually flip it — the same reason `/api/resume.pdf` declares it.
- */
-export const runtime = "nodejs";
-
-/**
  * Generation ceiling, in seconds, for platforms that read it (Vercel).
  *
  * A grounded two-to-five-sentence answer finishes in a few seconds. Thirty is

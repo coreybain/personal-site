@@ -14,14 +14,6 @@ import { IS_INDEXABLE } from "@/lib/seo";
 import "./blog.css";
 
 /**
- * ISR, five minutes — the same window every `(site)` page declares. The literal
- * is written out rather than imported from `REVALIDATE_SECONDS` because Next
- * requires this value to be statically analysable; see the ISR section of
- * `@/lib/data`'s header for why 300.
- */
-export const revalidate = 300;
-
-/**
  * `generateMetadata` rather than a `metadata` constant, for the usual reason —
  * the description counts real posts, and a module-scope object is built once per
  * process.

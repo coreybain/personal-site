@@ -3,50 +3,6 @@ import type { MetadataRoute } from "next";
 import { getPosts, getSiteData } from "@/lib/data";
 import { absoluteUrl } from "@/lib/seo";
 
-/**
- * /sitemap.xml — every page on the public site, and nothing else.
- *
- * ── What is deliberately absent ────────────────────────────────────────────
- *
- *   /api              Not pages.
- *   /blog             Only while it has nothing in it — see below.
- *   /ask              Not absent — **gone**. Ask Corey is a launcher in the
- *                     `(site)` layout now, not a route, and there is no URL
- *                     left to submit.
- *
- * A sitemap is a positive assertion ("these are worth crawling"), so the right
- * way to exclude something is to not mention it. There is no `exclude` list in
- * this file for the same reason there is no list of pages that do not exist.
- *
- * ── `lastModified` is real or it is the snapshot ───────────────────────────
- *
- * Posts have a genuine per-row date: `publishedAt`, stamped once by
- * `posts.publish`. Everything else on this site is a projection of the Snapshot
- * — the homepage's telemetry, the work grid's figures, the resume's live signal
- * all change exactly when `computedAt` changes and not otherwise — so
- * `computedAt` is not a stand-in for a missing date, it *is* the date those
- * documents last changed.
- *
- * The one place that is approximate is `/work/[slug]`: the `Project` contract
- * carries no timestamp (the Convex row's `_creationTime` is dropped by
- * `mapProject`), so a case study reports the snapshot instant like its index
- * does. That over-reports slightly rather than under-reporting, which is the
- * safe direction for a recrawl hint.
- *
- * ── Reads ──────────────────────────────────────────────────────────────────
- *
- * Two `cache()`d readers, started together — the same two `/blog` itself uses.
- * This is a Route Handler with its own request scope, so it does not share the
- * pages' reads; one round of queries per regeneration, every 300 seconds at
- * most, is the whole cost.
- *
- * `revalidate` is declared for the same reason every page declares it: without
- * it this file would be generated once at build and a post published from the
- * admin would be missing from the sitemap until the next deploy, while the /blog
- * index (revalidating every five minutes) already listed it.
- */
-export const revalidate = 300;
-
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const [{ projects, computedAt }, posts] = await Promise.all([
     getSiteData(),

@@ -77,7 +77,8 @@ function LeadCard({ post }: { post: Post }) {
       className="hor-card hor-lift hor-rise blog-card p-2.5"
       style={delay(60)}
     >
-      <PostCover cover={post.coverImage} size="hero" />
+      {/* The lead card opens /blog, so its cover is the LCP element there. */}
+      <PostCover cover={post.coverImage} size="hero" priority />
 
       <div className="grid gap-x-12 gap-y-6 px-3 pt-6 pb-3 sm:px-4 sm:pt-7 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:items-start">
         <div>

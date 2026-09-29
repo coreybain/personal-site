@@ -1,6 +1,8 @@
 import { renderResumePdf, resumePdfFilename } from "@home/pdf";
 import type { ResumePdfProps } from "@home/pdf";
 
+import { cacheLife } from "next/cache";
+
 import { getSiteData } from "@/lib/data";
 import {
   moreProjectsUrl,
@@ -60,48 +62,6 @@ import { SITE_URL } from "@/lib/seo";
  */
 
 /**
- * Node, for `node:fs`. See the header.
- */
-export const runtime = "nodejs";
-
-/**
- * ISR, five minutes — the same posture as every wired page.
- *
- * ── Why the route is opted into caching at all ─────────────────────────────
- *
- * Route Handlers are *not* cached by default (unlike pages), so without these
- * two exports every request would re-query Convex and re-run the layout engine —
- * ~200 ms and a Convex read to produce bytes that are, by construction,
- * identical to the ones produced 40 ms earlier. `dynamic = "force-static"` is
- * the documented opt-in: the response is prerendered during `next build` and
- * regenerated on demand once it is older than `revalidate` seconds.
- *
- * Cache Components is not enabled (`next.config.ts` sets no flag), so
- * `dynamic` and `revalidate` are still valid route segment config — Next 16 only
- * removed them under Cache Components.
- *
- * ── Why 300, specifically ──────────────────────────────────────────────────
- *
- * Because `/resume` is 300. The full reasoning is in `@/lib/data`'s ISR section
- * and is not repeated here, but the part that matters for *this* route is the
- * consistency claim: a visitor who reads the page and then downloads the PDF
- * must not get two documents that disagree. Sharing the window means the two can
- * be at most one window apart, and in practice are regenerated from the same
- * Convex state. A longer window here would make the PDF the stale one — the
- * worst outcome, because it is the artefact that leaves the site and gets
- * forwarded.
- *
- * So: **an admin edit to `resumeDocument` — including `embedGitStats` — appears
- * in this PDF within five minutes**, exactly as it does on the page.
- *
- * The literal is written out rather than imported: Next requires the value to be
- * statically analysable, and `revalidate = REVALIDATE_SECONDS` is not guaranteed
- * to be read.
- */
-export const dynamic = "force-static";
-export const revalidate = 300;
-
-/**
  * The canonical résumé address, scheme-less, as printed in the PDF's header and
  * colophon.
  *
@@ -113,7 +73,19 @@ export const revalidate = 300;
  */
 const RESUME_URL = `${SITE_URL.replace(/^https?:\/\//, "")}/resume`;
 
-export async function GET(): Promise<Response> {
+/**
+ * The PDF bytes and their filename, cached with the site's five-minute profile.
+ *
+ * Under Cache Components a `GET` handler cannot be marked `'use cache'` itself,
+ * and rendering the document is slow work that would otherwise run on every
+ * request. So the render happens here and the handler only wraps the cached
+ * bytes in a `Response` — generated once, refreshed at most every five minutes,
+ * the same as the `force-static` + `revalidate = 300` it replaces.
+ */
+async function buildResumePdf(): Promise<{ pdf: Uint8Array<ArrayBuffer>; filename: string }> {
+  "use cache";
+  cacheLife("site");
+
   const { identity, gitStats, resumeDocument, computedAt } = await getSiteData();
 
   /**
@@ -124,8 +96,7 @@ export async function GET(): Promise<Response> {
    * shares are screen affordances and never reach the document.
    *
    * `generatedAt` is deliberately not supplied: `renderResumePdf` defaults it to
-   * now, which under `force-static` means "when this response was prerendered or
-   * last revalidated" — the honest answer for the footer's `Generated …` line,
+   * now, which inside the cached render means "when this PDF was last generated" — the honest answer for the footer's `Generated …` line,
    * and distinct from `computedAt`, which says how fresh the numbers are.
    */
   const props: ResumePdfProps = {
@@ -140,7 +111,12 @@ export async function GET(): Promise<Response> {
     siteUrl: RESUME_URL,
   };
 
-  const pdf = await renderResumePdf(props);
+  const pdf = new Uint8Array(await renderResumePdf(props));
+  return { pdf, filename: resumePdfFilename(identity.name) };
+}
+
+export async function GET(): Promise<Response> {
+  const { pdf, filename } = await buildResumePdf();
 
   /**
    * No `try`/`catch`.
@@ -149,12 +125,12 @@ export async function GET(): Promise<Response> {
    * deployment" (`@home/pdf` raises a legible error naming the missing file and
    * pointing at the string-literal font specifiers in its `fonts.ts`, which are
    * what the bundler rewrites) and "the document data is malformed". Both are
-   * build/deploy faults, not request faults. Under `force-static` a throw fails
-   * `next build` loudly, and a throw during revalidation leaves the last good
+   * build/deploy faults, not request faults. A throw at build fails `next build`
+   * loudly, and a throw during a background refresh leaves the last good
    * PDF being served — both strictly better than the alternative, which would be
    * catching it and caching a 500 response for five minutes.
    */
-  return new Response(new Uint8Array(pdf), {
+  return new Response(pdf, {
     headers: {
       "content-type": "application/pdf",
 
@@ -171,7 +147,7 @@ export async function GET(): Promise<Response> {
        * so it tracks the name in Convex. It is ASCII-folded there, which is why
        * this header needs no RFC 5987 `filename*` escape hatch.
        */
-      "content-disposition": `inline; filename="${resumePdfFilename(identity.name)}"`,
+      "content-disposition": `inline; filename="${filename}"`,
 
       /**
        * Set explicitly because a PDF is worth a real `Content-Length`: without

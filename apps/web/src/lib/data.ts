@@ -74,49 +74,36 @@
  * separately because the Snapshot does not carry them. Whoever closes that gap
  * changes the schema and this file together; nothing about the pages changes.
  *
- * ── ISR: `export const revalidate = 300` on every wired page ────────────────
+ * ── Caching: Cache Components, the `site` profile and the `posts` tag ──────
  *
- * Cache Components is **not** enabled (`next.config.ts` sets no `cacheComponents`
- * flag), so the previous caching model applies and `revalidate` is still a valid
- * route segment config — Next 16 only removed it under Cache Components.
+ * Cache Components is on (`next.config.ts`). Every live read below is a
+ * `'use cache'` function with `cacheLife("site")`: a copy is refreshed in the
+ * background once it is five minutes old, and the last good copy keeps serving
+ * for up to thirty days if Convex is unreachable. That reproduces the old
+ * `export const revalidate = 300` ISR behaviour, per read rather than per page,
+ * and pages no longer declare any route segment config at all.
  *
- * The Convex reads below are plain `fetch` POSTs, and in Next 16 an unconfigured
- * `fetch` is *uncached*. Per the `fetch` API reference that does **not** make the
- * route dynamic: with no Request-time API on the route ((site) pages read no
- * cookies, headers or searchParams) Next still prerenders the page, fetching
- * once during `next build`, and `revalidate` then decides how often the
- * prerendered HTML is regenerated. That is ordinary ISR, and it is why nothing
- * here needs `unstable_cache` (replaced by `use cache` in 16, which needs Cache
- * Components) or a hand-rolled fetch wrapper.
- *
- * **300 seconds.** Chosen, not copied:
+ * **300 seconds** was chosen, not copied:
  *
  *   • The Snapshot row is rebuilt by an hourly cron (ADR 005), so a window
- *     shorter than a few minutes buys nothing but Convex reads — the numbers
- *     cannot have changed.
- *   • The things that *do* change out of band are admin edits: the availability
- *     line (`siteSettings.setAvailability` exists precisely so it can be changed
- *     from a phone in one tap) and publishing a case study. Five minutes is the
- *     longest an edit can look broken, which is short enough to trust and long
- *     enough that a crawl or a link going around costs at most twelve rebuilds
- *     an hour per route.
- *   • It is the same number on every page, so no route can be staler than the
- *     one that linked to it. (Next takes the *lowest* `revalidate` across a
- *     route's layout and page, so a lower value anywhere silently speeds up the
- *     whole route.)
+ *     shorter than a few minutes buys nothing but Convex reads.
+ *   • Things that change out of band (settings, case studies) should never look
+ *     more than five minutes behind — Corey's own stated limit.
  *
- * Write the literal in each page — `export const revalidate = 300` — not an
- * import of the constant below. Next requires the value to be statically
- * analysable, so `revalidate = REVALIDATE_SECONDS` is not guaranteed to be read.
- * `/work/[slug]` additionally builds its `generateStaticParams` from
- * `getProjects()`, so a slug that only exists in Convex is prerendered at build
- * time, and keeps `dynamicParams = true` so one published after the last deploy
- * renders on demand instead of 404ing until the next build. See that file for
- * why unknown and draft slugs still 404.
+ * **Posts are the exception.** `getPosts()` also carries `cacheTag("posts")`,
+ * which the preview area and Convex's publish hooks invalidate the moment a
+ * post goes live, comes down or has changes published — so posts update
+ * instantly, with the same five-minute refresh as a fallback. See
+ * docs/plans/preview-area.md.
+ *
+ * `'use cache'` functions cannot share a request-scoped object, so each one
+ * builds its own `ConvexHttpClient` (`newClient()`); React's `cache()` still
+ * wraps the exports so one render asks each question once.
  */
 
 import "server-only";
 
+import { cacheLife, cacheTag } from "next/cache";
 import { cache } from "react";
 import { ConvexHttpClient } from "convex/browser";
 
@@ -142,12 +129,9 @@ import type {
  * Configuration
  * ------------------------------------------------------------------ */
 
-/**
- * The ISR window every `(site)` page declares. Documentation, not plumbing —
- * see the file header for why each page writes the literal `300` instead of
- * importing this.
- */
-export const REVALIDATE_SECONDS = 300;
+
+/** The cache tag on every public post read. See the file header. */
+export const POSTS_CACHE_TAG = "posts";
 
 /**
  * The deployment URL. Public reads fail explicitly when it is absent.
@@ -295,22 +279,20 @@ async function read<T>(label: string, run: () => Promise<T>): Promise<T> {
 }
 
 /**
- * One `ConvexHttpClient` per request, shared by every reader in this file.
+ * A fresh `ConvexHttpClient` for one cached read.
  *
  * Convex's own docs warn that `ConvexHttpClient` is stateful — it holds
- * credentials and a mutation queue — and to "take care to avoid sharing it
- * between requests in a server". `cache()` is exactly that care: it is
- * per-request memoisation, so this returns the same client to the assembler,
- * `getPosts()` and `getNav()` within one render and a brand new one for the next
- * request. Nothing here authenticates or mutates, so there is no state worth
- * carrying anyway; the point is that there is no module-scope mutable object.
+ * credentials and a mutation queue — and not to share one between requests. A
+ * `'use cache'` function cannot reach a request-scoped object anyway, so each
+ * cached read builds its own. Nothing here authenticates or mutates, and the
+ * client is cheap: construction is an object and a URL check.
  *
  * `requireConvexUrl()` makes missing configuration fail before a client can be
  * constructed; no non-null assertion or alternate data source is involved.
  */
-const httpClient = cache(
-  () => new ConvexHttpClient(requireConvexUrl(), { logger: false }),
-);
+function newClient(): ConvexHttpClient {
+  return new ConvexHttpClient(requireConvexUrl(), { logger: false });
+}
 
 /**
  * The `siteSettings` singleton, or `null`.
@@ -322,12 +304,15 @@ const httpClient = cache(
  * same memoised promise. The assembler still starts it in parallel with the
  * other five reads, so extracting it costs no latency either.
  */
-const readSettings = cache(async (): Promise<SettingsRow | null> => {
-  requireConvexUrl();
+async function readSettingsLive(): Promise<SettingsRow | null> {
+  "use cache";
+  cacheLife("site");
+
   return await read("siteSettings.get", () =>
-    httpClient().query(api.siteSettings.get, {}),
+    newClient().query(api.siteSettings.get, {}),
   );
-});
+}
+const readSettings = cache(readSettingsLive);
 
 /* ------------------------------------------------------------------ *
  * Mappers — Convex row ⇢ Snapshot field
@@ -767,12 +752,13 @@ function mapResume(row: ResumeRow): ResumeDocument {
  * fails before constructing a client. Local development and builds load the
  * repository's `.env`; deployments must configure the same variable.
  */
-export const getSiteData = cache(async (): Promise<Snapshot> => {
-  requireConvexUrl();
+async function assembleSiteData(): Promise<Snapshot> {
+  "use cache";
+  cacheLife("site");
 
-  // One client per request, shared with the readers below the assembler. See
-  // `httpClient` for why that is `cache()` and not a module-scope constant.
-  const client = httpClient();
+  // One client for this cached assembly. See `newClient` for why it is not
+  // shared.
+  const client = newClient();
 
   // One round trip's worth of latency, not six. Any failed read rejects the
   // coherent assembly, allowing ISR to retain the last successfully generated
@@ -851,7 +837,8 @@ export const getSiteData = cache(async (): Promise<Snapshot> => {
 
     computedAt,
   };
-});
+}
+export const getSiteData = cache(assembleSiteData);
 
 /* ------------------------------------------------------------------ *
  * Narrow getters
@@ -981,15 +968,21 @@ export async function getResume(): Promise<ResumeDocument> {
  * Wrapped in `cache()` on its own: it is one extra query on any page that asks,
  * de-duplicated across the nav pill, the page body and `generateMetadata`.
  */
-export const getPosts = cache(async (): Promise<Post[]> => {
-  requireConvexUrl();
+async function readPublishedPosts(): Promise<Post[]> {
+  "use cache";
+  cacheLife("site");
+  // Invalidated the moment a post is published, unpublished or has changes
+  // published — from a preview Server Action (`updateTag`) or Convex's
+  // revalidation call (`revalidateTag`). See the file header.
+  cacheTag(POSTS_CACHE_TAG);
 
   const rows = await read("posts.list", () =>
-    httpClient().query(api.posts.list, {}),
+    newClient().query(api.posts.list, {}),
   );
 
   return rows.filter(filterPublished).map(mapPost);
-});
+}
+export const getPosts = cache(readPublishedPosts);
 
 /**
  * Published, and dated. The type guard that makes `mapPost`'s signature honest.

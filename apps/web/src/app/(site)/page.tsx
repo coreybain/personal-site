@@ -11,13 +11,6 @@ import { stampTime } from "@/components/site/format";
 import { getSiteData } from "@/lib/data";
 
 /**
- * ISR — five minutes, the same window every `(site)` route declares. Written as
- * a literal because Next requires the value to be statically analysable; see the
- * header of `@/lib/data` for why 300 and not 60 or 3600.
- */
-export const revalidate = 300;
-
-/**
  * The homepage's metadata is **only** a canonical link.
  *
  * Title and description are inherited from `(site)/layout.tsx`, where
