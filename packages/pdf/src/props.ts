@@ -138,6 +138,8 @@ export type ResumePdfProps = {
   resume: ResumePdfDocument;
   /** Selected independent projects, shared with the public résumé page. */
   personalProjects?: readonly { name: string; description: string; url: string }[];
+  /** Right-aligned beside the Personal projects heading, e.g. "SpiritDevs · 2016 — Present". */
+  personalProjectsMeta?: string;
   moreProjectsUrl?: string;
 
   /**

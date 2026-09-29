@@ -374,6 +374,16 @@ export const styles = StyleSheet.create({
     borderTopStyle: 'solid',
   },
 
+  /** Optional right-hand label after the rule; set like `roleDates`. */
+  sectionMeta: {
+    flexShrink: 0,
+    marginLeft: 10,
+    fontFamily: FONT_FAMILY.mono,
+    fontSize: 8,
+    letterSpacing: 0.2,
+    color: INK.ink3,
+  },
+
   /* ---- experience ---------------------------------------------------- */
 
   roleHead: {

@@ -116,11 +116,13 @@ const SECTION_PRESENCE = 72;
  * inline elements: every section heading needs the same "do not strand me"
  * guarantee, and it has to be spelled once.
  */
-function SectionHead({ children }: { children: string }) {
+function SectionHead({ children, meta }: { children: string; meta?: string }) {
   return (
     <View style={styles.sectionHead} minPresenceAhead={SECTION_PRESENCE}>
       <Text style={styles.labelStrong}>{children}</Text>
       <View style={styles.sectionRule} />
+      {/* Right-aligned after the rule, in the same mono as a role's dates. */}
+      {meta ? <Text style={styles.sectionMeta}>{meta}</Text> : null}
     </View>
   );
 }
@@ -425,6 +427,7 @@ export function ResumePdf({
   availabilityVisible,
   resume,
   personalProjects = [],
+  personalProjectsMeta,
   moreProjectsUrl,
   gitStats,
   computedAt,
@@ -510,7 +513,7 @@ export function ResumePdf({
             `wrap={false}` group makes the pair move together, exactly. */}
         {personalProjects.length > 0 ? (
           <>
-            <SectionHead>SELECTED PERSONAL PROJECTS</SectionHead>
+            <SectionHead meta={personalProjectsMeta}>PERSONAL PROJECTS</SectionHead>
             {personalProjects.map((project, i) => (
               <View key={project.name} style={i === 0 ? undefined : { marginTop: 8 }} wrap={false}>
                 <Text style={styles.roleTitle}>{project.name}</Text>

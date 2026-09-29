@@ -1176,8 +1176,14 @@ Visual Editor taught me to see a page builder as a constraint and serialisation 
       "Monorepos and incremental legacy migration",
       "Sync engines, multi-user and real-time editing",
       "Cloud migrations to AWS and Azure",
+      "ADRs, standards and shared tooling",
+      "Payments and partner integrations",
+      "Real-time systems over WebSockets and Ably",
       "TypeScript, React, Next.js, Swift and Convex",
       "Native iOS and Android with offline sync",
+      "Document editors and web/PDF rendering",
+      "Tenant-aware permissions and secure sharing",
+      "Agent-assisted engineering workflows",
       "Technical leadership, code review and mentoring"
     ],
     "experience": [

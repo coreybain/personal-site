@@ -2,7 +2,12 @@ import { renderResumePdf, resumePdfFilename } from "@home/pdf";
 import type { ResumePdfProps } from "@home/pdf";
 
 import { getSiteData } from "@/lib/data";
-import { moreProjectsUrl, resumeProjects, resumeWithProjectSection } from "@/lib/resumeProjects";
+import {
+  moreProjectsUrl,
+  personalProjectsMeta,
+  resumeProjects,
+  resumeWithProjectSection,
+} from "@/lib/resumeProjects";
 import { SITE_URL } from "@/lib/seo";
 
 /**
@@ -128,6 +133,7 @@ export async function GET(): Promise<Response> {
     availabilityVisible: identity.availabilityVisible,
     resume: resumeWithProjectSection(resumeDocument),
     personalProjects: resumeProjects,
+    personalProjectsMeta: personalProjectsMeta(resumeDocument),
     moreProjectsUrl,
     gitStats,
     computedAt,

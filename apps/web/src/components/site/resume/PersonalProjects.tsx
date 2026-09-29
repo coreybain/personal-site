@@ -1,10 +1,15 @@
 import { SkyHead } from "@/components/site/Panel";
 import { moreProjectsUrl, resumeProjects } from "@/lib/resumeProjects";
 
-export function PersonalProjects() {
+export function PersonalProjects({ meta }: { meta?: string }) {
   return (
     <section id="personal-projects" className="res-section scroll-mt-20 pt-16 sm:pt-20">
-      <SkyHead index="04" eyebrow="Selected personal projects" title="Independent work." />
+      <SkyHead
+        index="04"
+        eyebrow="Personal projects"
+        title="Independent work."
+        aside={meta ? <span className="hor-pill">{meta}</span> : undefined}
+      />
       <div className="grid gap-3">
         {resumeProjects.map((project) => (
           <article key={project.name} className="hor-card p-5 sm:p-6">

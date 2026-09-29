@@ -18,24 +18,24 @@ export const resumeProjects = [
 
 export const moreProjectsUrl = "https://spiritdevs.com/labs";
 
+/** The independent-work role, shown beside the Personal projects heading instead of in Experience. */
+const PROJECTS_COMPANY = "SpiritDevs";
+
 /**
- * Project details now have their own section, so the SpiritDevs role shows only
- * its title and a pointer to the smaller projects. The stored summary stays
- * (the schema requires one); an empty string here tells the page and PDF to skip it.
+ * Project details have their own section, so the SpiritDevs role is not
+ * repeated as an Experience entry. The stored role stays: it still counts
+ * towards the years of work experience, and `personalProjectsMeta` prints its
+ * company and dates beside the Personal projects heading.
  */
 export function resumeWithProjectSection(resume: ResumeDocument): ResumeDocument {
   return {
     ...resume,
-    experience: resume.experience.map((role) =>
-      role.company === "SpiritDevs"
-        ? {
-            ...role,
-            summary: "",
-            highlights: [
-              "Additional projects include PartyBooth, a private event photo and video platform, and Pintlog, a Swift app for logging beers and where I tried them.",
-            ],
-          }
-        : role,
-    ),
+    experience: resume.experience.filter((role) => role.company !== PROJECTS_COMPANY),
   };
+}
+
+/** "SpiritDevs · 2016 — Present", or nothing if the role is not on the resume. */
+export function personalProjectsMeta(resume: ResumeDocument): string | undefined {
+  const role = resume.experience.find((entry) => entry.company === PROJECTS_COMPANY);
+  return role ? `${role.company} · ${role.start} — ${role.end}` : undefined;
 }

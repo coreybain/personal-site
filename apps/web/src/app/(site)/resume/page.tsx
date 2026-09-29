@@ -11,7 +11,7 @@ import { ResumeHeader } from "@/components/site/resume/ResumeHeader";
 import { ProfileJsonLd } from "@/components/site/seo";
 import { getSiteData } from "@/lib/data";
 import { deriveResume } from "@/lib/derive";
-import { resumeWithProjectSection } from "@/lib/resumeProjects";
+import { personalProjectsMeta, resumeWithProjectSection } from "@/lib/resumeProjects";
 
 import "./resume.css";
 
@@ -131,7 +131,7 @@ export default async function ResumePage() {
             yearsShipping={derived.yearsShipping}
             tenureYears={derived.tenureYears}
           />
-          <PersonalProjects />
+          <PersonalProjects meta={personalProjectsMeta(resumeDocument)} />
           <Capabilities
             languages={gitStats.languages}
             capabilities={resumeDocument.capabilities}
