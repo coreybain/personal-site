@@ -3,12 +3,6 @@ import type { ResumeDocument } from "@home/types";
 /** Curated personal work, shared by the résumé page and PDF download. */
 export const resumeProjects = [
   {
-    name: "Public profile website",
-    description:
-      "Built my public portfolio with project case studies, live Git activity, agent usage and publishing, supported by browser and native administration.",
-    url: "https://spiritdevs.com/",
-  },
-  {
     name: "Pathway",
     description:
       "An open-source agentic workspace with desktop, web and iOS clients. Brings coding agents, projects, issues, source control and scheduled work into one application.",
@@ -17,7 +11,7 @@ export const resumeProjects = [
   {
     name: "Uploadfile",
     description:
-      "A developer file upload and hosting service I'm building. Files go to regional S3 storage and out through a CloudFront CDN, with signed uploads and access checks at the edge. Accounts, tenant permissions, quotas and usage sit on a Convex sync engine, and billing is its own system with Stripe handling card payments.",
+      "A developer file upload and hosting service I'm building. Files go to regional S3 storage and out through a CloudFront CDN, with signed uploads and access checks at the edge. Custom sync and billing engines handle accounts, tenant permissions, quotas and usage.",
     url: "https://www.uploadfile.dev",
   },
 ] as const;

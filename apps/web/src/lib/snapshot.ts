@@ -1166,37 +1166,25 @@ Visual Editor taught me to see a page builder as a constraint and serialisation 
         "end": "2016",
         "institution": "Charles Sturt University",
         "start": "2015"
-      },
-      {
-        "credential": "Online Study in Mobile Applications Development, Swift 2 & Objective-C Development",
-        "end": "2016",
-        "institution": "Udemy",
-        "start": "2014"
       }
     ],
-    "embedGitStats": true,
+    "embedGitStats": false,
     "summary": "Principal Engineer at Corporate Interactive, where I lead platform architecture across web, iOS and Android for QuoteCloud, TravelDocs, ZeroRisk, SoldOnline and Visual Editor. My focus is keeping every channel on the same domain model, business rules and API contracts, so a feature doesn't ship on one platform and go missing on another. I still write, review and debug production code. I also build independent web, mobile and desktop products through SpiritDevs, including Pathway, an open-source workspace for coding agents.",
     "capabilities": [
-      "Web and mobile platform architecture: one domain model, shared contracts, presentation suited to each channel",
-      "Server-owned business rules and permissions that web, iOS and Android all render from",
-      "Monorepos, shared packages and typed contracts across web, native apps and integrations",
-      "Sync engines, multi-user mode and concurrent editing",
-      "Incremental legacy migration: Java Spring to Node, React and Next.js, and Objective-C to Swift",
-      "Cloud migrations from on-premises to AWS and Azure",
-      "Architecture decision records, standards and shared tooling that make the right path the easy one",
-      "Payments and partner integrations with Xero, Salesforce and Zapier",
-      "TypeScript, React, Next.js, Swift, Convex and Drizzle",
-      "Native iOS and Android apps with offline persistence",
-      "Real-time systems over WebSockets and Ably",
-      "Document editors and shared web/PDF rendering",
-      "Agent-assisted engineering workflows",
-      "Code review, technical leadership and mentoring"
+      "Web and mobile platform architecture",
+      "Shared contracts and server-owned business rules",
+      "Monorepos and incremental legacy migration",
+      "Sync engines, multi-user and real-time editing",
+      "Cloud migrations to AWS and Azure",
+      "TypeScript, React, Next.js, Swift and Convex",
+      "Native iOS and Android with offline sync",
+      "Technical leadership, code review and mentoring"
     ],
     "experience": [
       {
         "company": "Corporate Interactive",
         "title": "Principal Engineer",
-        "summary": "I lead platform architecture across Corporate Interactive's products: QuoteCloud, TravelDocs, ZeroRisk, SoldOnline and Visual Editor. Most of that work is keeping web, iOS and Android on shared contracts and server-owned business rules while customers move off the older systems we are replacing. I still write, review and debug the code that ships.",
+        "summary": "I lead platform architecture across all five products and still write, review and debug the code that ships.",
         "highlights": [
           "Product unification: re-architected QuoteCloud, TravelDocs and ZeroRisk into monorepos spanning web, Android and iOS. In QuoteCloud, the web app, the native iOS app and the Zapier and Salesforce integrations all build against the same type and function packages.",
           "Sync engine: designed the approach for multi-user mode and concurrent editing. The same engine updates client-side libraries automatically and carries function calls between clients and the backend, so web and native apps call the same server functions instead of each keeping its own REST client.",
@@ -1205,9 +1193,7 @@ Visual Editor taught me to see a page builder as a constraint and serialisation 
           "QuoteCloud: document and block-editor architecture, pricing and spreadsheet tools, embedded PDFs, session recovery and shared rendering across the editor, recipient viewer and PDF output. Integrations include Salesforce, Zapier and a two-way, idempotent Xero payment sync in which QuoteCloud stays the system of record for issued invoices.",
           "TravelDocs: itinerary services and native iOS and Android apps connected to Sabre and QuoteCloud, covering offline persistence, synchronisation, silent push, widgets, Live Activities and Apple Watch. I also replaced share links that exposed booking reference and surname with tokenised web handoff links.",
           "ZeroRisk: location and notification behaviour, SOS and check-in flows, tenant-aware permissions, operator maps and the newer web and Expo platform.",
-          "SoldOnline: live auction interfaces, WebSocket connections, buyer registration, offers, role-based visibility, administration, payments and AWS delivery.",
-          "Visual Editor: responsive page composition, editor interactions, content and asset tooling, caching, custom HTML isolation and the modern Next.js application.",
-          "I write architecture decisions up as ADRs (more than 40 for QuoteCloud), define contracts between packages, review and integrate other engineers' work, and plan compatible changes for products customers already use. I also introduced agent-assisted delivery across the engineering team and mentor engineers as they take on broader technical responsibility."
+          "Visual Editor: responsive page composition, editor interactions, content and asset tooling, caching, custom HTML isolation and the modern Next.js application."
         ],
         "start": "2023",
         "end": "Present"

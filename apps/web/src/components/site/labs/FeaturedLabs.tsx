@@ -78,8 +78,8 @@ const FEATURED_SPECS: FeaturedSpec[] = [
     liveLabel: "uploadfile.dev",
     eyebrow: "In development · file hosting platform",
     writeup:
-      "A developer file upload and hosting service I am building end to end. Files go to regional S3 storage and out through a CloudFront CDN, with signed uploads and access checks at the edge. Accounts, tenant permissions, quotas and usage run on a Convex sync engine, billing is its own system with Stripe handling card payments, and UploadThing-compatible SDKs let existing apps switch over.",
-    stack: ["Next.js", "Convex", "AWS", "Stripe"],
+      "A developer file upload and hosting service I am building end to end. Files go to regional S3 storage and out through a CloudFront CDN, with signed uploads and access checks at the edge. Custom sync and billing engines handle accounts, tenant permissions, quotas and usage, and UploadThing-compatible SDKs let existing apps switch over.",
+    stack: ["Next.js", "TypeScript", "AWS"],
   },
   {
     slug: "boca",
