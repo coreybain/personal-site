@@ -404,6 +404,10 @@
 
 .hor .blog-layout {
   display: grid;
+  /* `minmax(0, …)`, not the implicit `auto`: an auto track grows to the
+     widest unbreakable line in the post, so one long code block would push
+     every paragraph off the side of a phone instead of scrolling itself. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 2.25rem;
 }
 
