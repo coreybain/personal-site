@@ -69,6 +69,12 @@ settings edits; inbox status; ingest-token issuing (use
 `ingestTokens:issueForMachine` via the Convex CLI); and media upload (upload
 with UploadThing's server SDK, then reference the URL in a draft).
 
+**Later the same day:** Clerk was removed entirely (ADR 0021) — the web
+middleware, `/api/native/upload`, Convex's `auth.config.ts` and every Clerk
+key — and UploadThing was replaced by Uploadfile (ADR 0020). The native app is
+no longer on the path to removing the admin; its Clerk-based screens no longer
+work.
+
 ## Outcome and agreed sequence
 
 The public website becomes a publishing surface with no browser admin, sign-in screen or browser editing session. Corey manages the same Convex content through an MCP server and a native SwiftUI iOS app. Build and validate the MCP first, complete the native app second, and remove the browser admin last.

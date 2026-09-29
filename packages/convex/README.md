@@ -7,7 +7,6 @@ mutations, crons and HTTP ingest routes all live in `convex/`.
 packages/convex/
 ├── convex/
 │   ├── schema.ts            # all 11 tables — mirrors the Zod schemas in @home/types
-│   ├── auth.config.ts       # Clerk as the JWT issuer (ADR 006)
 │   ├── snapshot.ts          # `api.snapshot.get` — the pattern-setting query
 │   ├── lib/auth.ts          # requireAdmin — every mutation's first line
 │   ├── lib/validate.ts      # nowIso + the format checks Convex validators cannot express
@@ -90,10 +89,7 @@ const snapshot = useQuery(api.snapshot.get);
 
 ## One-time setup
 
-Everything below is done once, in this order. Steps 1 and 2 can be done in
-either order, but 3 → 4 → 5 cannot be reordered: Clerk must exist before its
-issuer URL can be given to Convex, and Convex must have that URL before any
-authenticated call will succeed.
+Everything below is done once, in this order.
 
 ### 1. Install and create the Convex project
 
@@ -128,84 +124,38 @@ it.
 > `_generated` output, not on being able to run codegen — see the note at the
 > top of this file for why that distinction matters.
 
-### 2. Create the Clerk application
+### 2. Set the owner and management environment
 
-In the [Clerk dashboard](https://dashboard.clerk.com):
-
-1. **Create application** → name it `coreybaines.com`.
-2. Enable the sign-in methods you want. This is a single-operator admin, so
-   email + one social provider is plenty. **Turn off public sign-ups** once your
-   own user exists — nobody else should ever be able to create an account.
-3. From **API keys**, copy:
-   - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` (`pk_test_…` / `pk_live_…`)
-   - `CLERK_SECRET_KEY` (`sk_test_…` / `sk_live_…`)
-4. Open your user in **Users** and copy its stable `user_…` id. This is the
-   `ADMIN_CLERK_USER_ID`; it is the authorization allowlist, independent of
-   whether public sign-up is enabled.
-
-### 3. Add the `convex` JWT template in Clerk
-
-**Configure → JWT templates → New template → Convex.**
-
-- The template **must** be named exactly `convex`. That string is the
-  `applicationID` in `convex/auth.config.ts`; Convex matches it against the
-  token's `aud` claim. A mismatch does not error — every authenticated request
-  simply looks unauthenticated.
-- Leave the default claims as Clerk's Convex preset generates them.
-- **Save**, then copy the **Issuer** URL shown on the template. It is your Clerk
-  Frontend API URL:
-  - dev: `https://<verb-noun-00>.clerk.accounts.dev`
-  - prod: `https://clerk.coreybaines.com`
-
-### 4. Give Convex the issuer URL
-
-`auth.config.ts` reads `CLERK_JWT_ISSUER_DOMAIN` from the **Convex deployment**
-environment, not from a local file — the file is evaluated on the Convex side.
-Set it per deployment, in the [Convex dashboard](https://dashboard.convex.dev)
-under **Settings → Environment Variables**, or from the CLI:
+There is no sign-in provider: Clerk was removed on 29 September 2026 (ADR
+0021). Content is managed through the MCP server (`packages/mcp`), which
+authenticates with scoped management tokens, and admin-only functions can be
+run by the deployment owner from the CLI with `--identity`. Two Convex
+environment variables make the management path work:
 
 ```sh
 cd packages/convex
-bunx convex env set CLERK_JWT_ISSUER_DOMAIN https://verb-noun-00.clerk.accounts.dev
-bunx convex env set CLERK_JWT_ISSUER_DOMAIN https://clerk.coreybaines.com --prod
-bunx convex env set ADMIN_CLERK_USER_ID user_your_dev_admin_subject
-bunx convex env set ADMIN_CLERK_USER_ID user_your_prod_admin_subject --prod
+bunx convex env set ADMIN_CLERK_USER_ID <owner-subject>   # the owner every management token belongs to
+bunx convex env set MANAGEMENT_ENVIRONMENT production     # must match the MCP server's HOME_MANAGEMENT_ENVIRONMENT
 ```
 
-Dev and production are separate Clerk instances with separate issuer URLs. Set
-both, or the production admin cannot log in.
+`ADMIN_CLERK_USER_ID` keeps its historical name; it is now just the owner's
+identifier. Issue a management token with
+`bunx convex run managementTokens:issueForMachine` (see `packages/mcp/README.md`).
 
-Also mirror it into `packages/convex/.env.local` (see `.env.example`) so the
-value is visible to anyone reading the repo's local config — the CLI does not
-read it from there, but it documents which Clerk instance a checkout is pointed
-at.
+### 3. Wire the app
 
-### 5. Wire the app
-
-`apps/web/.env.local`:
-
-```sh
-NEXT_PUBLIC_CONVEX_URL=https://<name>.convex.cloud
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_…
-CLERK_SECRET_KEY=sk_test_…
-ADMIN_CLERK_USER_ID=user_…
-```
-
-Then `ClerkProvider` must wrap `ConvexProviderWithClerk` (from
-`convex/react-clerk`, passing Clerk's `useAuth`) in the root layout, so Convex
-can read the Clerk session. Convex refuses the token otherwise.
+`apps/web/.env.local` needs only `NEXT_PUBLIC_CONVEX_URL=https://<name>.convex.cloud`.
+The web app reads Convex anonymously from the server; nothing on the site signs in.
 
 ### Which variable lands where
 
 | Variable                            | Where it is set                          | Why there |
 | ----------------------------------- | ---------------------------------------- | --------- |
 | `CONVEX_DEPLOYMENT`                 | `packages/convex/.env.local` (by the CLI) | Tells the CLI which deployment to push to. Machine-local. |
-| `CLERK_JWT_ISSUER_DOMAIN`           | **Convex dashboard**, per deployment      | Read by `auth.config.ts` at push time, on the Convex side. |
 | `GITHUB_TOKEN` (PAT)                | **Convex dashboard**, per deployment      | Used by the hourly git cron. Private contributions only appear to your own token. |
 | `NEXT_PUBLIC_CONVEX_URL`            | `apps/web/.env.local` + Vercel            | The browser client's endpoint. Public by design. |
-| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | `apps/web/.env.local` + Vercel            | Clerk's browser SDK. Public by design. |
-| `CLERK_SECRET_KEY`                  | `apps/web/.env.local` + Vercel            | Server-side Clerk calls in Next. Never `NEXT_PUBLIC_`. |
-| `ADMIN_CLERK_USER_ID`               | **Convex dashboard** + `apps/web/.env.local` + Vercel | Stable Clerk subject for the sole admin. Both runtimes deny all admin access when absent. |
+| `ADMIN_CLERK_USER_ID`               | **Convex dashboard**, per deployment      | The owner every management token belongs to, and the `--identity` subject for owner-only CLI calls. Management and admin access are denied when absent. |
+| `MANAGEMENT_ENVIRONMENT`            | **Convex dashboard**, per deployment      | `production` or `development`; must match the MCP server's environment or every management call is refused. |
 | `OPENAI_API_KEY`                    | **Convex dashboard**, per deployment — *and* root `.env` + Vercel | The only provider key Ask Corey needs, held by two runtimes. Convex's copy embeds (`knowledge.ts`, `ask.ts`); the web app's copy answers (`/api/ask`). Same key, two environments. See below. |
 | `ASK_MODEL`                         | root `.env` + Vercel (optional)           | Overrides the answering model id — an **OpenAI** id. Defaults to `gpt-5.6-luna`. |
 | `RATE_LIMIT_SALT`                   | root `.env` + Vercel                      | Salts the identifier digest in `apps/web/src/lib/requestIdentity.ts`. Never reaches Convex. |

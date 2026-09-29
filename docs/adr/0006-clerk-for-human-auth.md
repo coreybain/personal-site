@@ -1,7 +1,7 @@
 # ADR 0006 — Clerk for all human auth, browser and iOS
 
 - **Date:** 2026-07-30
-- **Status:** Accepted
+- **Status:** Superseded by ADR 0021 (2026-09-29)
 
 ## Context
 

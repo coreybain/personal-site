@@ -8,7 +8,6 @@
   "globalEnv": [
     "NODE_ENV",
     "NEXT_PUBLIC_CONVEX_URL",
-    "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY",
     // SEO, phase 3. Both are inlined at build time and both change generated
     // output — the first is the origin every canonical, sitemap entry and
     // JSON-LD @id is built from, the second is the ADR 018 index gate that
@@ -21,10 +20,6 @@
   // Server and CLI credentials still need to reach the app processes, but they
   // are runtime inputs rather than public values baked into client bundles.
   "globalPassThroughEnv": [
-    // Runtime authorization input for the native upload and Convex admin
-    // boundaries. It is never bundled into client output.
-    "ADMIN_CLERK_USER_ID",
-    "CLERK_SECRET_KEY",
     "CONVEX_DEPLOYMENT",
     "CONVEX_DEPLOY_KEY",
     "UPLOADFILE_TOKEN",

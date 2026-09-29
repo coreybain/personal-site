@@ -1,11 +1,20 @@
 /**
  * lib/auth.ts — the single place a Convex function decides who may write.
  *
- * ADR 006: Clerk is the only human identity provider, and this site has exactly
- * one human administrator. Authentication is not authorization: a valid Clerk
- * session is accepted only when its stable `subject` matches the deployment's
- * `ADMIN_CLERK_USER_ID`. The check fails closed when that variable is absent,
- * so an accidentally enabled public sign-up can never grant site-wide writes.
+ * This site has exactly one human administrator. An identity is accepted only
+ * when its stable `subject` matches the deployment's `ADMIN_CLERK_USER_ID`, and
+ * the check fails closed when that variable is absent.
+ *
+ * ── No sign-in provider (29 September 2026) ────────────────────────────────
+ *
+ * Clerk has been removed: there is no `auth.config.ts`, so no browser or app
+ * JWT is accepted and `ctx.auth.getUserIdentity()` is null for every client
+ * request. The functions gated here are reachable only by the deployment's
+ * owner through the Convex CLI (`convex run … --identity '{"subject":…}'`,
+ * which needs deploy credentials). Day-to-day content management goes through
+ * the MCP server instead, which authenticates with scoped management tokens
+ * (`lib/managementAuth.ts`) — whose owner is the same `ADMIN_CLERK_USER_ID`
+ * value, kept as a plain identifier despite the name.
  *
  * ── Why a helper rather than a custom function wrapper ─────────────────────
  *
