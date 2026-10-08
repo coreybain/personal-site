@@ -32,7 +32,8 @@ export function PersonalCard({ identity }: { identity: Identity }) {
             fill
             sizes="(min-width: 1024px) 340px, 100vw"
             className="hor-id-img hor-id-img-light"
-            priority
+            preload
+            fetchPriority="high"
           />
           <Image
             src={portraitDark}
@@ -40,6 +41,7 @@ export function PersonalCard({ identity }: { identity: Identity }) {
             fill
             sizes="(min-width: 1024px) 340px, 100vw"
             className="hor-id-img hor-id-img-dark"
+            fetchPriority="high"
           />
         </div>
 
