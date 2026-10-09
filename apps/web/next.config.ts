@@ -33,6 +33,13 @@ const nextConfig: NextConfig = {
   },
   images: {
     /**
+     * AVIF first, WebP for browsers without it. The docs default to WebP alone
+     * because AVIF is slower to encode, but that cost is paid once per variant
+     * and cached; measured on the hero portrait at 640w, AVIF is 20.9 KB
+     * against WebP's 34.2 KB.
+     */
+    formats: ["image/avif", "image/webp"],
+    /**
      * Post covers are Uploadfile URLs (ADR 020). Listing the host lets
      * `next/image` resize and re-encode them (AVIF/WebP) instead of shipping
      * the 1–2 MB source PNG — which on /blog, where the lead card's cover is the

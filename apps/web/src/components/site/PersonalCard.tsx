@@ -7,6 +7,14 @@ import type { Identity } from "@/lib/snapshot";
 import { CommandCopyPicker } from "./CommandCopyPicker";
 
 /**
+ * The photo's rendered width, measured: a fixed 276px in the two-column hero
+ * from 1024px up, and 71–79vw in the stacked layout below it (88% of the
+ * card, which is the shell's width less its gutters). 80vw slightly
+ * overstates the stacked width so the browser never picks a file too small.
+ */
+const PORTRAIT_SIZES = "(min-width: 1024px) 276px, 80vw";
+
+/**
  * The hero's right column: an ID card in the sky-card material. The dashed
  * orbits behind it are decorative and break the card's box on purpose,
  * echoing the wash's arc.
@@ -30,7 +38,7 @@ export function PersonalCard({ identity }: { identity: Identity }) {
             src={portrait}
             alt={`Portrait of ${identity.name}`}
             fill
-            sizes="(min-width: 1024px) 340px, 100vw"
+            sizes={PORTRAIT_SIZES}
             className="hor-id-img hor-id-img-light"
             preload
             fetchPriority="high"
@@ -39,7 +47,7 @@ export function PersonalCard({ identity }: { identity: Identity }) {
             src={portraitDark}
             alt={`Portrait of ${identity.name}`}
             fill
-            sizes="(min-width: 1024px) 340px, 100vw"
+            sizes={PORTRAIT_SIZES}
             className="hor-id-img hor-id-img-dark"
             fetchPriority="high"
           />
