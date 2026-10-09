@@ -37,6 +37,7 @@ function NavCard({
   return (
     <Link
       href={`/work/${project.slug}`}
+      prefetch
       className={`hor-card hor-lift hor-work-card hor-rise work-nav ${
         isNext ? "work-nav-next" : ""
       }`}

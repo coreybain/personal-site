@@ -45,6 +45,7 @@ function NavCard({
   return (
     <Link
       href={`/blog/${post.slug}`}
+      prefetch
       className={`hor-card hor-lift hor-rise blog-nav ${
         isNewer ? "blog-nav-newer" : ""
       }`}

@@ -24,6 +24,7 @@ function WorkCard({ project, index }: { project: Project; index: number }) {
   return (
     <Link
       href={`/work/${project.slug}?from=home`}
+      prefetch
       aria-labelledby={titleId}
       className="hor-card hor-lift hor-work-card hor-rise p-2.5"
       style={{ "--hor-delay": `${60 + index * 60}ms` } as CSSProperties}

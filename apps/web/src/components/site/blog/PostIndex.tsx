@@ -75,6 +75,7 @@ export function PostIndex({ posts }: Pick<BlogDerived, "posts">) {
         <Link
           key={post.slug}
           href={`/blog/${post.slug}`}
+          prefetch
           className="blog-row"
           /* The row already reads "01 · Title · 4 min"; the tags are the one
              part a screen reader would otherwise hear as a bare word list

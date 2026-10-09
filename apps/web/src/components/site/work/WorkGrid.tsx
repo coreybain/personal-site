@@ -51,6 +51,7 @@ function FeatureTile({ project, index }: { project: Project; index: number }) {
   return (
     <Link
       href={`/work/${project.slug}`}
+      prefetch
       className="hor-card hor-lift hor-work-card hor-rise work-tile p-2.5"
       style={delay(60)}
     >
@@ -86,6 +87,7 @@ function WorkTile({ project, index }: { project: Project; index: number }) {
   return (
     <Link
       href={`/work/${project.slug}`}
+      prefetch
       className="hor-card hor-lift hor-work-card hor-rise work-tile flex flex-col p-2.5"
       style={delay(120 + index * 60)}
     >

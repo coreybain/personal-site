@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 
 import { PostAside } from "@/components/site/blog/PostAside";
 import { PostHero } from "@/components/site/blog/PostHero";
@@ -151,12 +152,40 @@ export async function generateMetadata({
  * The body is compiled to HTML **here, on the server**, by `@/lib/markdown` —
  * once per ISR window, not once per visitor, and never in a browser. See
  * `<Prose>` for why the result is set as HTML and why that is safe.
+ *
+ * ── Why the page is a Suspense boundary ────────────────────────────────────
+ *
+ * Partial Prefetching shares one App Shell across every link to this route, so
+ * the shell cannot hold anything that depends on `slug`. The `params` read
+ * therefore lives in `<Post>`, below the boundary. Every published slug is
+ * still prerendered whole, and the post links prefetch with `prefetch={true}`,
+ * which Next serves from the static cache — so the fallback only shows on a
+ * navigation that beats its prefetch.
  */
-export default async function PostPage({
+export default function PostPage({
   params,
 }: {
   params: Promise<PostParams>;
 }) {
+  return (
+    <main>
+      <Suspense fallback={<PostFallback />}>
+        <Post params={params} />
+      </Suspense>
+    </main>
+  );
+}
+
+/** URL-independent placeholder: the head's sky, held to a screen tall. */
+function PostFallback() {
+  return (
+    <section className="hor-sky min-h-svh">
+      <div className="hor-wash" aria-hidden="true" />
+    </section>
+  );
+}
+
+async function Post({ params }: { params: Promise<PostParams> }) {
   const { slug } = await params;
   const [{ identity }, posts] = await Promise.all([getSiteData(), getPosts()]);
 
@@ -170,7 +199,7 @@ export default async function PostPage({
   const { html, toc } = await renderPost(post.body);
 
   return (
-    <main>
+    <>
       {/* Article, from the SEO pass's shared graph — one import, the post and
           the identity this page already holds, no extra reads and no client JS.
           It authors nothing and asserts nothing the page does not print; see
@@ -214,6 +243,6 @@ export default async function PostPage({
           <PostNav prev={prev} next={next} />
         </div>
       </section>
-    </main>
+    </>
   );
 }

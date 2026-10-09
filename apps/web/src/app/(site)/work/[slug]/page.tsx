@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 
 import { Boundary } from "@/components/site/Boundary";
 import { stampTime } from "@/components/site/format";
@@ -80,12 +81,35 @@ export async function generateMetadata({
  * cross-platform build figures all come out of a single `getSiteData()`, so the
  * `03 / 04` in the hero, the `Case 03` on the boundary and the rank in the
  * instrument panel cannot disagree with each other.
+ *
+ * The `params` read sits below a Suspense boundary so the route's shared App
+ * Shell stays URL-independent under Partial Prefetching — the same arrangement,
+ * and the same reasoning, as `/blog/[slug]`.
  */
-export default async function CaseStudyPage({
+export default function CaseStudyPage({
   params,
 }: {
   params: Promise<CaseParams>;
 }) {
+  return (
+    <main>
+      <Suspense fallback={<CaseFallback />}>
+        <CaseStudy params={params} />
+      </Suspense>
+    </main>
+  );
+}
+
+/** URL-independent placeholder: the head's sky, held to a screen tall. */
+function CaseFallback() {
+  return (
+    <section className="hor-sky min-h-svh">
+      <div className="hor-wash" aria-hidden="true" />
+    </section>
+  );
+}
+
+async function CaseStudy({ params }: { params: Promise<CaseParams> }) {
   const { slug } = await params;
   const { identity, projects, aiUsage, computedAt } = await getSiteData();
   const work = deriveWork(projects);
@@ -99,7 +123,7 @@ export default async function CaseStudyPage({
   const bodyHtml = project.body ? await renderMarkdown(project.body) : "";
 
   return (
-    <main>
+    <>
       {/* ── above the horizon: what it is, and what was wrong ─────── */}
       <section className="hor-sky">
         <div className="hor-wash" aria-hidden="true" />
@@ -133,6 +157,6 @@ export default async function CaseStudyPage({
           <CaseNav prev={prev} next={next} projectIndex={work.projectIndex} />
         </div>
       </section>
-    </main>
+    </>
   );
 }

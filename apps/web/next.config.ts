@@ -9,6 +9,14 @@ const nextConfig: NextConfig = {
    * cached reads and docs/plans/preview-area.md for why posts carry a tag.
    */
   cacheComponents: true,
+  /**
+   * Links prefetch each route's shared App Shell (static + cached content
+   * that doesn't depend on the URL) instead of prefetching every link
+   * separately. Recommended alongside Cache Components from 16.4 and the
+   * default in Next 17. No link here uses `prefetch={true}`, so there were no
+   * legacy full prefetches to migrate.
+   */
+  partialPrefetching: true,
   cacheLife: {
     /**
      * Every live read on the public site. Refreshed in the background once a

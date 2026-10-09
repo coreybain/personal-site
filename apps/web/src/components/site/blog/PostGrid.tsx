@@ -74,6 +74,7 @@ function LeadCard({ post }: { post: Post }) {
   return (
     <Link
       href={`/blog/${post.slug}`}
+      prefetch
       className="hor-card hor-lift hor-rise blog-card p-2.5"
       style={delay(60)}
     >
@@ -112,6 +113,7 @@ function PostCard({ post, index }: { post: Post; index: number }) {
   return (
     <Link
       href={`/blog/${post.slug}`}
+      prefetch
       className="hor-card hor-lift hor-rise blog-card p-2.5"
       style={delay(120 + index * 60)}
     >
