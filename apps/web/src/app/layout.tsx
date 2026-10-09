@@ -1,20 +1,9 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 
 import { getSettingsIdentity } from "@/lib/data";
 import { IS_INDEXABLE, METADATA_BASE } from "@/lib/seo";
 
 import "./globals.css";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 /**
  * Site-wide metadata: the things that are true of **every** route in the app,
@@ -203,10 +192,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="en-AU"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
+    <html lang="en-AU" className="h-full antialiased">
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );

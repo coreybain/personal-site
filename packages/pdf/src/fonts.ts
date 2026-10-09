@@ -18,9 +18,8 @@
  *
  * ── Which family, and the licence ──────────────────────────────────────────
  *
- * Geist — the same family apps/web loads through `next/font/google`, so the PDF
- * and the web résumé are the same typeface rather than merely similar ones. It
- * is licensed under the SIL Open Font License 1.1 (© 2023 Vercel, in
+ * Geist, vendored here rather than shared with apps/web: the site itself is set
+ * in Inter and no longer loads Geist at all. It is licensed under the SIL Open Font License 1.1 (© 2023 Vercel, in
  * collaboration with basement.studio); the full text is committed beside the
  * files as `assets/fonts/OFL.txt`, which is what the licence requires of anyone
  * redistributing the binaries. Embedding a subset in a generated PDF is an
